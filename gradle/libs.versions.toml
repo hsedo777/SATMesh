@@ -8,6 +8,7 @@ libsignalProtocolJava = "master-SNAPSHOT"
 material = "1.12.0"
 activity = "1.9.3"
 constraintlayout = "2.2.0"
+playServicesNearby = "19.3.0"
 roomCompiler = "2.7.1"
 roomRuntime = "2.7.1"
 sqlcipherAndroid = "4.9.0"
@@ -23,6 +24,7 @@ libsignal-protocol-java = { module = "com.github.signalapp:libsignal-protocol-ja
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+play-services-nearby = { module = "com.google.android.gms:play-services-nearby", version.ref = "playServicesNearby" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }

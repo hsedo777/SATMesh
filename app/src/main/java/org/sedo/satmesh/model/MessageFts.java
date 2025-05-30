@@ -27,4 +27,36 @@ public class MessageFts {
 
 	@ColumnInfo(name = "recipientNodeId")
 	private Long recipientNodeId;
+
+	public int getRowId() {
+		return rowId;
+	}
+
+	public void setRowId(int rowId) {
+		this.rowId = rowId;
+	}
+
+	public String getContent() {
+		return content;
+	}
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public Long getSenderNodeId() {
+		return senderNodeId;
+	}
+
+	public void setSenderNodeId(Long senderNodeId) {
+		this.senderNodeId = senderNodeId;
+	}
+
+	public Long getRecipientNodeId() {
+		return recipientNodeId;
+	}
+
+	public void setRecipientNodeId(Long recipientNodeId) {
+		this.recipientNodeId = recipientNodeId;
+	}
 }

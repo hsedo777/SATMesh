@@ -114,4 +114,68 @@ public class Message {
 	 */
 	@ColumnInfo(name = "recipientNodeId")
 	private Long recipientNodeId;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getPayloadId() {
+		return payloadId;
+	}
+
+	public void setPayloadId(Long payloadId) {
+		this.payloadId = payloadId;
+	}
+
+	public String getContent() {
+		return content;
+	}
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public long getTimestamp() {
+		return timestamp;
+	}
+
+	public void setTimestamp(long timestamp) {
+		this.timestamp = timestamp;
+	}
+
+	public int getStatus() {
+		return status;
+	}
+
+	public void setStatus(int status) {
+		this.status = status;
+	}
+
+	public int getType() {
+		return type;
+	}
+
+	public void setType(int type) {
+		this.type = type;
+	}
+
+	public Long getSenderNodeId() {
+		return senderNodeId;
+	}
+
+	public void setSenderNodeId(Long senderNodeId) {
+		this.senderNodeId = senderNodeId;
+	}
+
+	public Long getRecipientNodeId() {
+		return recipientNodeId;
+	}
+
+	public void setRecipientNodeId(Long recipientNodeId) {
+		this.recipientNodeId = recipientNodeId;
+	}
 }

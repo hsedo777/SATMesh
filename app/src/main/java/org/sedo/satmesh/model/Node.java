@@ -1,0 +1,35 @@
+package org.sedo.satmesh.model;
+
+
+import androidx.annotation.NonNull;
+import androidx.room.Entity;
+import androidx.room.Index;
+import androidx.room.PrimaryKey;
+
+import org.sedo.satmesh.proto.PersonalInfo;
+
+/**
+ * Represents a node (device) in the mesh network.
+ * Each node corresponds to a unique participant identified by its Signal Protocol address.
+ */
+@Entity(tableName = "node", indices = {@Index(value = "addressName", unique = true)})
+public class Node {
+	@PrimaryKey(autoGenerate = true)
+	private Long id;
+	private String displayName;
+	/**
+	 * The unique identifier for this node, derived from the {@code SignalProtocolAddress.name}.
+	 * This ensures consistency across sessions and network disconnections.
+	 */
+	private String addressName;
+
+	/**
+	 * Populates the node's properties using a PersonalInfo Protocol Buffer object.
+	 * This is typically used when receiving personal information from another node.
+	 * @param info The PersonalInfo object containing the node's address name and display name.
+	 */
+	public void setPersonalInfo(@NonNull PersonalInfo info){
+		this.addressName = info.getAddressName();
+		this.displayName = info.getDisplayName();
+	}
+}

@@ -1,4 +1,4 @@
-package org.sedo.satmesh;
+package org.sedo.satmesh.fragment;
 
 import android.os.Bundle;
 
@@ -7,6 +7,8 @@ import androidx.fragment.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import org.sedo.satmesh.R;
 
 /**
  * A simple {@link Fragment} subclass.

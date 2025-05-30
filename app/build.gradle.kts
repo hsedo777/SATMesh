@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
+    id("androidx.room")
+    id("com.google.protobuf") //Protocol Buffers
 }
 
 android {
@@ -31,6 +33,24 @@ android {
     }
     buildFeatures{
         viewBinding = true
+    }
+    room {
+        schemaDirectory("$projectDir/schemas")
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.3"
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
     }
 }
 

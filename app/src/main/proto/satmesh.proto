@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+// Define the Java package and filename for the generated classes
+option java_package = "org.sedo.satmesh.proto";
+option java_multiple_files = true; // Generates a separate .java file for each message
+
+// Existing message for PreKeyBundle
+message SignalPreKeyBundle {
+  int32 registration_id = 1;
+  int32 device_id = 2;
+  int32 pre_key_id = 3;
+  bytes pre_key_public_key = 4;
+  int32 signed_pre_key_id = 5;
+  bytes signed_pre_key_public_key = 6;
+  bytes signed_pre_key_signature = 7;
+  bytes identity_key_public_key = 8;
+}
+
+// New message for Key Exchange (wrapping the serialized PreKeyBundle)
+message PreKeyBundleExchange {
+  bytes pre_key_bundle = 1;       // The serialized SignalPreKeyBundle
+}
+
+// New message for personal information exchange
+message PersonalInfo{
+  string address_name = 1; // The SignalProtocolAddress.name of the sender
+  string display_name = 2; // The display name of the node
+  bool expect_result = 3; // Inform the recipient if you want he send you his personal info
+}
+
+// Text message
+message TextMessage{
+  string content = 1;
+  int64 timestamp = 2;
+  int64 payloadId = 3;
+}
+
+// New generic message type for all Nearby Signal communications
+message NearbyMessage {
+  bool exchange = 1; // Specify if it is keys exchange message or not
+
+  oneof payload_content { // Only one of these fields will be set
+    PreKeyBundleExchange key_exchange_message = 2; //  PreKeySignalMessage
+    bytes body = 3; // An encrypted value of NearbyMessageBody using the receiver PK
+  }
+}
+
+// New generic message body type for all Nearby Signal encrypted communications
+message NearbyMessageBody {
+  enum MessageType {
+    UNKNOWN = 0;
+    ROUTE_DISCOVERY = 1;
+    ENCRYPTED_MESSAGE = 2;
+    MESSAGE_DELIVERED_ACK = 3;
+    MESSAGE_READ_ACK = 4;
+    PERSONAL_INFO = 5;
+    CONTACT_UPDATE_INFO = 6;
+    TYPING_INDICATOR = 7;
+  }
+  MessageType message_type = 1;
+  //string sender_address_name = 2; // SignalProtocolAddress.name of the actual sender
+  /*
+  * Raw bytes of CiphertextMessage (SignalMessage) : in {PersonalInfo, TextMessage,
+  * MessageAck, TypingIndicatorMessage}
+  * There is one exception : if the sender and the recipient are neighbor then this
+  * attribute will contain just the raw byte of the message. But for relay message,
+  * the packet is subject automatically to encryption
+  */
+  bytes encrypted_data = 3;
+  //int64 relatedPayloadId = 4;
+}
+
+//Message for types `MESSAGE_DELIVERED_ACK` and `MESSAGE_READ_ACK`
+message MessageAck {
+  int64 payloadId = 1; // original message payload ID
+}
+
+// Message type for `TYPING_INDICATOR`
+message TypingIndicator {
+  bool is_typing = 1; // True if the node is writing, False else
+}

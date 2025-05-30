@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<color name="black">#FF000000</color>
+	<color name="white">#FFFFFFFF</color>
+
+	<color name="colorPrimary">#4E8CA3</color>
+	<color name="colorPrimaryVariant">#6BAFA7</color>
+	<color name="colorBackground">#EFF5F5</color>
+	<color name="textPrimary">#1F3338</color>
+	<color name="textSecondary">#4B666E</color>
+
+	<!-- Surfaces and cards -->
+	<color name="colorSurface">#FFFFFF</color>
+	<color name="colorSurfaceLight">#F7FAFA</color>
+	<color name="colorOnSurface">#1F3338</color>
+
+	<!-- Button text, links… -->
+	<color name="colorAccentText">#4E8CA3</color>
+</resources>

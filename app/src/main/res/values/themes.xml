@@ -1,0 +1,21 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+	<!-- Base application theme. -->
+	<style name="Base.Theme.SATMesh" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+		<!-- Customize your light theme here. -->
+		<item name="colorPrimary">@color/colorPrimary</item>
+		<item name="colorPrimaryDark">@color/colorPrimaryVariant</item>
+		<item name="android:colorBackground">@color/colorBackground</item>
+		<item name="colorOnBackground">@color/textPrimary</item>
+
+		<!-- Surfaces (cards, sheets…) -->
+		<item name="colorSurface">@color/colorSurface</item>
+		<item name="colorOnSurface">@color/colorOnSurface</item>
+		<item name="colorOnSurfaceVariant">@color/colorSurfaceLight</item>
+
+		<!-- Bottom navigation & Action Bar -->
+		<item name="bottomNavigationStyle">@style/Widget.SATMesh.BottomNavigation</item>
+		<item name="actionBarStyle">@style/Widget.SATMesh.ActionBar</item>
+	</style>
+
+	<style name="Theme.SATMesh" parent="Base.Theme.SATMesh" />
+</resources>

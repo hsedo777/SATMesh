@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- res/values/styles.xml -->
+	<style name="Widget.SATMesh.TextInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+		<item name="boxBackgroundColor">@color/colorSurface</item>
+		<item name="boxStrokeColor">@color/colorPrimary</item>
+		<item name="hintTextColor">@color/textSecondary</item>
+	</style>
+
+	<style name="Widget.SATMesh.Button" parent="Widget.MaterialComponents.Button">
+		<item name="backgroundTint">@color/colorPrimary</item>
+		<item name="android:textColor">@color/colorSurface</item>
+		<item name="elevation">4dp</item>
+	</style>
+
+	<!-- Style for BottomNavigationView -->
+	<style name="Widget.SATMesh.BottomNavigation" parent="Widget.MaterialComponents.BottomNavigationView">
+		<item name="android:background">@color/colorBackground</item>
+		<item name="itemIconTint">@color/bottom_nav_icon_color</item>
+		<item name="itemTextColor">@color/bottom_nav_icon_color</item>
+	</style>
+
+	<!-- Style for ActionBar (Toolbar) -->
+	<style name="Widget.SATMesh.ActionBar" parent="Widget.MaterialComponents.Toolbar">
+		<item name="android:background">@color/colorBackground</item>
+		<item name="android:titleTextColor">@color/textPrimary</item>
+		<item name="android:subtitleTextColor">@color/textSecondary</item>
+	</style>
+
+</resources>

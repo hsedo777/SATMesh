@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="app_name">SATMesh</string>
+	<string name="welcome_title">Bienvenue !</string>
+	<string name="welcome_description">Votre nom d\'utilisateur svp</string>
+	<string name="username_hint">Nom d\'utilisateur</string>
+	<string name="remaining_characters">%1$d caractères restants</string>
+	<string name="continue_button">Continuer</string>
+</resources>

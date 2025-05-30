@@ -1,3 +1,8 @@
 <resources>
 	<string name="app_name">SATMesh</string>
+	<string name="welcome_title">Welcome!</string>
+	<string name="welcome_description">Set your username to start chatting.</string>
+	<string name="username_hint">Username</string>
+	<string name="remaining_characters">%1$d characters remaining</string>
+	<string name="continue_button">Continue</string>
 </resources>

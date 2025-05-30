@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- Spacing (margins, paddings) -->
+	<dimen name="space_xs">4dp</dimen>
+	<dimen name="space_sm">8dp</dimen>
+	<dimen name="space_md">16dp</dimen>
+	<dimen name="space_lg">24dp</dimen>
+	<dimen name="space_xl">32dp</dimen>
+	<dimen name="space_xxl">64dp</dimen>
+
+	<!-- Font sizes -->
+	<dimen name="text_size_small">12sp</dimen>
+	<dimen name="text_size_body">16sp</dimen>
+	<dimen name="text_size_title">20sp</dimen>
+	<dimen name="text_size_heading">24sp</dimen>
+
+	<!-- Input height -->
+	<dimen name="input_height">56dp</dimen>
+
+	<!-- Button height -->
+	<dimen name="button_height">48dp</dimen>
+
+	<!-- Corner radius -->
+	<dimen name="corner_radius">12dp</dimen>
+</resources>

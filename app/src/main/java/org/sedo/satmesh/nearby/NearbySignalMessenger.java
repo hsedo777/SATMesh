@@ -1,10 +1,10 @@
 package org.sedo.satmesh.nearby;
 
+import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MESSAGE;
 import static org.sedo.satmesh.signal.SignalManager.DecryptionCallback;
 import static org.sedo.satmesh.signal.SignalManager.EncryptionCallback;
 import static org.sedo.satmesh.signal.SignalManager.SessionCallback;
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
-import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MESSAGE;
 
 import android.content.Context;
 import android.util.Log;
@@ -73,27 +73,12 @@ public class NearbySignalMessenger {
 	private final SignalManager signalManager;
 	private final Executor executor; // For background tasks to avoid blocking UI thread
 	private final SignalMessengerCallback messengerCallback;
-
-	/**
-	 * True if we are advertising.
-	 */
-	private boolean isAdvertising = false;
-
-	/**
-	 * True if we are discovering.
-	 */
-	private final boolean isDiscovering = false;
-	/**
-	 * True if we are asking a discovered device to connect to us. While we ask, we cannot ask another
-	 * device.
-	 */
-	private final boolean isConnecting = false;
-
 	// Listeners
 	private final List<MessageReceivedListener> messageReceivedListeners = new ArrayList<>();
 	private final List<DeviceConnectionListener> deviceConnectionListeners = new ArrayList<>();
 	private final List<MessageSendingListener> messageSendingListeners = new ArrayList<>();
 	private final List<AdvertisingListener> advertisingListeners = new ArrayList<>();
+	private final List<DiscoveringListener> discoveringListeners = new ArrayList<>();
 	private final List<KeyExchangeListener> keyExchangeListeners = new ArrayList<>();
 	private final List<EncryptedMessageDecryptionFailureListener> decryptionFailureListeners = new ArrayList<>();
 	private final List<PersonalInfoChangeListener> infoChangeListeners = new ArrayList<>();
@@ -162,6 +147,19 @@ public class NearbySignalMessenger {
 			}
 		}
 	};
+	/**
+	 * True if we are advertising.
+	 */
+	private boolean isAdvertising = false;
+	/**
+	 * True if we are discovering.
+	 */
+	private boolean isDiscovering = false;
+	/**
+	 * True if we are asking a discovered device to connect to us. While we ask, we cannot ask another
+	 * device.
+	 */
+	private boolean isConnecting = false;
 
 	/**
 	 * Constructor for NearbySignalMessenger.
@@ -211,6 +209,15 @@ public class NearbySignalMessenger {
 	 */
 	public void addAdvertisingListener(AdvertisingListener listener) {
 		this.advertisingListeners.add(listener);
+	}
+
+	/**
+	 * Adds the listener for discovering events.
+	 *
+	 * @param listener The implementation of {@link DiscoveringListener}.
+	 */
+	public void addDiscoveringListener(DiscoveringListener listener) {
+		this.discoveringListeners.add(listener);
 	}
 
 	/**
@@ -291,7 +298,7 @@ public class NearbySignalMessenger {
 	 * Starts discovering other devices advertising the same service ID.
 	 */
 	public void startDiscovery() {
-		if (isDiscovering()){
+		if (isDiscovering()) {
 			Log.i(TAG, "Already discovering !");
 			return;
 		}
@@ -323,8 +330,16 @@ public class NearbySignalMessenger {
 						SERVICE_ID,
 						endpointDiscoveryCallback,
 						discoveryOptions
-				).addOnSuccessListener(unused -> Log.d(TAG, "Discovery started successfully"))
-				.addOnFailureListener(e -> Log.e(TAG, "Failed to start discovery", e));
+				).addOnSuccessListener(unused -> {
+					Log.d(TAG, "Discovery started successfully");
+					isDiscovering = true;
+					discoveringListeners.forEach(DiscoveringListener::onDiscoveringStarted);
+				})
+				.addOnFailureListener(e -> {
+					Log.e(TAG, "Failed to start discovery", e);
+					isDiscovering = false;
+					discoveringListeners.forEach(l -> l.onDiscoveringFailed(e));
+				});
 	}
 
 	/**
@@ -332,7 +347,23 @@ public class NearbySignalMessenger {
 	 */
 	public void stopDiscovery() {
 		connectionsClient.stopDiscovery();
+		isDiscovering = false;
 		Log.d(TAG, "Discovery stopped");
+	}
+
+	/**
+	 * Stop all Nearby API interactions
+	 */
+	public void stopNearby() {
+		executor.execute(() -> {
+			stopDiscovery();
+			stopAdvertising();
+			for (String endpoint : connectedEndpointAddresses.keySet()){
+				connectionsClient.disconnectFromEndpoint(endpoint);
+			}
+			pendingEndpointAddresses.clear();
+			connectedEndpointAddresses.clear();
+		});
 	}
 
 	/**
@@ -738,12 +769,21 @@ public class NearbySignalMessenger {
 	}
 
 	/**
-	 * Listening advertising
+	 * Listening for advertising
 	 */
 	public interface AdvertisingListener {
 		void onAdvertisingStarted();
 
 		void onAdvertisingFailed(Exception e);
+	}
+
+	/**
+	 * Listening for advertising
+	 */
+	public interface DiscoveringListener {
+		void onDiscoveringStarted();
+
+		void onDiscoveringFailed(Exception e);
 	}
 
 	/**

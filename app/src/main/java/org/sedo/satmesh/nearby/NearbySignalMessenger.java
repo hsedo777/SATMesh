@@ -1,30 +1,19 @@
 package org.sedo.satmesh.nearby;
 
+import static org.sedo.satmesh.nearby.NearbyManager.*;
 import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MESSAGE;
 import static org.sedo.satmesh.signal.SignalManager.DecryptionCallback;
 import static org.sedo.satmesh.signal.SignalManager.EncryptionCallback;
 import static org.sedo.satmesh.signal.SignalManager.SessionCallback;
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
 
-import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.common.api.Status;
-import com.google.android.gms.nearby.Nearby;
-import com.google.android.gms.nearby.connection.AdvertisingOptions;
-import com.google.android.gms.nearby.connection.ConnectionInfo;
-import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
-import com.google.android.gms.nearby.connection.ConnectionResolution;
-import com.google.android.gms.nearby.connection.ConnectionsClient;
-import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
-import com.google.android.gms.nearby.connection.DiscoveryOptions;
-import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Payload;
-import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
-import com.google.android.gms.nearby.connection.Strategy;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -47,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
 
 /**
  * Manages Nearby Connections for discovering devices, establishing connections,
@@ -58,126 +46,75 @@ import java.util.function.BiConsumer;
 public class NearbySignalMessenger {
 
 	private static final String TAG = "NearbySignalMessenger";
-	private static final String SERVICE_ID = "org.sedo.tampon.SECURE_MESSENGER"; // Unique service ID for the app
-	private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
 
-	// Map to store connected endpoints: endpointId -> remote device's SignalProtocolAddress name
-	private final Map<String, String> connectedEndpointAddresses = new HashMap<>();
 	// Map to store endpoint IDs by SignalProtocolAddress name: remote device's SignalProtocolAddress name -> endpointId
 	private final Map<String, String> addressToEndpointId = new HashMap<>();
 
-	// Map to store pending endpoints: endpointId -> remote device's SignalProtocolAddress name
-	private final Map<String, String> pendingEndpointAddresses = new HashMap<>();
-
-	private final ConnectionsClient connectionsClient;
 	private final SignalManager signalManager;
+	private final NearbyManager nearbyManager;
 	private final ExecutorService executor; // For background tasks to avoid blocking UI thread
 	private final SignalMessengerCallback messengerCallback;
 	// Listeners
 	private final List<MessageReceivedListener> messageReceivedListeners = new ArrayList<>();
-	private final List<DeviceConnectionListener> deviceConnectionListeners = new ArrayList<>();
 	private final List<MessageSendingListener> messageSendingListeners = new ArrayList<>();
-	private final List<AdvertisingListener> advertisingListeners = new ArrayList<>();
-	private final List<DiscoveringListener> discoveringListeners = new ArrayList<>();
 	private final List<KeyExchangeListener> keyExchangeListeners = new ArrayList<>();
 	private final List<EncryptedMessageDecryptionFailureListener> decryptionFailureListeners = new ArrayList<>();
 	private final List<PersonalInfoChangeListener> infoChangeListeners = new ArrayList<>();
-	/**
-	 * PayloadCallback handles incoming data payloads.
-	 * It processes received bytes as Protobuf messages and dispatches them.
-	 */
-	private final PayloadCallback payloadCallback = new PayloadCallback() {
+
+	private final PayloadListener payloadListener = new PayloadListener() {
 		@Override
 		public void onPayloadReceived(@NonNull String endpointId, @NonNull Payload payload) {
 			executor.execute(() -> handleReceivedNearbyMessage(endpointId, payload));
 		}
+	};
+
+	private final DeviceConnectionListener connectionListener = new DeviceConnectionListener() {
+		@Override
+		public void onConnectionInitiated(String endpointId, String deviceAddressName) {}
 
 		@Override
-		public void onPayloadTransferUpdate(@NonNull String endpointId, @NonNull PayloadTransferUpdate update) {
-			/*
-			 * Handle payload transfer updates (e.g., progress, completion).
-			 * For small messages like these, it might not be strictly necessary,
-			 * but can be useful for larger file transfers.
-			 */
-			Log.d(TAG, "Payload transfer update: " + update.getPayloadId() + " " + update.getStatus());
+		public void onDeviceConnected(String endpointId, String deviceAddressName) {
+			addressToEndpointId.put(deviceAddressName, endpointId);
+			// Immediately initiate key exchange after connection is established
+			executor.execute(() -> initiateKeyExchange(endpointId, deviceAddressName));
+		}
+
+		@Override
+		public void onConnectionFailed(String deviceAddressName, Status status) {}
+
+		@Override
+		public void onDeviceDisconnected(String unused, String deviceAddressName) {
+			addressToEndpointId.remove(deviceAddressName);
 		}
 	};
-	/**
-	 * ConnectionLifecycleCallback handles the lifecycle of connections.
-	 * It initiates connection, processes results, and handles disconnections.
-	 */
-	private final ConnectionLifecycleCallback connectionLifecycleCallback = new ConnectionLifecycleCallback() {
-		@Override
-		public void onConnectionInitiated(@NonNull String endpointId, ConnectionInfo connectionInfo) {
-			Log.d(TAG, "Connection initiated with: " + endpointId + " Name: " + connectionInfo.getEndpointName());
-			pendingEndpointAddresses.put(endpointId, connectionInfo.getEndpointName());
-			// Automatically accept all connections for simplicity in this example.
-			// In a production app, you might want to show a dialog to the user for confirmation.
-			connectionsClient.acceptConnection(endpointId, payloadCallback);
-			deviceConnectionListeners.forEach(listener -> listener.onConnectionInitiated(connectionInfo.getEndpointName()));
-		}
-
-		@Override
-		public void onConnectionResult(@NonNull String endpointId, ConnectionResolution result) {
-			String remoteAddressName = pendingEndpointAddresses.remove(endpointId);
-			if (result.getStatus().isSuccess()) {
-				Log.d(TAG, "Connection established with: " + endpointId);
-				// Store the mapping between endpointId and the remote device's SignalProtocolAddress name
-				// The endpointName provided by Nearby Connections is the remote user's SignalProtocolAddress.name
-				connectedEndpointAddresses.put(endpointId, remoteAddressName);
-				addressToEndpointId.put(remoteAddressName, endpointId);
-
-				deviceConnectionListeners.forEach(listener -> listener.onDeviceConnected(remoteAddressName));
-
-				// Immediately initiate key exchange after connection is established
-				executor.execute(() -> initiateKeyExchange(endpointId, remoteAddressName));
-			} else {
-				Log.e(TAG, "Connection failed with: " + endpointId + " Status: " + result.getStatus().getStatusMessage());
-				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(remoteAddressName, result.getStatus()));
-			}
-		}
-
-		@Override
-		public void onDisconnected(@NonNull String endpointId) {
-			Log.d(TAG, "Disconnected from: " + endpointId);
-			String deviceAddress = connectedEndpointAddresses.remove(endpointId);
-			if (deviceAddress != null) {
-				addressToEndpointId.remove(deviceAddress);
-				deviceConnectionListeners.forEach(l -> l.onDeviceDisconnected(deviceAddress));
-			}
-		}
-	};
-	/**
-	 * True if we are advertising.
-	 */
-	private boolean isAdvertising = false;
-	/**
-	 * True if we are discovering.
-	 */
-	private boolean isDiscovering = false;
-	/**
-	 * True if we are asking a discovered device to connect to us. While we ask, we cannot ask another
-	 * device.
-	 */
-	private boolean isConnecting = false;
 
 	/**
 	 * Constructor for NearbySignalMessenger.
 	 *
-	 * @param context           The application context.
 	 * @param signalManager     The SignalManager instance for cryptographic operations.
 	 * @param messengerCallback Used to notify caller of this method of operations which are to execute once, such as data persistence.
 	 */
-	public NearbySignalMessenger(@NonNull Context context, @NonNull SignalManager signalManager, @NonNull SignalMessengerCallback messengerCallback) {
-		this.connectionsClient = Nearby.getConnectionsClient(context);
+	public NearbySignalMessenger(@NonNull SignalManager signalManager, @NonNull NearbyManager nearbyManager, @NonNull SignalMessengerCallback messengerCallback) {
 		this.signalManager = signalManager;
+		this.nearbyManager = nearbyManager;
 		this.messengerCallback = messengerCallback;
 		this.executor = Executors.newSingleThreadExecutor(); // Single thread for ordered message processing
+		// NearbyManager listeners
+		this.nearbyManager.addPayloadListener(payloadListener);
+		this.nearbyManager.addDeviceConnectionListener(connectionListener);
+	}
+
+	/**
+	 * Remove all listeners this instance put on the `NearbyManager`
+	 */
+	public void clearNearbyManagerListeners(){
+		nearbyManager.removePayloadListener(payloadListener);
 	}
 
 	@Override
 	protected void finalize() throws Throwable {
 		executor.shutdown();
+		clearNearbyManagerListeners();
 		super.finalize();
 	}
 
@@ -191,39 +128,12 @@ public class NearbySignalMessenger {
 	}
 
 	/**
-	 * Adds the listener for device connection/disconnection events.
-	 *
-	 * @param listener The implementation of DeviceConnectionListener.
-	 */
-	public void addDeviceConnectionListener(DeviceConnectionListener listener) {
-		this.deviceConnectionListeners.add(listener);
-	}
-
-	/**
 	 * Adds the listener for message sending to neighbor events.
 	 *
 	 * @param listener The implementation of {@link MessageSendingListener}.
 	 */
 	public void addDeviceConnectionListener(MessageSendingListener listener) {
 		this.messageSendingListeners.add(listener);
-	}
-
-	/**
-	 * Adds the listener for advertising events.
-	 *
-	 * @param listener The implementation of {@link AdvertisingListener}.
-	 */
-	public void addAdvertisingListener(AdvertisingListener listener) {
-		this.advertisingListeners.add(listener);
-	}
-
-	/**
-	 * Adds the listener for discovering events.
-	 *
-	 * @param listener The implementation of {@link DiscoveringListener}.
-	 */
-	public void addDiscoveringListener(DiscoveringListener listener) {
-		this.discoveringListeners.add(listener);
 	}
 
 	/**
@@ -254,125 +164,6 @@ public class NearbySignalMessenger {
 	}
 
 	/**
-	 * Returns {@code true} if currently advertising.
-	 */
-	protected boolean isAdvertising() {
-		return isAdvertising;
-	}
-
-	/**
-	 * Starts advertising this device to be discovered by others.
-	 * The advertising name used is the device's SignalProtocolAddress name.
-	 */
-	public void startAdvertising() {
-		if (isAdvertising()) {
-			return;
-		}
-		AdvertisingOptions advertisingOptions = new AdvertisingOptions.Builder()
-				.setStrategy(STRATEGY).build();
-
-		connectionsClient.startAdvertising(
-						signalManager.getLocalAddress().getName(), // Use local address name as advertising name
-						SERVICE_ID,
-						connectionLifecycleCallback,
-						advertisingOptions
-				).addOnSuccessListener(unused -> {
-					Log.d(TAG, "Advertising started successfully");
-					isAdvertising = true;
-					advertisingListeners.forEach(AdvertisingListener::onAdvertisingStarted);
-				})
-				.addOnFailureListener(e -> {
-					Log.e(TAG, "Failed to start advertising", e);
-					advertisingListeners.forEach(l -> l.onAdvertisingFailed(e));
-				});
-	}
-
-	/**
-	 * Stops advertising.
-	 */
-	public void stopAdvertising() {
-		connectionsClient.stopAdvertising();
-		isAdvertising = false;
-		Log.d(TAG, "Advertising stopped");
-	}
-
-	public boolean isDiscovering() {
-		return isDiscovering;
-	}
-
-	/**
-	 * Starts discovering other devices advertising the same service ID.
-	 */
-	public void startDiscovery() {
-		if (isDiscovering()) {
-			Log.i(TAG, "Already discovering !");
-			return;
-		}
-		DiscoveryOptions discoveryOptions = new DiscoveryOptions.Builder()
-				.setStrategy(STRATEGY)
-				.build();
-
-		EndpointDiscoveryCallback endpointDiscoveryCallback = new EndpointDiscoveryCallback() {
-			@Override
-			public void onEndpointFound(@NonNull String endpointId, DiscoveredEndpointInfo info) {
-				Log.d(TAG, "Endpoint found: " + info.getEndpointName() + " with ID: " + endpointId);
-				// Request connection to the discovered endpoint.
-				// In production, you might want to filter or prompt the user before connecting.
-				connectionsClient.requestConnection(
-								signalManager.getLocalAddress().getName(), // Local device's advertising name
-								endpointId,
-								connectionLifecycleCallback
-						).addOnSuccessListener(unused -> Log.d(TAG, "Requested connection to " + info.getEndpointName()))
-						.addOnFailureListener(e -> Log.e(TAG, "Failed to request connection to " + info.getEndpointName(), e));
-			}
-
-			@Override
-			public void onEndpointLost(@NonNull String endpointId) {
-				Log.d(TAG, "Endpoint lost: " + endpointId);
-			}
-		};
-
-		connectionsClient.startDiscovery(
-						SERVICE_ID,
-						endpointDiscoveryCallback,
-						discoveryOptions
-				).addOnSuccessListener(unused -> {
-					Log.d(TAG, "Discovery started successfully");
-					isDiscovering = true;
-					discoveringListeners.forEach(DiscoveringListener::onDiscoveringStarted);
-				})
-				.addOnFailureListener(e -> {
-					Log.e(TAG, "Failed to start discovery", e);
-					isDiscovering = false;
-					discoveringListeners.forEach(l -> l.onDiscoveringFailed(e));
-				});
-	}
-
-	/**
-	 * Stops discovering devices.
-	 */
-	public void stopDiscovery() {
-		connectionsClient.stopDiscovery();
-		isDiscovering = false;
-		Log.d(TAG, "Discovery stopped");
-	}
-
-	/**
-	 * Stop all Nearby API interactions
-	 */
-	public void stopNearby() {
-		executor.execute(() -> {
-			stopDiscovery();
-			stopAdvertising();
-			for (String endpoint : connectedEndpointAddresses.keySet()){
-				connectionsClient.disconnectFromEndpoint(endpoint);
-			}
-			pendingEndpointAddresses.clear();
-			connectedEndpointAddresses.clear();
-		});
-	}
-
-	/**
 	 * Initiates the Signal Protocol key exchange with a connected endpoint.
 	 * This sends the local device's PreKeyBundle to the remote device.
 	 *
@@ -395,7 +186,7 @@ public class NearbySignalMessenger {
 					.setKeyExchangeMessage(preKeyBundleExchange)
 					.build();
 
-			sendNearbyMessage(endpointId, nearbyMessage, null);
+			nearbyManager.sendNearbyMessage(endpointId, nearbyMessage, null);
 
 			Log.d(TAG, "Key exchange initiated with: " + remoteAddressName);
 		} catch (Exception e) {
@@ -446,15 +237,15 @@ public class NearbySignalMessenger {
 								.setBody(ByteString.copyFrom(cipherData))
 								.build();
 
-						sendNearbyMessage(endpointId, nearbyMessage, (payload, success) -> {
+						nearbyManager.sendNearbyMessage(endpointId, nearbyMessage, (payload, success) -> {
 							if (success) {
 								// Send succeed
-								messengerCallback.onSendSucceed(remoteAddressName, payload);
+								messengerCallback.onPayloadSent(remoteAddressName, payload);
 								messageSendingListeners.forEach(l -> l.onSendSucceed(remoteAddressName,
 										message.toBuilder().setPayloadId(payload.getId()).build()));
 							} else {
 								// sending fails
-								messengerCallback.onSendFailed(remoteAddressName, message);
+								messageSendingListeners.forEach(l -> l.onSendFailed(remoteAddressName, message));
 							}
 						});
 					}
@@ -499,7 +290,7 @@ public class NearbySignalMessenger {
 					NearbyMessage message = NearbyMessage.newBuilder()
 							.setExchange(false)
 							.setBody(ByteString.copyFrom(cipherMessage.serialize())).build();
-					sendNearbyMessage(endpointId, message, null);
+					nearbyManager.sendNearbyMessage(endpointId, message, null);
 				}
 
 				@Override
@@ -527,7 +318,7 @@ public class NearbySignalMessenger {
 			// Actually, only bytes messages are supported
 			byte[] data = payload.asBytes();
 			NearbyMessage nearbyMessage = NearbyMessage.parseFrom(data);
-			String senderAddressName = connectedEndpointAddresses.get(endpointId);
+			String senderAddressName = nearbyManager.getEndpointName(endpointId);
 
 			if (nearbyMessage.getExchange()) {
 				handleReceivedKeyExchange(endpointId, senderAddressName, nearbyMessage.getKeyExchangeMessage().getPreKeyBundle().toByteArray(), payload.getId());
@@ -567,7 +358,6 @@ public class NearbySignalMessenger {
 					 * This is crucial because `onConnectionResult` only knows the endpointName, not the
 					 * actual SignalProtocolAddress until key exchange is complete.
 					 */
-					connectedEndpointAddresses.put(endpointId, senderAddressName);
 					addressToEndpointId.put(senderAddressName, endpointId);
 					keyExchangeListeners.forEach(l -> l.onSessionInitSuccess(senderAddressName));
 				}
@@ -671,78 +461,50 @@ public class NearbySignalMessenger {
 	}
 
 	/**
-	 * Helper method to send a Protobuf NearbyMessage over a connection.
-	 *
-	 * @param endpointId The ID of the endpoint to send the message to.
-	 * @param message    The NearbyMessage Protobuf object to send.
-	 * @param callback   consume the payload, after attempt to send the message, and a boolean
-	 *                   specifying success or failure of the message.
-	 */
-	private void sendNearbyMessage(@NonNull String endpointId, @NonNull NearbyMessage message, BiConsumer<Payload, Boolean> callback) {
-		Payload payload = Payload.fromBytes(message.toByteArray());
-		connectionsClient.sendPayload(endpointId, payload)
-				.addOnSuccessListener(unused -> {
-					Log.d(TAG, "Payload sent to " + endpointId);
-					if (callback != null) {
-						callback.accept(payload, true);
-					}
-				})
-				.addOnFailureListener(e -> {
-					Log.e(TAG, "Failed to send payload to " + endpointId, e);
-					if (callback != null) {
-						callback.accept(payload, false);
-					}
-				});
-	}
-
-	/**
-	 * Signal Messenger Callback
+	 * Signal Messenger Callback for core internal operations like data persistence and network acknowledgements.
+	 * This should typically be implemented by a Repository or a central data management layer.
 	 */
 	public interface SignalMessengerCallback {
 		/**
 		 * Persist the message and send (or request for) delivered ack
 		 */
+		/**
+		 * Persists the given TextMessage to local storage and handles sending (or requesting for) delivered acknowledgement.
+		 *
+		 * @param message           The TextMessage to persist.
+		 * @param senderAddressName The Signal address name of the sender.
+		 */
 		void persistTextMessage(TextMessage message, String senderAddressName);
 
 		/**
-		 * Marks the bound message to the payload ID as delivered or read.
+		 * Marks the message bound to the payload ID as delivered or read in local storage.
 		 *
-		 * @param payloadId The payload ID of the message to mark
-		 * @param delivered use {@code true} to mark the message as delivered,
+		 * @param payloadId The payload ID of the message to mark.
+		 * @param delivered Use {@code true} to mark the message as delivered,
 		 *                  and {@code false} to mark the message as read.
 		 */
 		void markMessageAsOfStatus(long payloadId, boolean delivered);
 
 		/**
-		 * Maps personal info. This method has the responsibility to test
-		 * {@link PersonalInfo#getExpectResult()} to know if a response is
-		 * to send to sender, and in that case the implementer must initiate
-		 * the response sending.
+		 * Processes received PersonalInfo. This method is responsible for evaluating
+		 * {@link PersonalInfo#getExpectResult()} to determine if a response should be sent back to the sender,
+		 * and if so, the implementer must initiate that response.
 		 *
-		 * @param info              wrapper of personal info of the sender
-		 * @param senderAddressName the sender address name.
-		 *                          This will be used to check if the packet is really sent by the real node.
+		 * @param info              Wrapper of personal info received from the sender.
+		 * @param senderAddressName The Signal address name of the sender.
+		 * This will be used to verify the packet's authenticity.
 		 */
 		void mapsPersonalInfo(PersonalInfo info, String senderAddressName);
 
 		/**
-		 * Called when the message sending fails. You might need to mark the local message
-		 * as in status failed.
+		 * Called when a payload has been successfully sent over the network to a neighbor.
+		 * This method is responsible for updating the local message with the payload ID
+		 * and potentially marking it as delivered at the network level.
 		 *
-		 * @param recipientAddressName the Signal address name of the recipient
-		 * @param message              the plaintext message failed to send
+		 * @param recipientAddressName The Signal address name of the recipient.
+		 * @param payload The payload that was successfully sent.
 		 */
-		void onSendFailed(String recipientAddressName, TextMessage message);
-
-		/**
-		 * Called when the payload of the message was successfully sent to the neighbor.
-		 * Here is the way to update the payload ID in the local message and to mark it
-		 * as delivered.
-		 *
-		 * @param recipientAddressName the Signal address name of the recipient
-		 * @param payload              the payload in which the message has been wrapped before sending through the network
-		 */
-		void onSendSucceed(String recipientAddressName, Payload payload);
+		void onPayloadSent(String recipientAddressName, Payload payload);
 	}
 
 	/**
@@ -757,6 +519,15 @@ public class NearbySignalMessenger {
 		 * @param message              the message newly sent.
 		 */
 		void onSendSucceed(String recipientAddressName, TextMessage message);
+
+		/**
+		 * Called when the plaintext message sending operation fails.
+		 * Use this to mark the local message as 'failed' in UI.
+		 *
+		 * @param recipientAddressName The Signal address name of the recipient.
+		 * @param message              The plaintext message that failed to send.
+		 */
+		void onSendFailed(String recipientAddressName, TextMessage message);
 	}
 
 	// Callbacks for UI/application layer to react to events
@@ -764,43 +535,27 @@ public class NearbySignalMessenger {
 		void onMessageReceived(String senderAddress, TextMessage message);
 	}
 
-	public interface DeviceConnectionListener {
-		void onConnectionInitiated(String deviceAddress);
-
-		void onDeviceConnected(String deviceAddress);
-
-		void onConnectionFailed(String deviceAddress, Status status);
-
-		void onDeviceDisconnected(String deviceAddress);
-	}
-
-	/**
-	 * Listening for advertising
-	 */
-	public interface AdvertisingListener {
-		void onAdvertisingStarted();
-
-		void onAdvertisingFailed(Exception e);
-	}
-
-	/**
-	 * Listening for advertising
-	 */
-	public interface DiscoveringListener {
-		void onDiscoveringStarted();
-
-		void onDiscoveringFailed(Exception e);
-	}
-
 	/**
 	 * Key exchange listener
 	 */
 	public interface KeyExchangeListener {
+
 		//Might save the bundle key
 		void onReadyToInitiateSession(PreKeyBundle preKeyBundle, String remoteAddressName, long payloadId);
 
+		/**
+		 * Called when a Signal session has been successfully initiated with a remote device.
+		 *
+		 * @param remoteAddressName The Signal address name of the remote device.
+		 */
 		void onSessionInitSuccess(String remoteAddressName);
 
+		/**
+		 * Called when Signal session initiation fails with a remote device.
+		 *
+		 * @param remoteAddressName The Signal address name of the remote device.
+		 * @param e                 The exception that caused the failure.
+		 */
 		void onSessionInitFailed(String remoteAddressName, Exception e);
 	}
 
@@ -808,13 +563,26 @@ public class NearbySignalMessenger {
 	 * Encrypted message decryption failure listener
 	 */
 	public interface EncryptedMessageDecryptionFailureListener {
+		/**
+		 * Called when an encrypted message fails to decrypt.
+		 *
+		 * @param senderEndpointId  The endpoint ID of the sender.
+		 * @param senderAddressName The Signal address name of the sender.
+		 * @param payloadId         The ID of the payload that failed to decrypt.
+		 * @param e                 The exception that caused the decryption failure.
+		 */
 		void onFailure(String senderEndpointId, String senderAddressName, long payloadId, Exception e);
 	}
 
 	/**
-	 * Catch change on node's personal info
+	 * Listener for changes on a node's personal info.
 	 */
 	public interface PersonalInfoChangeListener {
+		/**
+		 * Called when a node's personal information changes.
+		 *
+		 * @param info The updated PersonalInfo object.
+		 */
 		void onInfoChanged(PersonalInfo info);
 	}
 }

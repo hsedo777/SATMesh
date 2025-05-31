@@ -42,9 +42,9 @@ public abstract class AppDatabase extends RoomDatabase {
 	private static volatile AppDatabase INSTANCE;
 
 	public static AppDatabase getDB(Context context){
-		if (INSTANCE == null){
+		if (INSTANCE == null && context != null){
 			synchronized (AppDatabase.class){
-				if (INSTANCE == null){
+				if (INSTANCE == null && context != null){
 					SupportOpenHelperFactory factory = new SupportOpenHelperFactory(AndroidKeyManager.getOrCreateAppCipherPassphrase(context));
 					INSTANCE = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "satmesh_db")
 							.openHelperFactory(factory)

@@ -1,5 +1,6 @@
 package org.sedo.satmesh.signal.store;
 
+import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyEntity;
 import org.whispersystems.libsignal.IdentityKey;
@@ -14,7 +15,22 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	private final IdentityKeyPair identityKeyPair;
 	private final int registrationId;
 
-	public AndroidIdentityKeyStore(SignalIdentityKeyDao identityKeyDao,
+	private static AndroidIdentityKeyStore INSTANCE;
+
+	public static AndroidIdentityKeyStore getInstance(IdentityKeyPair identityKeyPair, int registrationId){
+		if (INSTANCE == null){
+			synchronized (AndroidIdentityKeyStore.class){
+				// At least the database must be initialized by the main activity
+				AppDatabase db = AppDatabase.getDB(null);
+				if (INSTANCE == null && db != null){
+					INSTANCE = new AndroidIdentityKeyStore(db.identityKeyDao(), identityKeyPair, registrationId);
+				}
+			}
+		}
+		return INSTANCE;
+	}
+
+	protected AndroidIdentityKeyStore(SignalIdentityKeyDao identityKeyDao,
 	                               IdentityKeyPair identityKeyPair,
 	                               int registrationId) {
 		this.identityKeyDao = identityKeyDao;

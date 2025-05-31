@@ -1,5 +1,6 @@
 package org.sedo.satmesh.signal.store;
 
+import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.signal.model.SignalPreKeyDao;
 import org.sedo.satmesh.signal.model.SignalPreKeyEntity;
 import org.whispersystems.libsignal.InvalidKeyIdException;
@@ -9,7 +10,22 @@ import org.whispersystems.libsignal.state.PreKeyStore;
 public class AndroidPreKeyStore implements PreKeyStore {
 	private final SignalPreKeyDao preKeyDao;
 
-	public AndroidPreKeyStore(SignalPreKeyDao preKeyDao) {
+	private static AndroidPreKeyStore INSTANCE;
+
+	public static AndroidPreKeyStore getInstance(){
+		if (INSTANCE == null){
+			synchronized (AndroidPreKeyStore.class){
+				// At least the database must be initialized by the main activity
+				AppDatabase db = AppDatabase.getDB(null);
+				if (INSTANCE == null && db != null){
+					INSTANCE = new AndroidPreKeyStore(db.preKeyDao());
+				}
+			}
+		}
+		return INSTANCE;
+	}
+
+	protected AndroidPreKeyStore(SignalPreKeyDao preKeyDao) {
 		this.preKeyDao = preKeyDao;
 	}
 

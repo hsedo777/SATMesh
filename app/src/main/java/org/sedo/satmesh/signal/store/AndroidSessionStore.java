@@ -1,5 +1,6 @@
 package org.sedo.satmesh.signal.store;
 
+import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.signal.model.SignalSessionDao;
 import org.sedo.satmesh.signal.model.SignalSessionEntity;
 import org.whispersystems.libsignal.SignalProtocolAddress;
@@ -14,9 +15,24 @@ public class AndroidSessionStore implements SessionStore {
 
 	private static final int DEFAULT_PRIMARY_DEVICE_ID = 1;
 
+	private static AndroidSessionStore INSTANCE;
+
+	public static AndroidSessionStore getInstance(){
+		if (INSTANCE == null){
+			synchronized (AndroidSessionStore.class){
+				// At least the database must be initialized by the main activity
+				AppDatabase db = AppDatabase.getDB(null);
+				if (INSTANCE == null && db != null){
+					INSTANCE = new AndroidSessionStore(db.sessionDao());
+				}
+			}
+		}
+		return INSTANCE;
+	}
+
 	private final SignalSessionDao sessionDao;
 
-	public AndroidSessionStore(SignalSessionDao sessionDao) {
+	protected AndroidSessionStore(SignalSessionDao sessionDao) {
 		this.sessionDao = sessionDao;
 	}
 

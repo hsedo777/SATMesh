@@ -3,10 +3,11 @@ package org.sedo.satmesh.signal;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.annotation.NonNull;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.proto.SignalPreKeyBundle;
 import org.sedo.satmesh.signal.store.AndroidIdentityKeyStore;
 import org.sedo.satmesh.signal.store.AndroidPreKeyStore;
@@ -43,10 +44,9 @@ public class SignalManager {
 
 	private static final int PREKEY_GENERATION_BATCH_SIZE = 100; // Number of PreKeys to generate together
 	private static final int MIN_AVAILABLE_PREKEYS = 10; // Minimal number of prekeys to keep available
-	private static final long SIGNED_PREKEY_LIFETIME_MILLIS = 90L * 24 * 60 * 60 * 1000; // 90 jours en millisecondes
+	private static final long SIGNED_PREKEY_LIFETIME_MILLIS = 90L * 24 * 60 * 60 * 1000; // 90 days in milliseconds
 
 
-	private final AppDatabase database;
 	private final SharedPreferences preferences;
 	private final Executor executor;
 
@@ -57,8 +57,7 @@ public class SignalManager {
 	private AndroidSignedPreKeyStore signedPreKeyStore;
 	private AndroidIdentityKeyStore identityKeyStore;
 
-	public SignalManager(Context context, AppDatabase database) {
-		this.database = database;
+	public SignalManager(@NonNull Context context) {
 		this.preferences = context.getSharedPreferences("signal_prefs", Context.MODE_PRIVATE);
 		this.executor = Executors.newSingleThreadExecutor();
 	}
@@ -70,10 +69,10 @@ public class SignalManager {
 				initializeIdentity();
 
 				// Initialize the stores
-				sessionStore = new AndroidSessionStore(database.sessionDao());
-				preKeyStore = new AndroidPreKeyStore(database.preKeyDao());
-				signedPreKeyStore = new AndroidSignedPreKeyStore(database.signedPreKeyDao());
-				identityKeyStore = new AndroidIdentityKeyStore(database.identityKeyDao(), identityKeyPair, registrationId);
+				sessionStore = AndroidSessionStore.getInstance();
+				preKeyStore = AndroidPreKeyStore.getInstance();
+				signedPreKeyStore = AndroidSignedPreKeyStore.getInstance();
+				identityKeyStore = AndroidIdentityKeyStore.getInstance(identityKeyPair, registrationId);
 
 				// Generate the PreKeys if needed
 				generatePreKeysIfNeeded();
@@ -94,15 +93,15 @@ public class SignalManager {
 		int regId = preferences.getInt(REGISTRATION_ID_PREF, -1);
 
 		if (identityKeyPairData != null && regId != -1) {
-			// Récupérer l'identité existante
+			// Get existing identity key
 			identityKeyPair = new IdentityKeyPair(hexStringToByteArray(identityKeyPairData));
 			registrationId = regId;
 		} else {
-			// Créer une nouvelle identité
+			// Create new identity key
 			identityKeyPair = KeyHelper.generateIdentityKeyPair();
 			registrationId = KeyHelper.generateRegistrationId(false);
 
-			// Sauvegarder
+			// Save
 			preferences.edit()
 					.putString(IDENTITY_KEY_PAIR_PREF, byteArrayToHexString(identityKeyPair.serialize()))
 					.putInt(REGISTRATION_ID_PREF, registrationId)
@@ -129,7 +128,7 @@ public class SignalManager {
 			System.out.println("Sufficient PreKeys available: " + unusedPreKeyCount);
 		}
 
-		// --- Gestion de la SignedPreKey (LOGIQUE DE PRODUCTION) ---
+		// Checking of generating the SignedPreKey
 		SignedPreKeyRecord latestSignedPreKey = null;
 		try {
 			latestSignedPreKey = signedPreKeyStore.getLatestSignedPreKey();

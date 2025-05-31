@@ -42,7 +42,7 @@
 		app:counterMaxLength="60"
 		app:counterTextColor="@color/colorSurface"
 		app:placeholderTextColor="@color/colorSurface"
-		style="@style/Widget.SATMesh.TextInput"
+		style="@style/Widget.SATMesh.TextInputLayout"
 		app:boxBackgroundMode="outline">
 
 		<com.google.android.material.textfield.TextInputEditText
@@ -51,8 +51,8 @@
 			android:layout_height="wrap_content"
 			android:hint="@string/username_hint"
 			android:maxLength="60"
-			android:inputType="textPersonName"
-			android:textColor="?attr/colorOnSurface" />
+			style="@style/Widget.SATMesh.TextInputEditText"
+			android:inputType="textPersonName"/>
 	</com.google.android.material.textfield.TextInputLayout>
 
 	<Button

@@ -8,6 +8,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -45,6 +46,13 @@ public class WelcomeFragment extends Fragment {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance()).get(WelcomeViewModel.class);
+		// Finish the activity on back key pressed
+		requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				WelcomeFragment.this.requireActivity().finish();
+			}
+		});
 	}
 
 	@Override
@@ -84,6 +92,12 @@ public class WelcomeFragment extends Fragment {
 		} else {
 			throw new RuntimeException(context + " doesn't implement `OnWelcomeCompletedListener`");
 		}
+	}
+
+	@Override
+	public void onDetach() {
+		super.onDetach();
+		listener = null;
 	}
 
 	public interface OnWelcomeCompletedListener{

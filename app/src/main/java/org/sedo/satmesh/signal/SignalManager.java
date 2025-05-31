@@ -32,7 +32,7 @@ import org.whispersystems.libsignal.util.KeyHelper;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class SignalManager {
@@ -48,7 +48,7 @@ public class SignalManager {
 
 
 	private final SharedPreferences preferences;
-	private final Executor executor;
+	private final ExecutorService executor;
 
 	private IdentityKeyPair identityKeyPair;
 	private int registrationId;
@@ -60,6 +60,12 @@ public class SignalManager {
 	public SignalManager(@NonNull Context context) {
 		this.preferences = context.getSharedPreferences("signal_prefs", Context.MODE_PRIVATE);
 		this.executor = Executors.newSingleThreadExecutor();
+	}
+
+	@Override
+	protected void finalize() throws Throwable {
+		executor.shutdown();
+		super.finalize();
 	}
 
 	public void initialize(SignalInitializationCallback callback) {

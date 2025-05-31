@@ -1,15 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 	<!-- res/values/styles.xml -->
-	<style name="Widget.SATMesh.TextInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-		<item name="boxBackgroundColor">@color/colorSurface</item>
-		<item name="boxStrokeColor">@color/colorPrimary</item>
-		<item name="hintTextColor">@color/textSecondary</item>
+	<style name="Widget.SATMesh.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+		<item name="android:textColorHint">@color/colorSurface</item>
+		<item name="hintTextColor">@color/colorSurface</item>
+		<item name="counterTextColor">@color/colorSurface</item>
+		<item name="boxStrokeColor">@color/colorPrimarySlightlyDarker</item>
+		<item name="boxStrokeWidth">1dp</item>
+		<item name="boxCornerRadiusTopStart">8dp</item>
+		<item name="boxCornerRadiusTopEnd">8dp</item>
+		<item name="boxCornerRadiusBottomStart">8dp</item>
+		<item name="boxCornerRadiusBottomEnd">8dp</item>
+	</style>
+
+	<style name="Widget.SATMesh.TextInputEditText" parent="Widget.MaterialComponents.TextInputEditText.OutlinedBox">
+		<item name="android:textColor">@color/colorSurface</item>
+		<item name="android:background">@color/colorPrimarySlightlyDarker</item>
+		<item name="android:paddingTop">16dp</item>
+		<item name="android:paddingBottom">16dp</item>
+		<item name="android:paddingStart">12dp</item>
+		<item name="android:paddingEnd">12dp</item>
 	</style>
 
 	<style name="Widget.SATMesh.Button" parent="Widget.MaterialComponents.Button">
-		<item name="backgroundTint">@color/colorPrimary</item>
-		<item name="android:textColor">@color/colorSurface</item>
+		<item name="backgroundTint">@color/button_background_tint</item>
+		<item name="android:textColor">@color/button_text_color</item>
+		<item name="cornerRadius">8dp</item>
 		<item name="elevation">4dp</item>
 	</style>
 

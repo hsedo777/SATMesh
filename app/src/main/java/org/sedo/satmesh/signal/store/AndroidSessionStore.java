@@ -1,5 +1,7 @@
 package org.sedo.satmesh.signal.store;
 
+import static org.sedo.satmesh.utils.Constants.SIGNAL_PROTOCOL_DEVICE_ID;
+
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.signal.model.SignalSessionDao;
 import org.sedo.satmesh.signal.model.SignalSessionEntity;
@@ -12,8 +14,6 @@ import java.util.List;
 
 /** Implementation of session store. */
 public class AndroidSessionStore implements SessionStore {
-
-	private static final int DEFAULT_PRIMARY_DEVICE_ID = 1;
 
 	private static AndroidSessionStore INSTANCE;
 
@@ -89,7 +89,7 @@ public class AndroidSessionStore implements SessionStore {
 		for (String address : allAddresses) {
 				try {
 					int deviceId = Integer.parseInt(address.substring(name.length() + 1));
-					if (deviceId != DEFAULT_PRIMARY_DEVICE_ID) { // Exclude the main device
+					if (deviceId != SIGNAL_PROTOCOL_DEVICE_ID) { // Exclude the main device
 						deviceIds.add(deviceId);
 					}
 				} catch (NumberFormatException ignore) {

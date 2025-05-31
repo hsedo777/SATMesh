@@ -4,6 +4,8 @@
 	<color name="white">#FFFFFFFF</color>
 
 	<color name="colorPrimary">#4E8CA3</color>
+	<color name="colorPrimarySlightlyDarker">#478299</color>
+	<color name="colorPrimaryDark">#40788C</color>
 	<color name="colorPrimaryVariant">#6BAFA7</color>
 	<color name="colorBackground">#EFF5F5</color>
 	<color name="textPrimary">#1F3338</color>
@@ -16,4 +18,5 @@
 
 	<!-- Button text, links… -->
 	<color name="colorAccentText">#4E8CA3</color>
+	<color name="buttonDisabledBackground">#AAAAAA</color>
 </resources>

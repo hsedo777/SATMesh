@@ -45,7 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 
@@ -71,7 +71,7 @@ public class NearbySignalMessenger {
 
 	private final ConnectionsClient connectionsClient;
 	private final SignalManager signalManager;
-	private final Executor executor; // For background tasks to avoid blocking UI thread
+	private final ExecutorService executor; // For background tasks to avoid blocking UI thread
 	private final SignalMessengerCallback messengerCallback;
 	// Listeners
 	private final List<MessageReceivedListener> messageReceivedListeners = new ArrayList<>();
@@ -173,6 +173,12 @@ public class NearbySignalMessenger {
 		this.signalManager = signalManager;
 		this.messengerCallback = messengerCallback;
 		this.executor = Executors.newSingleThreadExecutor(); // Single thread for ordered message processing
+	}
+
+	@Override
+	protected void finalize() throws Throwable {
+		executor.shutdown();
+		super.finalize();
 	}
 
 	/**

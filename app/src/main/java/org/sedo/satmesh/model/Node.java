@@ -23,6 +23,8 @@ public class Node {
 	 */
 	private String addressName;
 
+	private boolean trusted = false;
+
 	/**
 	 * Populates the node's properties using a PersonalInfo Protocol Buffer object.
 	 * This is typically used when receiving personal information from another node.
@@ -55,5 +57,13 @@ public class Node {
 
 	public void setAddressName(String addressName) {
 		this.addressName = addressName;
+	}
+
+	public boolean isTrusted() {
+		return trusted;
+	}
+
+	public void setTrusted(boolean trusted) {
+		this.trusted = trusted;
 	}
 }

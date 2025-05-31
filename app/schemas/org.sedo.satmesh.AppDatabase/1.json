@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "176666f72d07ea8e79560a14f332195b",
+    "identityHash": "0443d843ea2f3dec5ee7f4633f212040",
     "entities": [
       {
         "tableName": "node",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `displayName` TEXT, `addressName` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `displayName` TEXT, `addressName` TEXT, `trusted` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -22,6 +22,12 @@
             "fieldPath": "addressName",
             "columnName": "addressName",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "trusted",
+            "columnName": "trusted",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -295,7 +301,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '176666f72d07ea8e79560a14f332195b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0443d843ea2f3dec5ee7f4633f212040')"
     ]
   }
 }

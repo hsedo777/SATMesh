@@ -39,8 +39,8 @@ public interface NodeDao {
 	 * @param addressName The Signal Protocol address name of the Node.
 	 * @return The Node object, or null if not found.
 	 */
-	@Query("SELECT * FROM node WHERE addressName = :addressName LIMIT 1")
-	Node getNodeByAddressName(String addressName);
+	@Query("SELECT * FROM node WHERE addressName = :addressName")
+	LiveData<Node> getNodeByAddressName(String addressName);
 
 	/**
 	 * Retrieves a Node by its primary key ID.
@@ -98,4 +98,43 @@ public interface NodeDao {
 	 */
 	@Query("SELECT * FROM node WHERE displayName LIKE '%' || :query || '%' ORDER BY displayName ASC")
 	LiveData<List<Node>> searchAllNodesByDisplayName(String query);
+
+	/**
+	 * Retrieves all Nodes that are marked as trusted.
+	 * These typically represent established contacts or trusted relays in the mesh network.
+	 *
+	 * @return A LiveData list of trusted Nodes, ordered by display name.
+	 */
+	@Query("SELECT * FROM node WHERE trusted = 1 ORDER BY displayName ASC")
+	LiveData<List<Node>> getTrustedNodes();
+
+	/**
+	 * Retrieves all Nodes that are not marked as trusted.
+	 * These usually represent newly discovered nodes that require user approval or further action.
+	 *
+	 * @return A LiveData list of untrusted Nodes, ordered by display name.
+	 */
+	@Query("SELECT * FROM node WHERE trusted = 0 ORDER BY displayName ASC")
+	LiveData<List<Node>> getUntrustedNodes();
+
+	/**
+	 * Updates the trusted status of a specific Node by its database ID.
+	 * This method is crucial for marking a newly approved connection as a trusted contact.
+	 *
+	 * @param nodeId The database ID of the node to update.
+	 * @param trusted The new trusted status ({@code true} for trusted, {@code false} for untrusted).
+	 * @return The number of rows affected (should be 1 for a successful update).
+	 */
+	@Query("UPDATE node SET trusted = :trusted WHERE id = :nodeId")
+	int updateNodeTrustedStatus(long nodeId, boolean trusted);
+
+	/**
+	 * Checks if a Node with the given Signal Protocol address name is marked as trusted.
+	 * This is used to decide whether to automatically accept a connection or prompt the user for approval.
+	 *
+	 * @param addressName The unique address name of the node to check.
+	 * @return {@code true} if the node is trusted, {@code false} otherwise.
+	 */
+	@Query("SELECT EXISTS(SELECT 1 FROM node WHERE addressName = :addressName AND trusted = 1 LIMIT 1)")
+	boolean isNodeTrusted(String addressName);
 }

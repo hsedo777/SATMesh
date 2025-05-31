@@ -1,11 +1,18 @@
 package org.sedo.satmesh;
 
+import android.Manifest;
+import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.annotation.CallSuper;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
@@ -19,6 +26,73 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity implements WelcomeFragment.OnWelcomeCompletedListener {
 
+	/**
+	 * These permissions are required before connecting to Nearby Connections.
+	 */
+	private static final String[] REQUIRED_PERMISSIONS;
+
+	static {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+			REQUIRED_PERMISSIONS =
+					new String[]{
+							android.Manifest.permission.BLUETOOTH_SCAN,
+							android.Manifest.permission.BLUETOOTH_ADVERTISE,
+							android.Manifest.permission.BLUETOOTH_CONNECT,
+							android.Manifest.permission.ACCESS_WIFI_STATE,
+							android.Manifest.permission.CHANGE_WIFI_STATE,
+							android.Manifest.permission.NEARBY_WIFI_DEVICES,
+							android.Manifest.permission.ACCESS_COARSE_LOCATION,
+							android.Manifest.permission.ACCESS_FINE_LOCATION,
+							android.Manifest.permission.READ_MEDIA_IMAGES,
+							android.Manifest.permission.READ_MEDIA_AUDIO,
+							android.Manifest.permission.READ_MEDIA_VIDEO,
+							android.Manifest.permission.RECORD_AUDIO,
+							android.Manifest.permission.VIBRATE,
+					};
+		} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+			REQUIRED_PERMISSIONS =
+					new String[]{
+							android.Manifest.permission.BLUETOOTH_SCAN,
+							android.Manifest.permission.BLUETOOTH_ADVERTISE,
+							android.Manifest.permission.BLUETOOTH_CONNECT,
+							android.Manifest.permission.ACCESS_WIFI_STATE,
+							android.Manifest.permission.CHANGE_WIFI_STATE,
+							android.Manifest.permission.ACCESS_COARSE_LOCATION,
+							android.Manifest.permission.ACCESS_FINE_LOCATION,
+							android.Manifest.permission.READ_EXTERNAL_STORAGE,
+							android.Manifest.permission.RECORD_AUDIO,
+							android.Manifest.permission.VIBRATE,
+					};
+		} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			REQUIRED_PERMISSIONS =
+					new String[]{
+							android.Manifest.permission.BLUETOOTH,
+							android.Manifest.permission.BLUETOOTH_ADMIN,
+							android.Manifest.permission.ACCESS_WIFI_STATE,
+							android.Manifest.permission.CHANGE_WIFI_STATE,
+							android.Manifest.permission.ACCESS_COARSE_LOCATION,
+							android.Manifest.permission.ACCESS_FINE_LOCATION,
+							android.Manifest.permission.READ_EXTERNAL_STORAGE,
+							android.Manifest.permission.RECORD_AUDIO,
+							android.Manifest.permission.VIBRATE,
+					};
+		} else {
+			REQUIRED_PERMISSIONS =
+					new String[]{
+							android.Manifest.permission.BLUETOOTH,
+							android.Manifest.permission.BLUETOOTH_ADMIN,
+							android.Manifest.permission.ACCESS_WIFI_STATE,
+							android.Manifest.permission.CHANGE_WIFI_STATE,
+							android.Manifest.permission.ACCESS_COARSE_LOCATION,
+							android.Manifest.permission.READ_EXTERNAL_STORAGE,
+							android.Manifest.permission.RECORD_AUDIO,
+							Manifest.permission.VIBRATE,
+					};
+		}
+	}
+
+	private static final int REQUEST_CODE_REQUIRED_PERMISSIONS = 1;
+
 	private static final String TAG = "MainActivity";
 
 	private SharedPreferences sharedPreferences;
@@ -26,6 +100,64 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 	private SignalManager signalManager;
 	private ExecutorService databaseExecutor;
 	private Node hostNode;
+
+	/**
+	 * An optional hook to pool any permissions the app needs with the permissions ConnectionsActivity
+	 * will request.
+	 *
+	 * @return All permissions required for the app to properly function.
+	 */
+	protected String[] getRequiredPermissions() {
+		return REQUIRED_PERMISSIONS;
+	}
+
+	/**
+	 * Returns {@code true} if the app was granted all the permissions. Otherwise, returns {@code
+	 * false}.
+	 */
+	public static boolean hasPermissions(Context context, String... permissions) {
+		for (String permission : permissions) {
+			if (ContextCompat.checkSelfPermission(context, permission)
+					!= PackageManager.PERMISSION_GRANTED) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Called when our Activity has been made visible to the user.
+	 */
+	@Override
+	protected void onStart() {
+		super.onStart();
+		if (!hasPermissions(this, getRequiredPermissions())) {
+			requestPermissions(getRequiredPermissions(), REQUEST_CODE_REQUIRED_PERMISSIONS);
+		}
+	}
+
+	/**
+	 * Called when the user has accepted (or denied) our permission request.
+	 */
+	@CallSuper
+	@Override
+	public void onRequestPermissionsResult(
+			int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+		if (requestCode == REQUEST_CODE_REQUIRED_PERMISSIONS) {
+			int i = 0;
+			for (int grantResult : grantResults) {
+				if (grantResult == PackageManager.PERMISSION_DENIED) {
+					Log.w(TAG, "Failed to request the permission " + permissions[i]);
+					runOnUiThread(() -> Toast.makeText(this, R.string.error_missing_permissions, Toast.LENGTH_LONG).show());
+					finish();
+					return;
+				}
+				i++;
+			}
+			recreate();
+		}
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -159,10 +291,10 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 	 * Show the ChatListFragment after configuration or node loading.
 	 */
 	private void showChatListFragment() {
-		// TODO
-		// getSupportFragmentManager().beginTransaction()
-				//.replace(R.id.fragment_container, ChatListFragment.newInstance(), Constants.TAG_CHAT_LIST_FRAGMENT)
-		//		.commit();
+		/* TODO
+		getSupportFragmentManager().beginTransaction()
+				.replace(R.id.fragment_container, ChatListFragment.newInstance(), Constants.TAG_CHAT_LIST_FRAGMENT)
+				.commit();*/
 	}
 
 	@Override

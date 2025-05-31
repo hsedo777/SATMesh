@@ -12,6 +12,7 @@
 	<string name="node_profile_saving_failed">Échec de sauvegarde des informations, veuillez réessayer .</string>
 
 	<string name="internal_error">Impossible d\'exécuter cette operation</string>
+	<string name="error_missing_permissions">Impossible de lancer l\'application sans les permissions requises</string>
 	<!--
 	<string name=""></string>
 	-->

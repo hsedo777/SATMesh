@@ -11,6 +11,7 @@
 	<string name="node_profile_saving_failed">Failed to save user profile. Please try again.</string>
 
 	<string name="internal_error">Impossible to execute the operation</string>
+	<string name="error_missing_permissions">Cannot start without required permissions</string>
 	<!--
 	<string name=""></string>
 	-->

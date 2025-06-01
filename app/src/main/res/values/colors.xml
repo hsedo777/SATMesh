@@ -2,6 +2,7 @@
 <resources>
 	<color name="black">#FF000000</color>
 	<color name="white">#FFFFFFFF</color>
+	<color name="colorError">#FF0000</color>
 
 	<color name="colorPrimary">#4E8CA3</color>
 	<color name="colorPrimarySlightlyDarker">#478299</color>
@@ -19,4 +20,16 @@
 	<!-- Button text, links… -->
 	<color name="colorAccentText">#4E8CA3</color>
 	<color name="buttonDisabledBackground">#AAAAAA</color>
+
+	<color name="gradientStart">@color/colorPrimary</color>
+	<color name="gradientEnd">@color/colorSurface</color>
+	<color name="cardBackground">#EFF5F5</color>
+	<color name="cardText">@color/colorOnSurface</color>
+
+	<color name="node_state_found">#FFD54F</color>
+	<color name="node_state_connected">#66BB6A</color>
+	<color name="node_state_lost">#EF5350</color>
+	<color name="node_state_disconnected">#BDBDBD</color>
+	<color name="node_state_initiated">#075C87</color>
+	<color name="node_state_failed">#FF0202</color>
 </resources>

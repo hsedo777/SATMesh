@@ -6,12 +6,22 @@
 	<string name="remaining_characters">%1$d characters remaining</string>
 	<string name="continue_button">Continue</string>
 
+	<string name="positive_button_activate">Activate</string>
+	<string name="negative_button_cancel">Cancel</string>
+
 	<string name="signal_key_init_failed">Failed to initialize encryption keys.</string>
 	<string name="signal_key_init_success">Encryption keys initialized successfully!</string>
 	<string name="node_profile_saving_failed">Failed to save user profile. Please try again.</string>
 
 	<string name="internal_error">Impossible to execute the operation</string>
 	<string name="error_missing_permissions">Cannot start without required permissions</string>
+
+	<string name="nearby_discovery_title">Nearby Neighbors</string>
+	<string name="nearby_discovery_description">Searching for nearby SATMesh devices to establish connections.</string>
+	<string name="no_nearby_nodes_found">No SATMesh devices found. Make sure they are in range and Bluetooth/Wi-Fi is enabled.</string>
+
+	<string name="nearby_requirement_dialog_title">Location services is required</string>
+	<string name="nearby_requirement_dialog_message">To discover nearby devices, please enable location services.</string>
 	<!--
 	<string name=""></string>
 	-->

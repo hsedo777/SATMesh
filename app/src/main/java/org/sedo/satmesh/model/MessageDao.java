@@ -116,4 +116,10 @@ public interface MessageDao {
 			"AND fts.content MATCH :query " +
 			"ORDER BY bm25(matchinfo(message_fts)) DESC") // ORDER BY m.timestamp DESC
 	LiveData<List<Message>> searchMessagesByContentFts(String query);
+
+	/**
+	 * Count the total number of messages in database
+	 */
+	@Query("SELECT COUNT(id) FROM message")
+	long countAll();
 }

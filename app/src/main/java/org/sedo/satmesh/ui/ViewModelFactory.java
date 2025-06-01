@@ -27,6 +27,9 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
 		if (modelClass == WelcomeViewModel.class) {
 			return (T) new WelcomeViewModel();
 		}
+		if (modelClass == NearbyDiscoveryViewModel.class){
+			return (T) new NearbyDiscoveryViewModel();
+		}
 		return ViewModelProvider.Factory.super.create(modelClass);
 	}
 }

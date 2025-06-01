@@ -109,6 +109,7 @@ public class NearbySignalMessenger {
 	 */
 	public void clearNearbyManagerListeners(){
 		nearbyManager.removePayloadListener(payloadListener);
+		nearbyManager.removeDeviceConnectionListener(connectionListener);
 	}
 
 	@Override

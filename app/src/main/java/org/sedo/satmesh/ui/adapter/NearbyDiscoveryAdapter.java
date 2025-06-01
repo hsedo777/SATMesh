@@ -1,5 +1,7 @@
 package org.sedo.satmesh.ui.adapter;
 
+import static org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.NodeViewHolder;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -18,19 +20,38 @@ import org.sedo.satmesh.ui.model.NodeState;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NearbyDiscoveryAdapter extends RecyclerView.Adapter<NearbyDiscoveryAdapter.NodeViewHolder> {
+public class NearbyDiscoveryAdapter extends RecyclerView.Adapter<NodeViewHolder> {
 
 	private final Context context;
 	private final List<Node> nodeList = new ArrayList<>();
 	private final NodeStateProvider stateProvider;
-
-	public interface NodeStateProvider {
-		NodeState getNodeState(@NonNull Node node);
-	}
+	private final OnChildClickCallback callback;
+	private OnNodeClickListener clickListener;
 
 	public NearbyDiscoveryAdapter(Context context, NodeStateProvider stateProvider) {
 		this.context = context;
 		this.stateProvider = stateProvider;
+		callback = new OnChildClickCallback() {
+			@Override
+			public void onClick(int position) {
+				if (clickListener != null) {
+					Node node = nodeList.get(position);
+					clickListener.onClick(node, stateProvider.getNodeState(node));
+				}
+			}
+
+			@Override
+			public void onLongClick(int position) {
+				if (clickListener != null) {
+					Node node = nodeList.get(position);
+					clickListener.onClick(node, stateProvider.getNodeState(node));
+				}
+			}
+		};
+	}
+
+	public void attachOnNodeClickListener(@NonNull OnNodeClickListener listener) {
+		this.clickListener = listener;
 	}
 
 	public void addOrUpdateNode(@NonNull Node newNode) {
@@ -46,16 +67,6 @@ public class NearbyDiscoveryAdapter extends RecyclerView.Adapter<NearbyDiscovery
 		notifyItemInserted(nodeList.size() - 1);
 	}
 
-	public void removeNode(@NonNull String addressName) {
-		for (int i = 0; i < nodeList.size(); i++) {
-			if (nodeList.get(i).getAddressName().equals(addressName)) {
-				nodeList.remove(i);
-				notifyItemRemoved(i);
-				return;
-			}
-		}
-	}
-
 	@SuppressLint("NotifyDataSetChanged")
 	public void clear() {
 		nodeList.clear();
@@ -66,13 +77,13 @@ public class NearbyDiscoveryAdapter extends RecyclerView.Adapter<NearbyDiscovery
 	@Override
 	public NodeViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
 		View view = LayoutInflater.from(context).inflate(R.layout.item_nearby_node, parent, false);
-		return new NodeViewHolder(view);
+		return new NodeViewHolder(view, callback);
 	}
 
 	@Override
 	public void onBindViewHolder(@NonNull NodeViewHolder holder, int position) {
 		Node node = nodeList.get(position);
-		holder.bind(node, stateProvider.getNodeState(node));
+		holder.bind(node, stateProvider.getNodeState(node), position);
 	}
 
 	@Override
@@ -80,17 +91,47 @@ public class NearbyDiscoveryAdapter extends RecyclerView.Adapter<NearbyDiscovery
 		return nodeList.size();
 	}
 
+	public interface NodeStateProvider {
+		NodeState getNodeState(@NonNull Node node);
+	}
+
+	public interface OnNodeClickListener {
+		void onClick(Node node, NodeState state);
+
+		void onLongClick(Node node, NodeState state);
+	}
+
+	public interface OnChildClickCallback {
+		void onClick(int position);
+
+		void onLongClick(int position);
+	}
+
 	public static class NodeViewHolder extends RecyclerView.ViewHolder {
 		private final TextView nameTextView;
 		private final View statusIndicator;
 
-		public NodeViewHolder(@NonNull View itemView) {
+		public NodeViewHolder(@NonNull View itemView, @NonNull OnChildClickCallback onClick) {
 			super(itemView);
 			nameTextView = itemView.findViewById(R.id.node_display_name);
 			statusIndicator = itemView.findViewById(R.id.status_indicator);
+			this.itemView.setOnClickListener(view -> {
+				try {
+					onClick.onClick((int) view.getTag());
+				} catch (Exception ignored) {
+				}
+			});
+			this.itemView.setOnLongClickListener(view -> {
+				try {
+					onClick.onLongClick((int) view.getTag());
+				} catch (Exception ignored) {
+				}
+				return true;
+			});
 		}
 
-		public void bind(Node node, NodeState state) {
+		public void bind(Node node, NodeState state, int position) {
+			itemView.setTag(position);
 			nameTextView.setText(node.getAddressName());
 			int color = ContextCompat.getColor(itemView.getContext(), state.getColorResId());
 			statusIndicator.getBackground().setTint(color);

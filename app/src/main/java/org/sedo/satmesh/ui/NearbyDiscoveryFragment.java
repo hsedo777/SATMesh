@@ -47,25 +47,21 @@ public class NearbyDiscoveryFragment extends Fragment {
 	private final DeviceConnectionListener connectionListener = new DeviceConnectionListener() {
 		@Override
 		public void onConnectionInitiated(String endpointId, String deviceAddressName) {
-			Log.i(Constants.TAG_DISCOVERY_FRAGMENT, "onConnectionInitiated " + deviceAddressName);
 			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_CONNECTION_INITIATED);
 		}
 
 		@Override
 		public void onDeviceConnected(String endpointId, String deviceAddressName) {
-			Log.i(Constants.TAG_DISCOVERY_FRAGMENT, "onDeviceConnected " + deviceAddressName);
 			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_CONNECTED);
 		}
 
 		@Override
 		public void onConnectionFailed(String deviceAddressName, Status status) {
-			Log.i(Constants.TAG_DISCOVERY_FRAGMENT, "onConnectionFailed " + deviceAddressName);
 			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_CONNECTION_FAILED);
 		}
 
 		@Override
 		public void onDeviceDisconnected(String endpointId, String deviceAddressName) {
-			Log.i(Constants.TAG_DISCOVERY_FRAGMENT, "onDeviceDisconnected " + deviceAddressName);
 			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_DISCONNECTED);
 			uiHandler.postDelayed(() -> viewModel.removeNode(deviceAddressName), REMOVING_DElAY);
 		}
@@ -90,7 +86,6 @@ public class NearbyDiscoveryFragment extends Fragment {
 
 		@Override
 		public void onEndpointFound(String endpointId, String endpointName) {
-			Log.i(Constants.TAG_DISCOVERY_FRAGMENT, "onEndpointFound " + endpointName);
 			appendNode(endpointName, NodeState.ON_ENDPOINT_FOUND);
 		}
 
@@ -146,6 +141,29 @@ public class NearbyDiscoveryFragment extends Fragment {
 		super.onViewCreated(view, savedInstanceState);
 
 		adapter = new NearbyDiscoveryAdapter(requireContext(), viewModel::getStateForNode);
+		adapter.attachOnNodeClickListener(new NearbyDiscoveryAdapter.OnNodeClickListener() {
+			@Override
+			public void onClick(Node node, NodeState state) {
+				if (state != null && state != NodeState.ON_CONNECTED){
+					String endpointId = nearbyManager.getLinkedEndpointId(node.getAddressName());
+					if (endpointId != null){
+						Log.i(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request to " + endpointId+"(" + node.getAddressName() + ")");
+						nearbyManager.requestConnection(endpointId);
+					}
+				}
+			}
+
+			@Override
+			public void onLongClick(Node node, NodeState state) {
+				if (state != null && state != NodeState.ON_CONNECTED){
+					String endpointId = nearbyManager.getLinkedEndpointId(node.getAddressName());
+					if (endpointId != null){
+						Log.i(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request disconnect from " + endpointId+"(" + node.getAddressName() + ")");
+						nearbyManager.disconnectFromEndpoint(endpointId);
+					}
+				}
+			}
+		});
 		binding.nearbyNodesRecyclerView.setAdapter(adapter);
 
 		observeNodes();

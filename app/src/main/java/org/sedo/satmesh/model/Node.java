@@ -1,6 +1,8 @@
 package org.sedo.satmesh.model;
 
 
+import android.os.Bundle;
+
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.Index;
@@ -27,6 +29,11 @@ public class Node {
 
 	private boolean trusted = false;
 
+	private static final String NODE_ID = "node_id";
+	private static final String NODE_DISPLAY_NAME = "node_display_name";
+	private static final String NODE_ADDRESS_NAME = "node_address_name";
+	private static final String NODE_TRUSTED = "arg_remote_node_name";
+
 	/**
 	 * Populates the node's properties using a PersonalInfo Protocol Buffer object.
 	 * This is typically used when receiving personal information from another node.
@@ -36,6 +43,10 @@ public class Node {
 	public void setPersonalInfo(@NonNull PersonalInfo info) {
 		this.addressName = info.getAddressName();
 		this.displayName = info.getDisplayName();
+	}
+
+	public PersonalInfo toPersonalInfo(){
+		return PersonalInfo.newBuilder().setAddressName(addressName).setExpectResult(false).setDisplayName(displayName).build();
 	}
 
 	public Long getId() {
@@ -81,5 +92,27 @@ public class Node {
 	@Override
 	public int hashCode() {
 		return Objects.hash(id, displayName, addressName, trusted);
+	}
+
+	public void write(@NonNull Bundle input, @NonNull String prefix){
+		if (id != null){
+			input.putLong(prefix + NODE_ID, id);
+		}
+		input.putString(prefix + NODE_DISPLAY_NAME, displayName);
+		input.putString(prefix + NODE_ADDRESS_NAME, addressName);
+		input.putBoolean(prefix + NODE_TRUSTED, trusted);
+	}
+
+	@NonNull
+	public static Node restoreFromBundle(@NonNull Bundle bundle, @NonNull String prefix){
+		Node node = new Node();
+		long temp = bundle.getLong(prefix + NODE_ID, -1);
+		if (temp != -1){
+			node.id = temp;
+		}
+		node.displayName = bundle.getString(prefix + NODE_DISPLAY_NAME, null);
+		node.addressName = bundle.getString(prefix + NODE_ADDRESS_NAME, null);
+		node.trusted = bundle.getBoolean(prefix + NODE_TRUSTED);
+		return node;
 	}
 }

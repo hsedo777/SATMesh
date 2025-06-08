@@ -45,7 +45,7 @@ public class WelcomeFragment extends Fragment {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance()).get(WelcomeViewModel.class);
+		viewModel = new ViewModelProvider(this, new ViewModelFactory(requireActivity().getApplication())).get(WelcomeViewModel.class);
 		// Finish the activity on back key pressed
 		requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
 			@Override

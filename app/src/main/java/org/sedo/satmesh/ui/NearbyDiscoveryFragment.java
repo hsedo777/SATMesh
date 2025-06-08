@@ -1,11 +1,7 @@
 package org.sedo.satmesh.ui;
 
-import static org.sedo.satmesh.nearby.NearbyManager.DeviceConnectionListener;
-import static org.sedo.satmesh.nearby.NearbyManager.DiscoveringListener;
-
+import android.content.Context;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,114 +14,68 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.google.android.gms.common.api.Status;
-
-import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentNearbyDiscoveryBinding;
 import org.sedo.satmesh.model.Node;
-import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter;
-import org.sedo.satmesh.ui.model.NodeState;
+import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.OnNodeClickListener;
+import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.List;
 
 public class NearbyDiscoveryFragment extends Fragment {
 
-	private static final int REMOVING_DElAY = 5000; // 5s
-
-	private static final String DEVICE_LOCAL_NAME = "local_name";
+	private static final String HOST_DEVICE_NAME = "host_name";
 	private static final String ADD_TO_BACK_STACK = "add_to_back_stack";
 
-
-	private NearbyManager nearbyManager;
-	/**
-	 * A Handler that allows us to post back on to the UI thread.
-	 */
-	private final Handler uiHandler = new Handler(Looper.getMainLooper());
+	private DiscoveryFragmentListener listener;
 	private NearbyDiscoveryViewModel viewModel;
-	private final DeviceConnectionListener connectionListener = new DeviceConnectionListener() {
-		@Override
-		public void onConnectionInitiated(String endpointId, String deviceAddressName) {
-			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_CONNECTION_INITIATED);
-		}
-
-		@Override
-		public void onDeviceConnected(String endpointId, String deviceAddressName) {
-			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_CONNECTED);
-		}
-
-		@Override
-		public void onConnectionFailed(String deviceAddressName, Status status) {
-			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_CONNECTION_FAILED);
-		}
-
-		@Override
-		public void onDeviceDisconnected(String endpointId, String deviceAddressName) {
-			viewModel.addOrUpdateNode(viewModel.getNode(deviceAddressName), NodeState.ON_DISCONNECTED);
-			uiHandler.postDelayed(() -> viewModel.removeNode(deviceAddressName), REMOVING_DElAY);
-		}
-	};
 	private NearbyDiscoveryAdapter adapter;
 	private FragmentNearbyDiscoveryBinding binding;
-	private final DiscoveringListener discoveringListener = new DiscoveringListener() {
+	private String hostDeviceName;
+	private Boolean addToBackStack;
 
-		@Override
-		public void onDiscoveringStarted() {
-			// OK, may activate description view on fragment
-			binding.nearbyDescription.setText(R.string.nearby_discovery_description);
-			binding.nearbyDescription.setTextColor(ContextCompat.getColor(NearbyDiscoveryFragment.this.requireContext(), R.color.white));
-		}
-
-		@Override
-		public void onDiscoveringFailed(Exception e) {
-			binding.nearbyDescription.setText(R.string.internal_error);
-			binding.nearbyDescription.setTextColor(ContextCompat.getColor(NearbyDiscoveryFragment.this.requireContext(), R.color.colorError));
-			binding.nearbyNodesRecyclerView.setVisibility(View.GONE);
-		}
-
-		@Override
-		public void onEndpointFound(String endpointId, String endpointName) {
-			appendNode(endpointName, NodeState.ON_ENDPOINT_FOUND);
-		}
-
-		@Override
-		public void onEndpointLost(String endpointId, String endpointName) {
-			if (endpointName == null){
-				return;
-			}
-			viewModel.addOrUpdateNode(viewModel.getNode(endpointName), NodeState.ON_ENDPOINT_LOST);
-		}
-	};
-
-	public NearbyDiscoveryFragment(){}
+	public NearbyDiscoveryFragment() {
+		// Required public default constructor
+	}
 
 	public static NearbyDiscoveryFragment newInstance(@NonNull String deviceLocalName, boolean addToBackStack) {
 		NearbyDiscoveryFragment fragment = new NearbyDiscoveryFragment();
 		Bundle bundle = new Bundle();
-		bundle.putString(DEVICE_LOCAL_NAME, deviceLocalName);
+		bundle.putString(HOST_DEVICE_NAME, deviceLocalName);
 		bundle.putBoolean(ADD_TO_BACK_STACK, addToBackStack);
 		fragment.setArguments(bundle);
 		return fragment;
 	}
 
 	@Override
+	public void onAttach(@NonNull Context context) {
+		super.onAttach(context);
+		if (context instanceof DiscoveryFragmentListener) {
+			listener = (DiscoveryFragmentListener) context;
+		} else {
+			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener'");
+		}
+	}
+
+	@Override
+	public void onDetach() {
+		super.onDetach();
+		listener = null;
+		if (viewModel != null) {
+			viewModel.setDiscoveryListener(null);
+		}
+	}
+
+	@Override
 	public void onCreate(@Nullable Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance()).get(NearbyDiscoveryViewModel.class);
-		if (getArguments() != null){
+		if (getArguments() != null) {
 			// Initial instantiation
-			viewModel.setHostDeviceName(getArguments().getString(DEVICE_LOCAL_NAME));
-			viewModel.setAddToBackStack(getArguments().getBoolean(ADD_TO_BACK_STACK));
-		}
-		nearbyManager = NearbyManager.getInstance(requireContext(), viewModel.getHostDeviceName());
-		if (!viewModel.isAddToBackStack()) {
-			requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-				@Override
-				public void handleOnBackPressed() {
-					NearbyDiscoveryFragment.this.requireActivity().finish();
-				}
-			});
+			hostDeviceName = getArguments().getString(HOST_DEVICE_NAME);
+			//viewModel.setHostDeviceName();
+			addToBackStack = getArguments().getBoolean(ADD_TO_BACK_STACK);
+			//viewModel.setAddToBackStack();
 		}
 	}
 
@@ -140,48 +90,80 @@ public class NearbyDiscoveryFragment extends Fragment {
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 
+		viewModel = new ViewModelProvider(this, new ViewModelFactory(requireActivity().getApplication())).get(NearbyDiscoveryViewModel.class);
+		if (hostDeviceName == null || addToBackStack == null) {
+			// Fragment recreated
+			hostDeviceName = viewModel.getHostDeviceName();
+			addToBackStack = viewModel.isAddToBackStack();
+		} else {
+			// First instance
+			viewModel.setHostDeviceName(hostDeviceName);
+			viewModel.setAddToBackStack(addToBackStack);
+		}
+		viewModel.getDescriptionState().observe(getViewLifecycleOwner(), descriptionState -> {
+			binding.nearbyDescription.setText(descriptionState.text);
+			binding.nearbyDescription.setTextColor(ContextCompat.getColor(requireContext(), descriptionState.color));
+		});
+
+		viewModel.getRecyclerVisibility().observe(getViewLifecycleOwner(), binding.nearbyNodesRecyclerView::setVisibility);
+		viewModel.getEmptyStateTextView().observe(getViewLifecycleOwner(), binding.emptyStateText::setVisibility);
+		viewModel.getProgressBar().observe(getViewLifecycleOwner(), binding.progressBar::setVisibility);
+
+		viewModel.getNodeListLiveData().observe(getViewLifecycleOwner(), this::onNodesChanged);
+
+		if (listener != null) {
+			viewModel.setDiscoveryListener(listener);
+		} else {
+			listener = viewModel.getDiscoveryListener();
+		}
+
+		if (!viewModel.isAddToBackStack()) {
+			requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+				@Override
+				public void handleOnBackPressed() {
+					NearbyDiscoveryFragment.this.requireActivity().finish();
+				}
+			});
+		}
 		adapter = new NearbyDiscoveryAdapter(requireContext(), viewModel::getStateForNode);
-		adapter.attachOnNodeClickListener(new NearbyDiscoveryAdapter.OnNodeClickListener() {
+		adapter.attachOnNodeClickListener(new OnNodeClickListener() {
 			@Override
 			public void onClick(Node node, NodeState state) {
-				if (state != null && state != NodeState.ON_CONNECTED){
-					String endpointId = nearbyManager.getLinkedEndpointId(node.getAddressName());
-					if (endpointId != null){
-						Log.i(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request to " + endpointId+"(" + node.getAddressName() + ")");
-						nearbyManager.requestConnection(endpointId);
+				if (state == null)
+					return;
+				if (state != NodeState.ON_CONNECTED) {
+					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(node.getAddressName());
+					if (endpointId != null) {
+						Log.d(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request to " + endpointId + "(" + node.getAddressName() + ")");
+						viewModel.getNearbyManager().requestConnection(endpointId);
+					}
+				} else {
+					// Redirect the user to chat fragment
+					if (listener != null) {
+						listener.discussWith(node);
 					}
 				}
 			}
 
 			@Override
 			public void onLongClick(Node node, NodeState state) {
-				if (state != null && state != NodeState.ON_CONNECTED){
-					String endpointId = nearbyManager.getLinkedEndpointId(node.getAddressName());
-					if (endpointId != null){
-						Log.i(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request disconnect from " + endpointId+"(" + node.getAddressName() + ")");
-						nearbyManager.disconnectFromEndpoint(endpointId);
+				if (state == NodeState.ON_CONNECTED && node != null) {
+					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(node.getAddressName());
+					if (endpointId != null) {
+						Log.d(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request disconnect from " + endpointId + "(" + node.getAddressName() + ")");
+						viewModel.getNearbyManager().disconnectFromEndpoint(endpointId);
 					}
 				}
 			}
 		});
 		binding.nearbyNodesRecyclerView.setAdapter(adapter);
-
-		observeNodes();
-		this.nearbyManager.addDiscoveringListener(discoveringListener);
-		this.nearbyManager.addDeviceConnectionListener(connectionListener);
-		for (String pending : nearbyManager.getAllPendingAddressName()){
-			appendNode(pending, NodeState.ON_ENDPOINT_FOUND);
-		}
-		for (String incoming : nearbyManager.getAllIncomingAddressName()){
-			appendNode(incoming, NodeState.ON_CONNECTION_INITIATED);
-		}
-		for (String connected : nearbyManager.getAllConnectedAddressName()){
-			appendNode(connected, NodeState.ON_CONNECTED);
-		}
+		binding.nearbyTitle.setOnClickListener(v -> reload());
 	}
 
-	private void observeNodes() {
-		viewModel.observe(getViewLifecycleOwner(), this::onNodesChanged);
+	private void reload(){
+		Log.d("TAG", "message");
+		adapter.clear();
+		viewModel.load();
 	}
 
 	private void onNodesChanged(List<Node> nodeList) {
@@ -191,40 +173,29 @@ public class NearbyDiscoveryFragment extends Fragment {
 		}
 
 		if (nodeList.isEmpty()) {
-			binding.nearbyNodesRecyclerView.setVisibility(View.GONE);
-			binding.emptyStateText.setVisibility(View.VISIBLE);
+			viewModel.getRecyclerVisibility().postValue(View.GONE);
+			viewModel.getEmptyStateTextView().postValue(View.VISIBLE);
 		} else {
-			binding.nearbyNodesRecyclerView.setVisibility(View.VISIBLE);
-			binding.emptyStateText.setVisibility(View.GONE);
+			viewModel.getRecyclerVisibility().postValue(View.VISIBLE);
+			viewModel.getEmptyStateTextView().postValue(View.GONE);
 		}
 
-		binding.progressBar.setVisibility(View.GONE); // stop spinner once results start coming
-	}
-
-	protected void appendNode(String endpointName, NodeState state) {
-		Node node = new Node();
-		node.setAddressName(endpointName);
-		viewModel.addOrUpdateNode(node, state);
+		viewModel.getProgressBar().postValue(View.GONE); // stop spinner once results start coming
 	}
 
 	@Override
 	public void onStart() {
 		super.onStart();
-		nearbyManager.startAdvertising();
-		nearbyManager.startDiscovery();
+		viewModel.load();
 	}
 
 	@Override
-	public void onStop() {
-		super.onStop();
-		nearbyManager.stopDiscovery();
-		// Advertising may continue to in favor of routing
+	public void onDestroyView() {
+		super.onDestroyView();
+		viewModel.setDiscoveryListener(null);
 	}
 
-	@Override
-	public void onDestroy() {
-		super.onDestroy();
-		nearbyManager.removeDeviceConnectionListener(connectionListener);
-		nearbyManager.removeDiscoveringListener(discoveringListener);
+	public interface DiscoveryFragmentListener {
+		void discussWith(@NonNull Node remoteNode);
 	}
 }

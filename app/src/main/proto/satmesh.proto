@@ -54,7 +54,7 @@ message NearbyMessageBody {
     MESSAGE_DELIVERED_ACK = 3;
     MESSAGE_READ_ACK = 4;
     PERSONAL_INFO = 5;
-    CONTACT_UPDATE_INFO = 6;
+    CONTACT_UPDATE_INFO = 6; // Will be replaced, `PERSONAL_INFO` is enough
     TYPING_INDICATOR = 7;
   }
   MessageType message_type = 1;

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:background="@color/colorPrimarySlightlyDarker"
+	tools:context=".ui.ChatFragment">
+
+	<!-- Top App Bar -->
+	<com.google.android.material.appbar.MaterialToolbar
+		android:id="@+id/chat_toolbar"
+		android:layout_width="0dp"
+		android:layout_height="?attr/actionBarSize"
+		android:background="@color/colorPrimary"
+		android:titleTextColor="@color/white"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:menu="@menu/chat_menu"
+		app:navigationIcon="@drawable/ic_arrow_back"
+		app:titleTextAppearance="@style/TextAppearance.Widget.AppCompat.Toolbar.Title" />
+
+	<!-- Connectivity indicator (over toolbar content) -->
+	<View
+		android:id="@+id/connection_indicator"
+		android:layout_width="@dimen/space_md"
+		android:layout_height="@dimen/space_md"
+		android:layout_marginEnd="40dp"
+		android:background="@drawable/status_indicator"
+		android:shape="oval"
+		app:layout_constraintBottom_toBottomOf="@id/chat_toolbar"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintTop_toTopOf="@id/chat_toolbar" />
+
+	<!-- RecyclerView for chat messages -->
+	<androidx.recyclerview.widget.RecyclerView
+		android:id="@+id/chat_recycler_view"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:backgroundTint="@color/colorPrimary"
+		android:clipToPadding="false"
+		android:paddingTop="8dp"
+		android:paddingBottom="72dp"
+		app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+		app:layout_constraintBottom_toTopOf="@id/message_input_container"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toBottomOf="@id/chat_toolbar"
+		tools:listitem="@layout/item_message_sent" />
+
+	<!-- Message input area -->
+	<LinearLayout
+		android:id="@+id/message_input_container"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:baselineAligned="false"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:padding="2dp"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent">
+
+		<FrameLayout
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:id="@+id/message_input_frame">
+
+			<com.google.android.material.textfield.TextInputLayout
+				style="@style/Widget.SATMesh.TextInput"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:hint="@string/message_hint">
+
+				<com.google.android.material.textfield.TextInputEditText
+					android:id="@+id/message_edit_text"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:background="@null"
+					android:gravity="top|start"
+					android:imeOptions="actionSend"
+					android:inputType="textMultiLine"
+					android:maxLines="4"
+					android:minLines="1"
+					android:paddingStart="12dp"
+					android:paddingVertical="10dp"
+					android:paddingEnd="48dp"
+					android:textColor="@color/white"
+					android:textColorHint="@color/textHint"
+					android:textCursorDrawable="@drawable/white_cursor" />
+			</com.google.android.material.textfield.TextInputLayout>
+
+			<ImageButton
+				android:id="@+id/send_button"
+				android:layout_width="36dp"
+				android:layout_height="36dp"
+				android:layout_gravity="end|center_vertical"
+				android:padding="@dimen/space_xs"
+				android:background="@drawable/send_button_background"
+				android:contentDescription="@string/send_message_description"
+				android:src="@drawable/ic_send"
+				app:tint="@color/surfaceMedium"
+				android:clickable="true"
+				android:focusable="true"/>
+		</FrameLayout>
+	</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

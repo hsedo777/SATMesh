@@ -23,6 +23,21 @@
 
 	<string name="nearby_requirement_dialog_title">Services de localisation requis</string>
 	<string name="nearby_requirement_dialog_message">Pour découvrir les appareils à proximité, veuillez activer les services de localisation de votre appareil.</string>
+
+	<string name="chat_title">Discussion</string>
+	<string name="message_hint">Écrire un message…</string>
+	<string name="clear_chat">Effacer la discussion</string>
+	<string name="export_chat">Exporter la discussion</string>
+	<string name="send_message_description">Envoyer le message</string>
+	<string name="messaging_impossible">Cher utilisateur, la communication est perdue.</string>
+	<string name="error_no_conversation_selected">Veuillez sélectioner une conversation.</string>
+	<string name="error_message_send_failed">Erreur, impossible nous n\'avons pas pu envoyer le message.</string>
+	<string name="error_key_exchange_failed">Erreur, l\'échange de clés de chiffrement avec %1$s a échoué.</string>
+	<string name="session_established_with">Connexion sécurisée établie.</string>
+	<string name="error_session_failed">Désolé(e), votre session sécurisée a expiré.</string>
+	<string name="error_message_decryption_failed">Erreur, le déchiffrement du message a échoué.</string>
+
+	<string name="yesterday">Hier</string>
 	<!--
 	<string name=""></string>
 	-->

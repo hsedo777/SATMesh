@@ -43,16 +43,14 @@ public interface MessageDao {
 	Message getMessageById(Long id);
 
 	/**
-	 * Retrieves a message by its payload ID, sender, and recipient.
+	 * Retrieves a message by its payload ID.
 	 * This is useful for finding a specific message to update its status
 	 * when an acknowledgement (ACK) is received.
 	 * @param payloadId The unique payload ID of the message.
-	 * @param senderNodeId The ID of the sender Node.
-	 * @param recipientNodeId The ID of the recipient Node.
 	 * @return The Message object, or null if not found.
 	 */
-	@Query("SELECT * FROM message WHERE payloadId = :payloadId AND senderNodeId = :senderNodeId AND recipientNodeId = :recipientNodeId LIMIT 1")
-	Message getMessageByPayloadIdAndParticipants(Long payloadId, Long senderNodeId, Long recipientNodeId);
+	@Query("SELECT * FROM message WHERE payloadId = :payloadId")
+	Message getMessageByPayloadId(Long payloadId);
 
 
 	/**

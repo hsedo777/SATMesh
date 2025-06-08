@@ -1,4 +1,4 @@
-package org.sedo.satmesh.ui.model;
+package org.sedo.satmesh.ui.data;
 
 import androidx.annotation.ColorRes;
 import org.sedo.satmesh.R;
@@ -18,6 +18,7 @@ public enum NodeState {
 		this.colorResId = colorResId;
 	}
 
+	@ColorRes
 	public int getColorResId() {
 		return colorResId;
 	}

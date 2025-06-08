@@ -40,7 +40,7 @@ public interface NodeDao {
 	 * @return The Node object, or null if not found.
 	 */
 	@Query("SELECT * FROM node WHERE addressName = :addressName")
-	LiveData<Node> getNodeByAddressName(String addressName);
+	Node getNodeByAddressName(String addressName);
 
 	/**
 	 * Retrieves a Node by its primary key ID.

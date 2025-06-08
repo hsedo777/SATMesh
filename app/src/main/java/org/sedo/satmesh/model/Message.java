@@ -9,6 +9,9 @@ import androidx.room.ForeignKey;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * Represents a message sent or received in the application.
  * Messages can be of various types (text, image, etc.) and have different statuses
@@ -152,6 +155,7 @@ public class Message {
 	}
 
 	public void setStatus(int status) {
+		if (!isValidStatusCode(status)) return;
 		this.status = status;
 	}
 
@@ -177,5 +181,39 @@ public class Message {
 
 	public void setRecipientNodeId(Long recipientNodeId) {
 		this.recipientNodeId = recipientNodeId;
+	}
+
+	/**
+	 * Checks if this message is exchanged through the specified node IDs
+	 */
+	public boolean isForUs(long nodeIdA, long nodeIdB){
+		return (senderNodeId == nodeIdA && recipientNodeId == nodeIdB) || (senderNodeId == nodeIdB  && recipientNodeId == nodeIdA);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Message message = (Message) o;
+		return timestamp == message.timestamp && status == message.status && type == message.type && Objects.equals(payloadId, message.payloadId) && Objects.equals(content, message.content) && Objects.equals(senderNodeId, message.senderNodeId) && Objects.equals(recipientNodeId, message.recipientNodeId);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(payloadId, content, timestamp, status, type, senderNodeId, recipientNodeId);
+	}
+
+	/**
+	 * Test if the input integer value is a valid status code
+	 * @param status the code to test
+	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_STATUS}.
+	 */
+	public static boolean isValidStatusCode(int status){
+		return Arrays.asList(Message.MESSAGE_STATUS_DELIVERED,
+						Message.MESSAGE_STATUS_PENDING,
+						Message.MESSAGE_STATUS_ROUTING,
+						Message.MESSAGE_STATUS_READ,
+						Message.MESSAGE_STATUS_FAILED)
+				.contains(status);
 	}
 }

@@ -22,8 +22,21 @@
 
 	<string name="nearby_requirement_dialog_title">Location services is required</string>
 	<string name="nearby_requirement_dialog_message">To discover nearby devices, please enable location services.</string>
-	<!-- TODO: Remove or change this placeholder text -->
-	<string name="hello_blank_fragment">Hello blank fragment</string>
+
+	<string name="chat_title">Chat</string>
+	<string name="message_hint">Write a message…</string>
+	<string name="clear_chat">Clear chat</string>
+	<string name="export_chat">Export chat</string>
+	<string name="send_message_description">Send message</string>
+	<string name="messaging_impossible">Dear user, the communication is lost.</string>
+	<string name="error_no_conversation_selected">Please, select a conversation.</string>
+	<string name="error_message_send_failed">Error, failed to send the message.</string>
+	<string name="error_key_exchange_failed">Error, key exchange with %1$s failed.</string>
+	<string name="session_established_with">Secure connection established.</string>
+	<string name="error_session_failed">Sorry, your secure session has expired.</string>
+	<string name="error_message_decryption_failed">Sorry, message decryption failed.</string>
+
+	<string name="yesterday">Yesterday</string>
 	<!--
 	<string name=""></string>
 	-->

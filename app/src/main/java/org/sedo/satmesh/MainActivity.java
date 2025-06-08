@@ -25,17 +25,20 @@ import androidx.fragment.app.FragmentTransaction;
 
 import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
+import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.signal.SignalManager.SignalInitializationCallback;
+import org.sedo.satmesh.ui.ChatFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.WelcomeFragment;
+import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
-public class MainActivity extends AppCompatActivity implements WelcomeFragment.OnWelcomeCompletedListener {
+public class MainActivity extends AppCompatActivity implements WelcomeFragment.OnWelcomeCompletedListener, NearbyDiscoveryFragment.DiscoveryFragmentListener {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -182,7 +185,7 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 		appDatabase = AppDatabase.getDB(getApplicationContext());
 
 		// Get instance of `SignalManager`
-		signalManager = new SignalManager(getApplicationContext());
+		signalManager = SignalManager.getInstance(getApplicationContext());
 
 		// Background executor
 		executor = Executors.newSingleThreadExecutor();
@@ -262,6 +265,7 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 		});
 	}
 
+	// Implementation of `WelcomeFragment.OnWelcomeCompleteListener`
 	@Override
 	public void onWelcomeCompleted(String username) {
 		Log.d(TAG, "Welcome completed with username: " + username);
@@ -306,17 +310,44 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 		});
 	}
 
+	// Implementation of `NearbyDiscoveryFragment.DiscoveryFragmentListener`
+
+
+	@Override
+	public void discussWith(@NonNull Node remoteNode) {
+		// Refresh from db
+		executor.execute(() -> {
+			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(hostNode, node), Constants.TAG_CHAT_FRAGMENT, false, true);
+			NodeRepository repository = new NodeRepository(getApplicationContext());
+			Node node = repository.findNode(remoteNode.getAddressName());
+			if (node == null) {
+				repository.insertNode(remoteNode, success -> {
+					if (success) {
+						goToChat.accept(remoteNode);
+					} else {
+						Log.d(TAG, "discussWith() : node insertion failed, address=" + remoteNode.getAddressName());
+					}
+				});
+			} else {
+				goToChat.accept(node);
+			}
+		});
+	}
+
 	/**
-	 * Show the ChatListFragment after configuration or node loading.
+	 * Show the fragment to display after configuration or node loading.
 	 */
 	private void showWelcomeFragmentFollower(boolean addToBackStack) {
 		// The host node is identified. Get NearbyManager instance
 		executor.execute(() -> {
+			// Init NearbyManager
+			NearbyManager.getInstance(getApplicationContext(), hostNode.getAddressName());
 			long count = appDatabase.messageDao().countAll();
 			if (count > 0L) {
 				// There is at least one message, navigate to ChatListFragment
 				Log.i(TAG, "Ready to display chat list");
 				// ChatListFragment.newInstance(), Constants.TAG_CHAT_LIST_FRAGMENT
+				navigateTo(NearbyDiscoveryFragment.newInstance(hostNode.getAddressName(), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
 			} else {
 				// There is no message, redirect user on discovery fragment
 				navigateTo(NearbyDiscoveryFragment.newInstance(hostNode.getAddressName(), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
@@ -330,6 +361,7 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 		if (executor != null) {
 			executor.shutdown();
 		}
+		//NearbyManager.getInstance(getApplicationContext(), hostNode.getAddressName()).stopNearby();
 	}
 
 	public Fragment getCurrentFragmentInContainer() {

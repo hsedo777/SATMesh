@@ -1,24 +1,17 @@
 package org.sedo.satmesh.ui;
 
+import android.app.Application;
+
 import androidx.annotation.NonNull;
 import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 
 public class ViewModelFactory implements ViewModelProvider.Factory {
 
-	private static ViewModelFactory factory;
+	private final Application application;
 
-	private ViewModelFactory() {}
-
-	public static ViewModelFactory getInstance() {
-		if (factory == null) {
-			synchronized (ViewModelFactory.class) {
-				if (factory == null) {
-					factory = new ViewModelFactory();
-				}
-			}
-		}
-		return factory;
+	public ViewModelFactory(@NonNull Application application) {
+		this.application = application;
 	}
 
 	/** @noinspection unchecked*/
@@ -28,7 +21,10 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
 			return (T) new WelcomeViewModel();
 		}
 		if (modelClass == NearbyDiscoveryViewModel.class){
-			return (T) new NearbyDiscoveryViewModel();
+			return (T) new NearbyDiscoveryViewModel(application);
+		}
+		if (modelClass == ChatViewModel.class){
+			return (T) new ChatViewModel(application);
 		}
 		return ViewModelProvider.Factory.super.create(modelClass);
 	}

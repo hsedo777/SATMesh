@@ -29,6 +29,26 @@
 		<item name="elevation">4dp</item>
 	</style>
 
+	<style name="Widget.SATMesh.TextInput" parent="Widget.MaterialComponents.TextInputLayout.FilledBox.Dense">
+		<item name="android:textColorHint">@color/textHint</item>
+		<item name="boxStrokeColor">@color/accent</item>
+		<item name="boxBackgroundColor">@color/colorPrimaryDark</item>
+		<item name="boxBackgroundMode">filled</item>
+		<item name="boxCornerRadiusTopStart">12dp</item>
+		<item name="boxCornerRadiusTopEnd">12dp</item>
+		<item name="boxCornerRadiusBottomStart">12dp</item>
+		<item name="boxCornerRadiusBottomEnd">12dp</item>
+		<item name="boxStrokeWidth">1dp</item>
+		<item name="boxStrokeWidthFocused">2dp</item>
+		<item name="android:padding">4dp</item>
+		<item name="hintTextAppearance">@style/Widget.SATMesh.TextHint</item>
+	</style>
+
+	<style name="Widget.SATMesh.TextHint" parent="TextAppearance.MaterialComponents.Caption">
+		<item name="android:textColor">@color/textHint</item>
+	</style>
+
+
 	<!-- Style for BottomNavigationView -->
 	<style name="Widget.SATMesh.BottomNavigation" parent="Widget.MaterialComponents.BottomNavigationView">
 		<item name="android:background">@color/colorBackground</item>

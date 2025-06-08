@@ -31,7 +31,6 @@ import org.whispersystems.libsignal.state.SignedPreKeyRecord;
 import org.whispersystems.libsignal.util.KeyHelper;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,12 +39,12 @@ public class SignalManager {
 	private static final String REGISTRATION_ID_PREF = "registration_id";
 	private static final String NEXT_PREKEY_ID_PREF = "next_prekey_id";
 	private static final String NEXT_SIGNED_PREKEY_ID_PREF = "next_signed_prekey_id";
-	private static final String DEVICE_ID_PREF = "device_id";
 
 	private static final int PREKEY_GENERATION_BATCH_SIZE = 100; // Number of PreKeys to generate together
 	private static final int MIN_AVAILABLE_PREKEYS = 10; // Minimal number of prekeys to keep available
 	private static final long SIGNED_PREKEY_LIFETIME_MILLIS = 90L * 24 * 60 * 60 * 1000; // 90 days in milliseconds
-
+	
+	private static SignalManager INSTANCE;
 
 	private final SharedPreferences preferences;
 	private final ExecutorService executor;
@@ -57,15 +56,47 @@ public class SignalManager {
 	private AndroidSignedPreKeyStore signedPreKeyStore;
 	private AndroidIdentityKeyStore identityKeyStore;
 
-	public SignalManager(@NonNull Context context) {
-		this.preferences = context.getSharedPreferences("signal_prefs", Context.MODE_PRIVATE);
+	protected SignalManager(@NonNull Context context) {
+		this.preferences = context.getApplicationContext().getSharedPreferences("signal_prefs", Context.MODE_PRIVATE);
 		this.executor = Executors.newSingleThreadExecutor();
 	}
+	
+	public static SignalManager getInstance(@NonNull Context context){
+		if (INSTANCE == null){
+			synchronized (SignalManager.class){
+				if (INSTANCE == null){
+					INSTANCE = new SignalManager(context);
+				}
+			}
+		}
+		return INSTANCE;
+	}
 
-	@Override
-	protected void finalize() throws Throwable {
+	// Utilities methods
+	public static SignalProtocolAddress getAddress(String deviceAddressName) {
+		return new SignalProtocolAddress(deviceAddressName, 1);
+	}
+
+	private static String byteArrayToHexString(byte[] bytes) {
+		StringBuilder sb = new StringBuilder();
+		for (byte b : bytes) {
+			sb.append(String.format("%02x", b));
+		}
+		return sb.toString();
+	}
+
+	private static byte[] hexStringToByteArray(String hex) {
+		int len = hex.length();
+		byte[] data = new byte[len / 2];
+		for (int i = 0; i < len; i += 2) {
+			data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+					+ Character.digit(hex.charAt(i + 1), 16));
+		}
+		return data;
+	}
+
+	public void shutdown() {
 		executor.shutdown();
-		super.finalize();
 	}
 
 	public void initialize(SignalInitializationCallback callback) {
@@ -119,7 +150,7 @@ public class SignalManager {
 		// Generate PreKeys if needed
 		int unusedPreKeyCount = preKeyStore.getUnusedPreKeyCount();
 
-		if (unusedPreKeyCount < MIN_AVAILABLE_PREKEYS){
+		if (unusedPreKeyCount < MIN_AVAILABLE_PREKEYS) {
 			int startId = preferences.getInt(NEXT_PREKEY_ID_PREF, 1);
 			List<PreKeyRecord> preKeys = KeyHelper.generatePreKeys(startId, PREKEY_GENERATION_BATCH_SIZE);
 
@@ -170,7 +201,7 @@ public class SignalManager {
 		}
 	}
 
-	private void markPreKeyAsUsed(PreKeyRecord preKeyRecord){
+	private void markPreKeyAsUsed(PreKeyRecord preKeyRecord) {
 		preKeyStore.markPreKeyAsUsed(preKeyRecord.getId()); // Mark the PreKey as used
 
 		// Generate if needed new PreKeys in background. It's important to maintain a pool of PreKeys.
@@ -187,6 +218,7 @@ public class SignalManager {
 	/**
 	 * Get the public key bundle for initial session establishment.
 	 * This method consumes an unused PreKey.
+	 *
 	 * @return The PreKeyBundle.
 	 * @throws Exception if PreKeys or SignedPreKey are not available.
 	 */
@@ -216,9 +248,10 @@ public class SignalManager {
 
 	/**
 	 * Initiates a session with another device.
+	 *
 	 * @param recipientAddress The address of the recipient.
-	 * @param preKeyBundle The PreKeyBundle obtained from the recipient.
-	 * @param callback Callback for success or error.
+	 * @param preKeyBundle     The PreKeyBundle obtained from the recipient.
+	 * @param callback         Callback for success or error.
 	 */
 	public void initiateSession(SignalProtocolAddress recipientAddress, PreKeyBundle preKeyBundle,
 	                            SessionCallback callback) {
@@ -242,9 +275,10 @@ public class SignalManager {
 
 	/**
 	 * Encrypts a message for a recipient.
+	 *
 	 * @param recipientAddress The address of the recipient.
-	 * @param message The message, as byte array, to encrypt.
-	 * @param callback Callback for success with CiphertextMessage or error.
+	 * @param message          The message, as byte array, to encrypt.
+	 * @param callback         Callback for success with CiphertextMessage or error.
 	 */
 	public void encryptMessage(SignalProtocolAddress recipientAddress, byte[] message, EncryptionCallback callback) {
 		executor.execute(() -> {
@@ -267,9 +301,10 @@ public class SignalManager {
 
 	/**
 	 * Decrypts a received message.
+	 *
 	 * @param senderAddress The address of the sender.
 	 * @param cipherMessage The encrypted message.
-	 * @param callback Callback for success with decrypted message string or error.
+	 * @param callback      Callback for success with decrypted message string or error.
 	 */
 	public void decryptMessage(SignalProtocolAddress senderAddress, CiphertextMessage cipherMessage,
 	                           DecryptionCallback callback) {
@@ -304,6 +339,7 @@ public class SignalManager {
 	/**
 	 * Serializes a PreKeyBundle into a byte array using Protocol Buffers.
 	 * This is the recommended production implementation.
+	 *
 	 * @param bundle The PreKeyBundle to serialize.
 	 * @return A byte array representing the serialized bundle.
 	 */
@@ -324,10 +360,11 @@ public class SignalManager {
 	/**
 	 * Deserializes a byte array into a PreKeyBundle using Protocol Buffers.
 	 * This is the recommended production implementation.
+	 *
 	 * @param data The byte array to deserialize.
 	 * @return The reconstructed PreKeyBundle.
 	 * @throws InvalidProtocolBufferException if the data is not a valid protobuf message.
-	 * @throws InvalidKeyException if any contained key is invalid.
+	 * @throws InvalidKeyException            if any contained key is invalid.
 	 */
 	public PreKeyBundle deserializePreKeyBundle(byte[] data) throws InvalidProtocolBufferException, InvalidKeyException {
 		SignalPreKeyBundle protoBundle = SignalPreKeyBundle.parseFrom(data);
@@ -350,70 +387,28 @@ public class SignalManager {
 		);
 	}
 
-	/**
-	 * Gets the local SignalProtocolAddress for identification.
-	 * The name is a unique user ID, and deviceId is 1 for the primary device.
-	 * @return The local SignalProtocolAddress.
-	 */
-	public SignalProtocolAddress getLocalAddress() {
-		return getAddress(getLocalUserId());
-	}
-
-	/**
-	 * Retrieves or generates a unique user ID for this device.
-	 * This ID will serve as the 'name' part of the SignalProtocolAddress.
-	 * @return The unique user ID string.
-	 */
-	private String getLocalUserId() {
-		String userId = preferences.getString(DEVICE_ID_PREF, null); // Renamed pref constant for clarity too
-		if (userId == null) {
-			userId = UUID.randomUUID().toString(); // Generate a unique UUID for the user
-			preferences.edit().putString(DEVICE_ID_PREF, userId).apply(); // Store as DEVICE_ID_PREF (effectively USER_ID_PREF)
-		}
-		return userId;
-	}
-
-	// Utilities methods
-	public static SignalProtocolAddress getAddress(String deviceAddressName){
-		return new SignalProtocolAddress(deviceAddressName, 1);
-	}
-
-	private static String byteArrayToHexString(byte[] bytes) {
-		StringBuilder sb = new StringBuilder();
-		for (byte b : bytes) {
-			sb.append(String.format("%02x", b));
-		}
-		return sb.toString();
-	}
-
-	private static byte[] hexStringToByteArray(String hex) {
-		int len = hex.length();
-		byte[] data = new byte[len / 2];
-		for (int i = 0; i < len; i += 2) {
-			data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
-					+ Character.digit(hex.charAt(i+1), 16));
-		}
-		return data;
-	}
-
 	// Callback interfaces
 	public interface SignalInitializationCallback {
 		void onSuccess();
+
 		void onError(Exception e);
 	}
 
 	public interface SessionCallback {
 		void onSuccess();
+
 		void onError(Exception e);
 	}
 
 	public interface EncryptionCallback {
 		void onSuccess(CiphertextMessage cipherMessage);
+
 		void onError(Exception e);
 	}
 
 	public interface DecryptionCallback {
 		void onSuccess(byte[] decryptedBytes);
+
 		void onError(Exception e);
 	}
 }

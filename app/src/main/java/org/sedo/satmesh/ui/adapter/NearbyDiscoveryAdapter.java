@@ -15,7 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Node;
-import org.sedo.satmesh.ui.model.NodeState;
+import org.sedo.satmesh.ui.data.NodeState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +44,7 @@ public class NearbyDiscoveryAdapter extends RecyclerView.Adapter<NodeViewHolder>
 			public void onLongClick(int position) {
 				if (clickListener != null) {
 					Node node = nodeList.get(position);
-					clickListener.onClick(node, stateProvider.getNodeState(node));
+					clickListener.onLongClick(node, stateProvider.getNodeState(node));
 				}
 			}
 		};
@@ -132,7 +132,8 @@ public class NearbyDiscoveryAdapter extends RecyclerView.Adapter<NodeViewHolder>
 
 		public void bind(Node node, NodeState state, int position) {
 			itemView.setTag(position);
-			nameTextView.setText(node.getAddressName());
+			String displayName = node.getDisplayName();
+			nameTextView.setText(displayName == null ? node.getAddressName() : displayName);
 			int color = ContextCompat.getColor(itemView.getContext(), state.getColorResId());
 			statusIndicator.getBackground().setTint(color);
 		}

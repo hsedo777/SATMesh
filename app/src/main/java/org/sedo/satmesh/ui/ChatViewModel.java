@@ -20,11 +20,9 @@ import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.proto.PersonalInfo;
 import org.sedo.satmesh.proto.TextMessage;
-import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.MessageRepository;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeState;
-import org.whispersystems.libsignal.state.PreKeyBundle;
 
 import java.util.HashMap;
 import java.util.List;
@@ -33,10 +31,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ChatViewModel extends AndroidViewModel implements NearbySignalMessenger.KeyExchangeListener,
-		NearbySignalMessenger.PersonalInfoChangeListener, NearbyManager.DeviceConnectionListener,
-		NearbySignalMessenger.MessageSendingListener, NearbySignalMessenger.SignalMessengerCallback,
-		NearbySignalMessenger.MessageDecryptionFailureListener {
+public class ChatViewModel extends AndroidViewModel implements NearbySignalMessenger.SignalMessengerCallback {
 
 	private static final String TAG = "ChatViewModel";
 	private final MessageRepository messageRepository;
@@ -74,8 +69,8 @@ public class ChatViewModel extends AndroidViewModel implements NearbySignalMesse
 		 * The local name may be unknown at this time, but the main activity had initialize
 		 * the manager so we are just fetching the existing instance.
 		 */
-		nearbyManager = NearbyManager.getInstance(application, "");
-		nearbySignalMessenger = NearbySignalMessenger.getInstance(SignalManager.getInstance(application), nearbyManager);
+		nearbyManager = NearbyManager.getInstance();
+		nearbySignalMessenger = NearbySignalMessenger.getInstance();
 
 		// Add listeners
 		nearbySignalMessenger.addKeyExchangeListener(this);
@@ -96,8 +91,6 @@ public class ChatViewModel extends AndroidViewModel implements NearbySignalMesse
 		nearbySignalMessenger.removeMessageDecryptionFailureListener(this);
 		nearbyManager.removeDeviceConnectionListener(this);
 		pendingMessages.clear();
-		nodeRepository.clear();
-		messageRepository.clear();
 		executor.shutdown();
 		Log.d(TAG, "ChatViewModel cleared and listeners removed.");
 	}
@@ -230,12 +223,6 @@ public class ChatViewModel extends AndroidViewModel implements NearbySignalMesse
 	}
 
 	@Override
-	public void onReadyToInitiateSession(PreKeyBundle preKeyBundle, String remoteAddressName, long payloadId) {
-		Log.d(TAG, "ViewModel: Ready to initiate session with " + remoteAddressName);
-		// NearbySignalMessenger automatically handles session initiation.
-	}
-
-	@Override
 	public void onSessionInitSuccess(String remoteAddressName) {
 		Log.d(TAG, "ViewModel: Secure session established with " + remoteAddressName);
 		// Notify the UI
@@ -280,28 +267,23 @@ public class ChatViewModel extends AndroidViewModel implements NearbySignalMesse
 		connectionDetailedStatus.postValue(state);
 	}
 
-	@Override
 	public void onConnectionInitiated(String endpointId, String deviceAddressName) {
 		updateConnectionStatusIndicator(NodeState.ON_CONNECTION_INITIATED, deviceAddressName);
 	}
 
-	@Override
 	public void onDeviceConnected(String endpointId, String deviceAddressName) {
 		updateConnectionStatusIndicator(NodeState.ON_CONNECTED, deviceAddressName);
 	}
 
-	@Override
 	public void onConnectionFailed(String deviceAddressName, Status status) {
 		updateConnectionStatusIndicator(NodeState.ON_CONNECTION_FAILED, deviceAddressName);
 	}
 
-	@Override
 	public void onDeviceDisconnected(String endpointId, String deviceAddressName) {
 		updateConnectionStatusIndicator(NodeState.ON_DISCONNECTED, deviceAddressName);
 	}
 
 	// Implementation of `NearbySignalMessenger.MessageSendingListener`
-	@Override
 	public void onSendSucceed(@NonNull String recipientAddressName, @NonNull Object id, long payloadId) {
 		try {
 			Long messageDbId = (Long) id;
@@ -311,7 +293,7 @@ public class ChatViewModel extends AndroidViewModel implements NearbySignalMesse
 				messageToUpdate.setPayloadId(payloadId);
 				messageRepository.updateMessage(messageToUpdate);
 				pendingMessages.remove(messageDbId);
-				Log.d(TAG, "Message with ID " + messageDbId + " sent successfully. Status updated to ROUTING.");
+				Log.d(TAG, "Message with ID " + messageDbId + " sent successfully.");
 			} else {
 				Log.w(TAG, "onSendSucceed: Message not found in pending map with ID: " + messageDbId);
 			}

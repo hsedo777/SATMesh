@@ -23,10 +23,10 @@ import org.sedo.satmesh.databinding.FragmentWelcomeBinding;
  */
 public class WelcomeFragment extends Fragment {
 
+	private static final int MAX_LENGTH = 60;
 	private WelcomeViewModel viewModel;
 	private FragmentWelcomeBinding binding;
 	private OnWelcomeCompletedListener listener;
-
 
 	public WelcomeFragment() {
 		// Required empty public constructor
@@ -72,16 +72,17 @@ public class WelcomeFragment extends Fragment {
 
 			@Override
 			public void onTextChanged(CharSequence charSequence, int start, int before, int count) {
-				viewModel.onUserNameChanged(charSequence.toString());
+				viewModel.getUserName().postValue(charSequence.toString().trim());
 			}
 
 			@Override
 			public void afterTextChanged(Editable editable) {}
 		});
 
-		viewModel.observe(getViewLifecycleOwner(), e -> binding.continueButton.setEnabled(e != null && e));
+		viewModel.getUserName().observe(getViewLifecycleOwner(),
+				e -> binding.continueButton.setEnabled(!e.isEmpty() && e.length() >= 2 && MAX_LENGTH >= e.length()));
 
-		binding.continueButton.setOnClickListener(unused -> listener.onWelcomeCompleted(viewModel.getUserName()));
+		binding.continueButton.setOnClickListener(unused -> listener.onWelcomeCompleted(viewModel.getUserName().getValue()));
 	}
 
 	@Override

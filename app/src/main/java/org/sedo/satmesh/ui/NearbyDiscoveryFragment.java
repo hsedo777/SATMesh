@@ -27,6 +27,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 
 	private static final String HOST_DEVICE_NAME = "host_name";
 	private static final String ADD_TO_BACK_STACK = "add_to_back_stack";
+	private static final String TAG = Constants.TAG_DISCOVERY_FRAGMENT;
 
 	private DiscoveryFragmentListener listener;
 	private NearbyDiscoveryViewModel viewModel;
@@ -62,9 +63,6 @@ public class NearbyDiscoveryFragment extends Fragment {
 	public void onDetach() {
 		super.onDetach();
 		listener = null;
-		if (viewModel != null) {
-			viewModel.setDiscoveryListener(null);
-		}
 	}
 
 	@Override
@@ -73,9 +71,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 		if (getArguments() != null) {
 			// Initial instantiation
 			hostDeviceName = getArguments().getString(HOST_DEVICE_NAME);
-			//viewModel.setHostDeviceName();
 			addToBackStack = getArguments().getBoolean(ADD_TO_BACK_STACK);
-			//viewModel.setAddToBackStack();
 		}
 	}
 
@@ -109,13 +105,8 @@ public class NearbyDiscoveryFragment extends Fragment {
 		viewModel.getEmptyStateTextView().observe(getViewLifecycleOwner(), binding.emptyStateText::setVisibility);
 		viewModel.getProgressBar().observe(getViewLifecycleOwner(), binding.progressBar::setVisibility);
 
-		viewModel.getNodeListLiveData().observe(getViewLifecycleOwner(), this::onNodesChanged);
-
-		if (listener != null) {
-			viewModel.setDiscoveryListener(listener);
-		} else {
-			listener = viewModel.getDiscoveryListener();
-		}
+		// Observe the combined list from ViewModel
+		viewModel.getDisplayNodeListLiveData().observe(getViewLifecycleOwner(), this::onNodesChanged);
 
 		if (!viewModel.isAddToBackStack()) {
 			requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
@@ -134,8 +125,17 @@ public class NearbyDiscoveryFragment extends Fragment {
 				if (state != NodeState.ON_CONNECTED) {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(node.getAddressName());
 					if (endpointId != null) {
-						Log.d(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request to " + endpointId + "(" + node.getAddressName() + ")");
-						viewModel.getNearbyManager().requestConnection(endpointId);
+						Log.d(TAG, viewModel.getHostDeviceName() + " request connection to " + endpointId + "(" + node.getAddressName() + ")");
+						viewModel.getNearbyManager().requestConnection(endpointId, node.getAddressName(), (endpoint, success) -> {
+							if (success){
+								Log.d(TAG, "Connection request initiated for " + node.getAddressName() + " by click.");
+							} else {
+								Log.d(TAG, "Connection request failed for " + node.getAddressName() + " by click.");
+							}
+							// ViewModel will update transient state via service -> DB update
+						});
+					} else {
+						Log.w(TAG, "Cannot request connection: No endpoint ID found for " + node.getAddressName());
 					}
 				} else {
 					// Redirect the user to chat fragment
@@ -150,7 +150,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 				if (state == NodeState.ON_CONNECTED && node != null) {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(node.getAddressName());
 					if (endpointId != null) {
-						Log.d(Constants.TAG_DISCOVERY_FRAGMENT, viewModel.getHostDeviceName() + " request disconnect from " + endpointId + "(" + node.getAddressName() + ")");
+						Log.d(TAG, viewModel.getHostDeviceName() + " request disconnect from " + endpointId + "(" + node.getAddressName() + ")");
 						viewModel.getNearbyManager().disconnectFromEndpoint(endpointId);
 					}
 				}
@@ -161,38 +161,25 @@ public class NearbyDiscoveryFragment extends Fragment {
 	}
 
 	private void reload(){
-		Log.d("TAG", "message");
+		Log.d(TAG, "Reloading nodes list.");
 		adapter.clear();
 		viewModel.load();
 	}
 
 	private void onNodesChanged(List<Node> nodeList) {
+		Log.d(TAG, "Nodes list updated in Fragment: " + nodeList.size() + " nodes.");
 		adapter.clear();
 		for (Node node : nodeList) {
 			adapter.addOrUpdateNode(node);
 		}
 
-		if (nodeList.isEmpty()) {
-			viewModel.getRecyclerVisibility().postValue(View.GONE);
-			viewModel.getEmptyStateTextView().postValue(View.VISIBLE);
-		} else {
-			viewModel.getRecyclerVisibility().postValue(View.VISIBLE);
-			viewModel.getEmptyStateTextView().postValue(View.GONE);
-		}
-
-		viewModel.getProgressBar().postValue(View.GONE); // stop spinner once results start coming
+		viewModel.getProgressBar().postValue(View.GONE); // Always hide progress bar after results are processed
 	}
 
 	@Override
 	public void onStart() {
 		super.onStart();
-		viewModel.load();
-	}
-
-	@Override
-	public void onDestroyView() {
-		super.onDestroyView();
-		viewModel.setDiscoveryListener(null);
+		viewModel.load(); // Initial load when fragment starts
 	}
 
 	public interface DiscoveryFragmentListener {

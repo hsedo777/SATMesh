@@ -11,34 +11,39 @@
 		android:maxSdkVersion="30" />
 	<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 	<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-	<uses-permission
-		android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-	<uses-permission
-		android:name="android.permission.ACCESS_FINE_LOCATION"/>
+	<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+	<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 	<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 	<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 	<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 	<uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
 
 	<!-- Optional: only required for FILE payloads -->
-	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+	<uses-permission
+		android:name="android.permission.READ_EXTERNAL_STORAGE"
 		android:maxSdkVersion="32" />
-	<!--
-	<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-	<uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
-	-->
-	<uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+	<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
 	<!-- Required for recording audio -->
 	<uses-permission android:name="android.permission.RECORD_AUDIO" /> <!-- For shake-to-advertise -->
 	<uses-permission android:name="android.permission.VIBRATE" />
 
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
 	<uses-feature
 		android:name="android.hardware.sensor.accelerometer"
 		android:required="true" />
-	<uses-feature android:name="android.hardware.bluetooth" android:required="false" />
-	<uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
-	<uses-feature android:name="android.hardware.wifi" android:required="false" />
+	<uses-feature
+		android:name="android.hardware.bluetooth"
+		android:required="false" />
+	<uses-feature
+		android:name="android.hardware.bluetooth_le"
+		android:required="false" />
+	<uses-feature
+		android:name="android.hardware.wifi"
+		android:required="false" />
 
 	<application
 		android:allowBackup="true"
@@ -59,6 +64,21 @@
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
+
+		<service
+			android:name=".service.SATMeshCommunicationService"
+			android:exported="false"
+			android:foregroundServiceType="connectedDevice"
+			tools:targetApi="34" />
+		<receiver
+			android:name=".service.BootReceiver"
+			android:enabled="true"
+			android:exported="true">
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+				<category android:name="android.intent.category.DEFAULT" />
+			</intent-filter>
+		</receiver>
 	</application>
 
 </manifest>

@@ -53,6 +53,11 @@ public class Message {
 	 * but no delivery confirmation has been received yet.
 	 */
 	public static final int MESSAGE_STATUS_ROUTING = 5;
+	/**
+	 * Used to mark message when it was sent in context where there is no active secure
+	 * session between the implied nodes.
+	 */
+	public static final int MESSAGE_STATUS_PENDING_KEY_EXCHANGE = 6;
 
 	//For message type, we opt to integer constants instead of enum constants
 	/**
@@ -164,6 +169,7 @@ public class Message {
 	}
 
 	public void setType(int type) {
+		if (!isValidMessageTpe(type)) return;
 		this.type = type;
 	}
 
@@ -181,13 +187,6 @@ public class Message {
 
 	public void setRecipientNodeId(Long recipientNodeId) {
 		this.recipientNodeId = recipientNodeId;
-	}
-
-	/**
-	 * Checks if this message is exchanged through the specified node IDs
-	 */
-	public boolean isForUs(long nodeIdA, long nodeIdB){
-		return (senderNodeId == nodeIdA && recipientNodeId == nodeIdB) || (senderNodeId == nodeIdB  && recipientNodeId == nodeIdA);
 	}
 
 	@Override
@@ -213,7 +212,21 @@ public class Message {
 						Message.MESSAGE_STATUS_PENDING,
 						Message.MESSAGE_STATUS_ROUTING,
 						Message.MESSAGE_STATUS_READ,
-						Message.MESSAGE_STATUS_FAILED)
+						Message.MESSAGE_STATUS_FAILED,
+						MESSAGE_STATUS_PENDING_KEY_EXCHANGE)
 				.contains(status);
+	}
+
+	/**
+	 * Test if the input integer value is a valid message type
+	 * @param type the code to test
+	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_TYPE}.
+	 */
+	public static boolean isValidMessageTpe(int type){
+		return Arrays.asList(Message.MESSAGE_TYPE_TEXT,
+						Message.MESSAGE_TYPE_AUDIO,
+						Message.MESSAGE_TYPE_FILE,
+						Message.MESSAGE_TYPE_IMAGE)
+				.contains(type);
 	}
 }

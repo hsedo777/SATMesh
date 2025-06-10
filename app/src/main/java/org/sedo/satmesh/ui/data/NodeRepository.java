@@ -3,22 +3,25 @@ package org.sedo.satmesh.ui.data;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import androidx.lifecycle.LiveData;
 
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.model.NodeDao;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 public class NodeRepository {
 
 	private final NodeDao dao;
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final Executor executor;
 
 	public NodeRepository(@NonNull Context context) {
-		dao = AppDatabase.getDB(context).nodeDao();
+		AppDatabase db = AppDatabase.getDB(context);
+		dao = db.nodeDao();
+		executor = db.getQueryExecutor();
 	}
 
 	/**
@@ -47,8 +50,7 @@ public class NodeRepository {
 		return dao.getNodeByAddressName(addressName);
 	}
 
-	// Free memory
-	public void clear(){
-		executor.shutdown();
+	public LiveData<List<Node>> getConnectedNode(){
+		return dao.getConnectedNode();
 	}
 }

@@ -10,8 +10,7 @@ import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.MessageDao;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
@@ -21,14 +20,12 @@ import java.util.function.Consumer;
 public class MessageRepository {
 
 	private final MessageDao messageDao;
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final Executor executor;
 
 	public MessageRepository(@NonNull Context context) {
-		this.messageDao = AppDatabase.getDB(context).messageDao();
-	}
-
-	public void clear(){
-		executor.shutdown();
+		AppDatabase db = AppDatabase.getDB(context);
+		this.messageDao = db.messageDao();
+		executor = db.getQueryExecutor();
 	}
 
 	/**
@@ -91,12 +88,5 @@ public class MessageRepository {
 	 */
 	public void deleteMessagesWithNode(Long nodeId) {
 		executor.execute(() -> messageDao.deleteMessagesWithNode(nodeId));
-	}
-
-	/**
-	 * Deletes all messages in the table asynchronously.
-	 */
-	public void deleteAllMessages() {
-		executor.execute(messageDao::deleteAllMessages);
 	}
 }

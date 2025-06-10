@@ -96,6 +96,7 @@ public class ChatFragment extends Fragment {
 					&& viewModel.getNearbyManager().isAddressDirectlyConnected(remoteNode.getAddressName())) {
 				viewModel.getConnectionActive().postValue(true);
 				viewModel.getConnectionDetailedStatus().postValue(NodeState.ON_CONNECTED);
+				viewModel.getConnectionActive().postValue(true);
 			}
 		});
 

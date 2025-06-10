@@ -51,6 +51,13 @@ public interface NodeDao {
 	Node getNodeById(Long id);
 
 	/**
+	 * Get the live data of nodes in state connected
+	 * @see Node#isConnected()
+	 */
+	@Query("SELECT * FROM node WHERE connected = 1")
+	LiveData<List<Node>> getConnectedNode();
+
+	/**
 	 * Retrieves all Nodes (contacts) from the database, excluding the local host node.
 	 * This query assumes you'll know your own local addressName to exclude it.
 	 * If you prefer to always fetch all nodes, remove the WHERE clause.

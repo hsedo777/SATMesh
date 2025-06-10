@@ -36,6 +36,11 @@
 	<string name="error_session_failed">Sorry, your secure session has expired.</string>
 	<string name="error_message_decryption_failed">Sorry, message decryption failed.</string>
 
+	<string name="notification_title">SATMesh Running</string>
+	<string name="notification_content">Maintaining secure communication in the background.</string>
+	<string name="channel_name">Communication Service</string>
+	<string name="channel_description">Notifications for background communication activities.</string>
+
 	<string name="yesterday">Yesterday</string>
 	<!--
 	<string name=""></string>

@@ -28,12 +28,26 @@ public class Node {
 	private String addressName;
 
 	private boolean trusted = false;
+	private Long lastSeen;
+	private boolean connected;
 
 	private static final String NODE_ID = "node_id";
 	private static final String NODE_DISPLAY_NAME = "node_display_name";
 	private static final String NODE_ADDRESS_NAME = "node_address_name";
 	private static final String NODE_TRUSTED = "arg_remote_node_name";
 
+	/** Default constructor. */
+	public Node(){}
+
+	/** Constructor of copy. */
+	public Node(@NonNull Node toCopy){
+		id = toCopy.id;
+		displayName = toCopy.displayName;
+		addressName = toCopy.addressName;
+		trusted = toCopy.trusted;
+		lastSeen = toCopy.lastSeen;
+		connected = toCopy.connected;
+	}
 	/**
 	 * Populates the node's properties using a PersonalInfo Protocol Buffer object.
 	 * This is typically used when receiving personal information from another node.
@@ -79,6 +93,22 @@ public class Node {
 
 	public void setTrusted(boolean trusted) {
 		this.trusted = trusted;
+	}
+
+	public Long getLastSeen() {
+		return lastSeen;
+	}
+
+	public void setLastSeen(long lastSeen) {
+		this.lastSeen = lastSeen;
+	}
+
+	public boolean isConnected() {
+		return connected;
+	}
+
+	public void setConnected(boolean connected) {
+		this.connected = connected;
 	}
 
 	@Override

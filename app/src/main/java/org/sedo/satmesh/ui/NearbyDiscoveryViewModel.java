@@ -1,129 +1,89 @@
 package org.sedo.satmesh.ui;
 
 import android.app.Application;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.ColorRes;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.AndroidViewModel;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
-
-import com.google.android.gms.common.api.Status;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
-import org.sedo.satmesh.ui.NearbyDiscoveryFragment.DiscoveryFragmentListener;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeState;
+import org.sedo.satmesh.ui.data.NodeStateRepository;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
 
 public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
-	private static final int REMOVING_DElAY = 5000; // 5s
+	private static final String TAG = "NearbyDiscoveryVM";
 
-	private final MutableLiveData<List<Node>> nodeListLiveData = new MutableLiveData<>(new ArrayList<>());
+	private final MediatorLiveData<List<Node>> displayNodeListLiveData = new MediatorLiveData<>();
+	private final NodeStateRepository nodeStateRepository;
 	private final MutableLiveData<Integer> recyclerVisibility = new MutableLiveData<>();
 	private final MutableLiveData<DescriptionState> descriptionState = new MutableLiveData<>();
 	private final MutableLiveData<Integer> emptyStateTextView = new MutableLiveData<>();
 	private final MutableLiveData<Integer> progressBar = new MutableLiveData<>();
-	private final Map<String, NodeState> nodeStates = new HashMap<>();
-	private final NodeRepository nodeRepository;
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
-	private final NearbyManager.DeviceConnectionListener connectionListener = new NearbyManager.DeviceConnectionListener() {
-		@Override
-		public void onConnectionInitiated(String endpointId, String deviceAddressName) {
-			addOrUpdateNode(getNode(deviceAddressName), NodeState.ON_CONNECTION_INITIATED);
-		}
 
-		@Override
-		public void onDeviceConnected(String endpointId, String deviceAddressName) {
-			addOrUpdateNode(getNode(deviceAddressName), NodeState.ON_CONNECTED);
-		}
-
-		@Override
-		public void onConnectionFailed(String deviceAddressName, Status status) {
-			addOrUpdateNode(getNode(deviceAddressName), NodeState.ON_CONNECTION_FAILED);
-		}
-
-		@Override
-		public void onDeviceDisconnected(String endpointId, String deviceAddressName) {
-			addOrUpdateNode(getNode(deviceAddressName), NodeState.ON_DISCONNECTED);
-			executor.execute(() -> {
-				try {
-					Thread.sleep(REMOVING_DElAY);
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-				removeNode(deviceAddressName);
-			});
-		}
-	};
-	private final NearbyManager.DiscoveringListener discoveringListener = new NearbyManager.DiscoveringListener() {
-
-		@Override
-		public void onDiscoveringStarted() {
-			// OK, may activate description view on fragment
-			descriptionState.postValue(new DescriptionState(R.color.white, getApplication().getString(R.string.nearby_discovery_description)));
-		}
-
-		@Override
-		public void onDiscoveringFailed(Exception e) {
-			descriptionState.postValue(new DescriptionState(R.color.colorError, getApplication().getString(R.string.internal_error)));
-			recyclerVisibility.postValue(View.GONE);
-		}
-
-		@Override
-		public void onEndpointFound(String endpointId, String endpointName) {
-			if (getNode(endpointName) == null)
-				appendNode(endpointName, NodeState.ON_ENDPOINT_FOUND);
-		}
-
-		@Override
-		public void onEndpointLost(String endpointId, String endpointName) {
-			if (endpointName == null) {
-				return;
-			}
-			Node node = getNode(endpointName);
-			if (node != null && getStateForNode(node) != NodeState.ON_CONNECTED)
-				addOrUpdateNode(node, NodeState.ON_ENDPOINT_LOST);
-		}
-	};
 	private final NearbyManager nearbyManager;
+	// Executor for ViewModel specific background tasks that are not handled by repositories
+	private final ExecutorService viewModelExecutor = Executors.newSingleThreadExecutor();
 	private String hostDeviceName;
 	private boolean addToBackStack;
-	private DiscoveryFragmentListener discoveryListener;
 
 	protected NearbyDiscoveryViewModel(@NonNull Application application) {
 		super(application);
-		nodeRepository = new NodeRepository(application);
-		nearbyManager = NearbyManager.getInstance(getApplication(), "");
-		this.nearbyManager.addDiscoveringListener(discoveringListener);
-		this.nearbyManager.addDeviceConnectionListener(connectionListener);
+		// This map still holds transient states not directly in the DB Node model
+		NodeRepository nodeRepository = new NodeRepository(application);
+		nodeStateRepository = NodeStateRepository.getInstance();
+		nearbyManager = NearbyManager.getInstance();
+
+		// Observe the connected nodes from the database
+		LiveData<List<Node>> connectedNodesFromDb = nodeRepository.getConnectedNode();
+		// Observe data from NodeStateRepository (transient UI states)
+		LiveData<Map<String, NodeState>> transientStatesFromRepo = nodeStateRepository.getTransientNodeStates();
+
+		// Combine DB nodes with transient states
+		// Use MediatorLiveData to combine these two sources
+		displayNodeListLiveData.addSource(connectedNodesFromDb, dbNodes -> {
+			Log.d(TAG, "Mediator: DB connected nodes updated.");
+			// When DB nodes change, combine them with current transient states
+			updateDisplayNodes(dbNodes, transientStatesFromRepo.getValue());
+		});
+
+		displayNodeListLiveData.addSource(transientStatesFromRepo, transientStates -> {
+			Log.d(TAG, "Mediator: Transient states updated.");
+			// When transient states change, combine them with current DB nodes
+			updateDisplayNodes(connectedNodesFromDb.getValue(), transientStates);
+		});
+
+		// Initialize UI states
+		recyclerVisibility.setValue(View.GONE);
+		emptyStateTextView.setValue(View.GONE);
+		progressBar.setValue(View.VISIBLE);
+		descriptionState.setValue(new DescriptionState(R.color.white, getApplication().getString(R.string.nearby_discovery_description)));
 	}
 
 	public NearbyManager getNearbyManager() {
 		return nearbyManager;
 	}
 
-	public MutableLiveData<List<Node>> getNodeListLiveData() {
-		return nodeListLiveData;
-	}
-
-	public DiscoveryFragmentListener getDiscoveryListener() {
-		return discoveryListener;
-	}
-
-	public void setDiscoveryListener(DiscoveryFragmentListener discoveryListener) {
-		this.discoveryListener = discoveryListener;
+	public LiveData<List<Node>> getDisplayNodeListLiveData() {
+		return displayNodeListLiveData;
 	}
 
 	public MutableLiveData<Integer> getEmptyStateTextView() {
@@ -159,92 +119,134 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	}
 
 	public NodeState getStateForNode(Node node) {
-		return nodeStates.getOrDefault(node.getAddressName(), NodeState.ON_ENDPOINT_FOUND);
+		// Retrieve state from NodeStateRepository first (for transient states)
+		Map<String, NodeState> transientStates = nodeStateRepository.getTransientNodeStates().getValue();
+		if (transientStates != null && transientStates.containsKey(node.getAddressName())) {
+			return transientStates.get(node.getAddressName());
+		}
+		// If not in transient states, use the DB's connected status
+		return node.isConnected() ? NodeState.ON_CONNECTED : NodeState.ON_ENDPOINT_FOUND;
 	}
 
-	protected void appendNode(String endpointName, NodeState state) {
-		Node node = new Node();
-		node.setAddressName(endpointName);
-		addOrUpdateNode(node, state);
-	}
-
+	/**
+	 * Called to (re)load the list of nodes for display.
+	 * This method now primarily triggers a refresh of initial transient states
+	 * from NearbyManager at load time and relies on LiveData observation.
+	 */
 	public void load() {
-		nearbyManager.startAdvertising();
-		nearbyManager.startDiscovery();
+		Log.d(TAG, "Loading initial node states for display.");
+		/*
+		 * When load is called, we should ensure NodeStateRepository has latest
+		 * known transient states at startup (e.g., pending connections from NearbyManager).
+		 * This is important because NodeStateRepository's internal map might be empty
+		 * on initial ViewModel creation if the service hasn't updated it yet for pending connections.
+		 */
+		nodeStateRepository.clearTransientStates(); // Clear old transient states on fresh load
 
-		BiConsumer<String, NodeState> mapper = (address, state) ->{
-			Node node = getNode(address);
-			if (node != null){
-				addOrUpdateNode(node, state);
-			} else {
-				appendNode(address, state);
-			}
-		};
-		for (String pending : nearbyManager.getAllPendingAddressName()) {
-			appendNode(pending, NodeState.ON_ENDPOINT_FOUND);
+		/*
+		 * Populate NodeStateRepository with currently known (pending/incoming) endpoints from NearbyManager.
+		 * This makes sure these are displayed immediately.
+		 */
+		for (String pendingAddress : nearbyManager.getAllPendingAddressName()) {
+			nodeStateRepository.updateTransientNodeState(pendingAddress, NodeState.ON_CONNECTION_INITIATED);
 		}
-		for (String incoming : nearbyManager.getAllIncomingAddressName()) {
-			mapper.accept(incoming, NodeState.ON_CONNECTION_INITIATED);
+		for (String incomingAddress : nearbyManager.getAllIncomingAddressName()) {
+			nodeStateRepository.updateTransientNodeState(incomingAddress, NodeState.ON_CONNECTION_INITIATED);
 		}
-		for (String connected : nearbyManager.getAllConnectedAddressName()) {
-			mapper.accept(connected, NodeState.ON_CONNECTED);
-		}
+		// The MediatorLiveData will automatically combine these updates with DB changes.
+
+		/*
+		 * The progressBar is hidden by updateUiVisibility, which is called when the list is updated.
+		 * But we can ensure it's visible while loading:
+		 * Trigger a fresh update to display the combined list
+		 */
+		progressBar.postValue(View.VISIBLE);
 	}
 
-	public void addOrUpdateNode(Node node, NodeState state) {
-		if (node == null) {
-			return;
-		}
-		executor.execute(() -> {
-			nodeStates.put(node.getAddressName(), state);
-			List<Node> currentList, oldList = nodeListLiveData.getValue();
-			if (oldList == null) {
-				currentList = new ArrayList<>();
-			} else {
-				currentList = new ArrayList<>(oldList);
+	/**
+	 * Helper method to combine nodes from DB and transient states for display.
+	 * This method is triggered by changes in either the connected nodes from DB
+	 * or the transient states from NodeStateRepository.
+	 *
+	 * @param dbNodes         The current list of connected nodes from the database.
+	 * @param transientStates The current map of transient states from NodeStateRepository.
+	 */
+	private void updateDisplayNodes(@Nullable List<Node> dbNodes, @Nullable Map<String, NodeState> transientStates) {
+		viewModelExecutor.execute(() -> { // Perform combining logic on a background thread
+			Map<String, Node> seenNodes = new HashMap<>(); // To handle uniqueness
+
+			// 1. Add all connected nodes from the database
+			if (dbNodes != null) {
+				for (Node node : dbNodes) {
+					seenNodes.put(node.getAddressName(), node);
+				}
 			}
 
-			int index = currentList.indexOf(node);
-			// Try to retrieve the node from db
-			Node refresh = nodeRepository.findNode(node.getAddressName());
-			Node current = refresh == null ? node : refresh;
+			// 2. Overlay or add transient states
+			if (transientStates != null) {
+				for (Map.Entry<String, NodeState> entry : transientStates.entrySet()) {
+					String addressName = entry.getKey();
+					NodeState state = entry.getValue();
 
-			if (index != -1) {
-				currentList.set(index, current);
-			} else {
-				currentList.add(current);
+					if (seenNodes.containsKey(addressName)) {
+						/*
+						 * Node is already in the list (from DB, meaning connected).
+						 * Only override if the transient state implies a temporary override
+						 * (e.g., ON_DISCONNECTED for a briefly disconnected but still in DB node).
+						 * Otherwise, connected state from DB usually takes precedence for display.
+						 */
+						if (state == NodeState.ON_DISCONNECTED) {
+							Node nodeInList = seenNodes.get(addressName);
+							Objects.requireNonNull(nodeInList).setConnected(false); // Mark as not connected for UI purposes
+							// The NodeStateRepository is responsible for eventually removing this if truly lost.
+							Log.d(TAG, "Transient: Marking " + addressName + " as temporarily disconnected.");
+						}
+						/*
+						 * For other states like ON_ENDPOINT_FOUND or ON_CONNECTION_INITIATED,
+						 * if the node is already connected (from DB), we typically show it as connected.
+						 * So, no change needed here if already in seenNodes.
+						 */
+					} else {
+						// This node is not in the DB's connected list.
+						// It must be a newly discovered, pending, or failed-to-connect node.
+						Node transientNode = new Node();
+						transientNode.setAddressName(addressName);
+						transientNode.setConnected(false); // It's not connected yet
+						seenNodes.put(addressName, transientNode); // Add to seen to prevent duplicates
+						Log.d(TAG, "Transient: Adding " + addressName + " with state " + state + ".");
+					}
+				}
 			}
 
-			nodeListLiveData.postValue(currentList);
+			// Ensure unique nodes and apply sorting if desired
+			List<Node> dedupedAndSortedList = new ArrayList<>(seenNodes.values());
+			dedupedAndSortedList.sort(Comparator.comparing(Node::getAddressName));
+
+			displayNodeListLiveData.postValue(dedupedAndSortedList);
+			updateUiVisibility(dedupedAndSortedList.isEmpty());
 		});
 	}
 
-	public void removeNode(String addressName) {
-		nodeStates.remove(addressName);
-		List<Node> currentList = new ArrayList<>(Objects.requireNonNull(nodeListLiveData.getValue()));
-		currentList.removeIf(n -> n.getAddressName().equals(addressName));
-		nodeListLiveData.postValue(currentList);
-	}
-
-	public Node getNode(String addressName) {
-		List<Node> currentList, oldList = nodeListLiveData.getValue();
-		if (oldList == null) {
-			currentList = new ArrayList<>();
+	/**
+	 * Updates the visibility of the RecyclerView and empty state TextView based on the list content.
+	 *
+	 * @param isEmpty true if the list of nodes is empty, false otherwise.
+	 */
+	private void updateUiVisibility(boolean isEmpty) {
+		if (isEmpty) {
+			recyclerVisibility.postValue(View.GONE);
+			emptyStateTextView.postValue(View.VISIBLE);
 		} else {
-			currentList = new ArrayList<>(oldList);
+			recyclerVisibility.postValue(View.VISIBLE);
+			emptyStateTextView.postValue(View.GONE);
 		}
-		return currentList.stream().filter(n -> addressName.equals(n.getAddressName())).findFirst().orElse(null);
+		progressBar.postValue(View.GONE); // Always hide progress bar after loading
 	}
 
 	@Override
 	protected void onCleared() {
 		super.onCleared();
-		discoveryListener = null;
-		nearbyManager.stopDiscovery();
-		// Advertising may continue to in favor of routing
-		nearbyManager.removeDeviceConnectionListener(connectionListener);
-		nearbyManager.removeDiscoveringListener(discoveringListener);
-		executor.shutdown();
+		viewModelExecutor.shutdown();
 	}
 
 	public static class DescriptionState {

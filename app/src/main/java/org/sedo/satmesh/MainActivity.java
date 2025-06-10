@@ -25,17 +25,13 @@ import androidx.fragment.app.FragmentTransaction;
 
 import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
-import org.sedo.satmesh.nearby.NearbyManager;
-import org.sedo.satmesh.signal.SignalManager;
-import org.sedo.satmesh.signal.SignalManager.SignalInitializationCallback;
+import org.sedo.satmesh.service.SATMeshCommunicationService;
 import org.sedo.satmesh.ui.ChatFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.WelcomeFragment;
-import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Constants;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public class MainActivity extends AppCompatActivity implements WelcomeFragment.OnWelcomeCompletedListener, NearbyDiscoveryFragment.DiscoveryFragmentListener {
@@ -108,11 +104,7 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 	// Launch and treat setting activity
 	private ActivityResultLauncher<Intent> settingsLauncher;
 
-	private SharedPreferences sharedPreferences;
 	private AppDatabase appDatabase;
-	private SignalManager signalManager;
-	private ExecutorService executor;
-	private Node hostNode;
 
 	/**
 	 * Returns {@code true} if the app was granted all the permissions. Otherwise, returns {@code
@@ -172,28 +164,25 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 	}
 
+	private SharedPreferences getDefaultSharedPreferences() {
+		return getSharedPreferences(Constants.PREFS_FILE_NAME, MODE_PRIVATE);
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		ActivityMainBinding binding = ActivityMainBinding.inflate(getLayoutInflater());
 		setContentView(binding.getRoot());
 
-		// Initialize the SharedPreferences
-		sharedPreferences = getSharedPreferences(Constants.PREFS_FILE_NAME, MODE_PRIVATE);
-
 		// Initialize database on the main thread ui
 		appDatabase = AppDatabase.getDB(getApplicationContext());
 
-		// Get instance of `SignalManager`
-		signalManager = SignalManager.getInstance(getApplicationContext());
-
-		// Background executor
-		executor = Executors.newSingleThreadExecutor();
-
 		final Consumer<Void> showFragment = (unused) -> {
 			// Load host Node
-			if (isHostNodeSetupComplete()) {
-				loadHostNodeFromDatabase();
+			// Check if setup is complete
+			boolean isSetupComplete = getDefaultSharedPreferences().getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
+			if (isSetupComplete) {
+				navigateToMainScreen(false);
 			} else {
 				showWelcomeFragment();
 			}
@@ -212,68 +201,20 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 	}
 
 	/**
-	 * Checks if host {@link Node} data is stored in the SharedPreferences.
-	 */
-	private boolean isHostNodeSetupComplete() {
-		return sharedPreferences.getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
-	}
-
-	/**
 	 * Show the WelcomeFragment for the initial configuration.
 	 */
 	private void showWelcomeFragment() {
 		navigateTo(WelcomeFragment.newInstance(), Constants.TAG_WELCOME_FRAGMENT, false, false);
 	}
 
-	// Caller might call this method in background
-	private void initializeSignalManager() {
-		signalManager.initialize(new SignalInitializationCallback() {
-			@Override
-			public void onSuccess() {
-				runOnUiThread(() -> Toast.makeText(MainActivity.this, R.string.signal_key_init_success, Toast.LENGTH_LONG).show());
-			}
-
-			@Override
-			public void onError(Exception e) {
-				runOnUiThread(() -> Toast.makeText(MainActivity.this, R.string.signal_key_init_failed, Toast.LENGTH_LONG).show());
-			}
-		});
-	}
-
-	/**
-	 * In background, load host Node data from the database.
-	 */
-	private void loadHostNodeFromDatabase() {
-		executor.execute(() -> {
-			long hostNodeId = sharedPreferences.getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
-			String hostAddressName = sharedPreferences.getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
-
-			if (hostNodeId != -1L && hostAddressName != null) {
-				hostNode = appDatabase.nodeDao().getNodeById(hostNodeId);
-				if (hostNode != null) {
-					Log.d(TAG, "Host node loaded: " + hostNode.getDisplayName() + " (" + hostNode.getAddressName() + ")");
-					initializeSignalManager();
-					runOnUiThread(() -> showWelcomeFragmentFollower(false));
-				} else {
-					Log.e(TAG, "Host node not found in DB despite SharedPreferences entry. Forcing re-setup.");
-					runOnUiThread(this::showWelcomeFragment);
-				}
-			} else {
-				Log.e(TAG, "SharedPreferences corrupt or incomplete for host node. Forcing re-setup.");
-				runOnUiThread(this::showWelcomeFragment);
-			}
-		});
-	}
-
 	// Implementation of `WelcomeFragment.OnWelcomeCompleteListener`
 	@Override
-	public void onWelcomeCompleted(String username) {
+	public void onWelcomeCompleted(@NonNull String username) {
 		Log.d(TAG, "Welcome completed with username: " + username);
 		// Execute in background
-		executor.execute(() -> {
+		appDatabase.getQueryExecutor().execute(() -> {
 			try {
 				String addressName = Constants.NODE_ADDRESS_NAME_PREFIX + java.util.UUID.randomUUID().toString();
-				initializeSignalManager();
 
 				// Create the Node
 				Node hostNode = new Node();
@@ -286,18 +227,16 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 					hostNode.setId(nodeId); // apply the ID
 
 					// Save host node data in the SharedPreferences
-					sharedPreferences.edit()
+					getDefaultSharedPreferences().edit()
 							.putBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, true)
 							.putLong(Constants.PREF_KEY_HOST_NODE_ID, nodeId)
 							.putString(Constants.PREF_KEY_HOST_ADDRESS_NAME, addressName)
 							.apply();
 
-					this.hostNode = hostNode;
-
 					Log.d(TAG, "Host node created and saved: " + hostNode.getDisplayName() + " (" + hostNode.getAddressName() + ") with ID: " + hostNode.getId());
 
 					// Navigate to ChatListFragment or NearbyDiscoveryFragment on UI thread
-					runOnUiThread(() -> showWelcomeFragmentFollower(false));
+					runOnUiThread(() -> navigateToMainScreen(false));
 				} else {
 					Log.e(TAG, "Failed to insert host node into database.");
 					runOnUiThread(() -> Toast.makeText(this, R.string.node_profile_saving_failed, Toast.LENGTH_LONG).show());
@@ -310,24 +249,28 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 		});
 	}
 
-	// Implementation of `NearbyDiscoveryFragment.DiscoveryFragmentListener`
-
-
 	@Override
 	public void discussWith(@NonNull Node remoteNode) {
 		// Refresh from db
-		executor.execute(() -> {
-			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(hostNode, node), Constants.TAG_CHAT_FRAGMENT, false, true);
-			NodeRepository repository = new NodeRepository(getApplicationContext());
-			Node node = repository.findNode(remoteNode.getAddressName());
+		appDatabase.getQueryExecutor().execute(() -> {
+			Node hostNode = appDatabase.nodeDao().getNodeById(
+					getDefaultSharedPreferences()
+							.getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L)
+			);
+			if (hostNode == null) {
+				Log.e(TAG, "Unable to find the host node");
+				finish();
+			}
+			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(Objects.requireNonNull(hostNode), node), Constants.TAG_CHAT_FRAGMENT, false, true);
+			Node node = appDatabase.nodeDao().getNodeByAddressName(remoteNode.getAddressName());
 			if (node == null) {
-				repository.insertNode(remoteNode, success -> {
-					if (success) {
-						goToChat.accept(remoteNode);
-					} else {
-						Log.d(TAG, "discussWith() : node insertion failed, address=" + remoteNode.getAddressName());
-					}
-				});
+				try {
+					long id = appDatabase.nodeDao().insert(remoteNode);
+					remoteNode.setId(id);
+					goToChat.accept(remoteNode);
+				} catch (Exception e) {
+					Log.d(TAG, "discussWith() : node insertion failed, address=" + remoteNode.getAddressName(), e);
+				}
 			} else {
 				goToChat.accept(node);
 			}
@@ -337,31 +280,53 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 	/**
 	 * Show the fragment to display after configuration or node loading.
 	 */
-	private void showWelcomeFragmentFollower(boolean addToBackStack) {
-		// The host node is identified. Get NearbyManager instance
-		executor.execute(() -> {
-			// Init NearbyManager
-			NearbyManager.getInstance(getApplicationContext(), hostNode.getAddressName());
+	private void navigateToMainScreen(boolean addToBackStack) {
+		// The host node is identified, init app service
+		startCommunicationService();
+		appDatabase.getQueryExecutor().execute(() -> {
 			long count = appDatabase.messageDao().countAll();
+			String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 			if (count > 0L) {
 				// There is at least one message, navigate to ChatListFragment
 				Log.i(TAG, "Ready to display chat list");
 				// ChatListFragment.newInstance(), Constants.TAG_CHAT_LIST_FRAGMENT
-				navigateTo(NearbyDiscoveryFragment.newInstance(hostNode.getAddressName(), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
+				navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
 			} else {
 				// There is no message, redirect user on discovery fragment
-				navigateTo(NearbyDiscoveryFragment.newInstance(hostNode.getAddressName(), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
+				navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
 			}
 		});
 	}
 
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		if (executor != null) {
-			executor.shutdown();
+	/**
+	 * Starts the SATMeshCommunicationService as a foreground service.
+	 * This method also sends an intent to initialize communication modules if setup is complete.
+	 */
+	private void startCommunicationService() {
+		Log.d(TAG, "Attempting to start SATMeshCommunicationService.");
+		Intent serviceIntent = new Intent(this, SATMeshCommunicationService.class);
+		serviceIntent.setAction(SATMeshCommunicationService.ACTION_START_FOREGROUND_SERVICE);
+
+		// Start the service appropriately based on Android version
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			ContextCompat.startForegroundService(this, serviceIntent);
+		} else {
+			startService(serviceIntent);
 		}
-		//NearbyManager.getInstance(getApplicationContext(), hostNode.getAddressName()).stopNearby();
+
+		// After starting the service, if setup is complete, tell it to initialize modules.
+		// This covers cases where service was already running (e.g., from boot) but not initialized.
+		boolean isSetupComplete = getDefaultSharedPreferences()
+				.getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
+
+		if (isSetupComplete) {
+			Log.d(TAG, "Host setup is complete. Sending initialize command to service.");
+			Intent initializeIntent = new Intent(this, SATMeshCommunicationService.class);
+			initializeIntent.setAction(SATMeshCommunicationService.ACTION_INITIALIZE_COMMUNICATION_MODULES);
+			startService(initializeIntent); // Use startService for subsequent commands to a running service
+		} else {
+			Log.d(TAG, "Host setup not complete yet. Service will wait for explicit initialization.");
+		}
 	}
 
 	public Fragment getCurrentFragmentInContainer() {

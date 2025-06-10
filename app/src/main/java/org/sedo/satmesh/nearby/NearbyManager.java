@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.Nearby;
@@ -20,8 +21,6 @@ import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
 
-import org.sedo.satmesh.proto.NearbyMessage;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class NearbyManager {
 
@@ -37,18 +37,30 @@ public class NearbyManager {
 	private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
 	private static volatile NearbyManager INSTANCE;
 
-	// Map to store connected endpoints: endpointId -> remote device's SignalProtocolAddress name
+	/*
+	 * Map to store connected endpoints: endpointId -> remote device's SignalProtocolAddress name
+	 * These are endpoints for which a successful connection has been established.
+	 */
 	private final Map<String, String> connectedEndpointAddresses = new HashMap<>();
-	// Map to store pending endpoints: endpointId -> remote device's SignalProtocolAddress name
+	/*
+	 * Map to store pending endpoints: endpointId -> remote device's SignalProtocolAddress name
+	 * These are endpoints for which WE initiated a connection request and are awaiting result.
+	 */
 	private final Map<String, String> pendingEndpointAddresses = new HashMap<>();
-	// Map to store endpoints that sent incoming connection: endpointId -> remote device's SignalProtocolAddress name
+
+	/*
+	 * Map to store endpoints that sent incoming connection: endpointId -> remote device's SignalProtocolAddress name
+	 * These are endpoints for which the REMOTE device initiated a connection request to us.
+	 */
 	private final Map<String, String> incomingEndpointAddresses = new HashMap<>();
-	// Maps device' SignalProtocol address to its endpoint
+	/*
+	 * Maps device' SignalProtocol address to its endpoint
+	 * This map will contain only *currently connected endpoints, as determined by the
+	 * `connectedEndpointAddresses` map. It will be cleared on disconnect.
+	 */
 	private final Map<String, String> addressNameToEndpointId = new HashMap<>();
 
 	private final List<DeviceConnectionListener> deviceConnectionListeners = new CopyOnWriteArrayList<>();// Thread-safe list
-	private final List<AdvertisingListener> advertisingListeners = new CopyOnWriteArrayList<>();
-	private final List<DiscoveringListener> discoveringListeners = new CopyOnWriteArrayList<>();
 	private final List<PayloadListener> payloadListeners = new CopyOnWriteArrayList<>();
 
 	private final ConnectionsClient connectionsClient;
@@ -61,6 +73,14 @@ public class NearbyManager {
 	private final PayloadCallback payloadCallback = new PayloadCallback() {
 		@Override
 		public void onPayloadReceived(@NonNull String endpointId, @NonNull Payload payload) {
+			// Ensure payload has bytes and get the associated device name
+			String deviceAddressName = connectedEndpointAddresses.get(endpointId);
+			if (deviceAddressName == null) {
+				// This could happen if a payload arrives just after a disconnect event
+				Log.w(TAG, "Payload received from unknown or disconnected endpoint: " + endpointId);
+				return;
+			}
+			Log.d(TAG, "Payload received from " + deviceAddressName + " (Endpoint ID: " + endpointId + ")");
 			payloadListeners.forEach(l -> l.onPayloadReceived(endpointId, payload));
 		}
 
@@ -71,7 +91,9 @@ public class NearbyManager {
 			 * For small messages like these, it might not be strictly necessary,
 			 * but can be useful for larger file transfers.
 			 */
-			Log.d(TAG, "Payload transfer update: " + update.getPayloadId() + " " + update.getStatus() + " tr=" + update.getBytesTransferred() + " to=" + update.getTotalBytes());
+			Log.d(TAG, "Payload transfer update: " + update.getPayloadId() + " Status: " + update.getStatus() +
+					" Bytes: " + update.getBytesTransferred() + "/" + update.getTotalBytes() +
+					" from " + connectedEndpointAddresses.get(endpointId));
 			payloadListeners.forEach(l -> l.onPayloadTransferUpdate(endpointId, update));
 		}
 	};
@@ -84,49 +106,67 @@ public class NearbyManager {
 		public void onConnectionInitiated(@NonNull String endpointId, ConnectionInfo connectionInfo) {
 			Log.d(TAG, "Connection initiated with: " + endpointId + " Name: " + connectionInfo.getEndpointName());
 			incomingEndpointAddresses.put(endpointId, connectionInfo.getEndpointName());
-			addressNameToEndpointId.put(connectionInfo.getEndpointName(), endpointId);
+			addressNameToEndpointId.put(connectionInfo.getEndpointName(), endpointId); // Keep track of pending connections
 			deviceConnectionListeners.forEach(listener -> listener.onConnectionInitiated(endpointId, connectionInfo.getEndpointName()));
-			// Automatically accept all connections for simplicity in this example.
-			// In the future we might want to show a dialog to the user for confirmation.
-			acceptConnection(endpointId);
+			// NearbySignalMessenger, as listener, will now explicitly call acceptConnection, allowing for async processing.
 		}
 
 		@Override
-		public void onConnectionResult(@NonNull String endpointId, ConnectionResolution result) {
-			String pending = pendingEndpointAddresses.remove(endpointId), incoming = incomingEndpointAddresses.remove(endpointId);
-			String remoteAddressName = pending == null ? incoming : pending;
-			/*
-			 * If `pending` is null so the remote device is the initiator of this connection.
-			 * If `incoming` is null so the host node is the initiator of this connection
-			 */
-			if (result.getStatus().isSuccess()) {
-				Log.d(TAG, "Connection established with: " + endpointId);
-				// Store the mapping between endpointId and the remote device's SignalProtocolAddress name
-				// The endpointName provided by Nearby Connections is the remote user's SignalProtocolAddress.name
-				connectedEndpointAddresses.put(endpointId, remoteAddressName);
-				// Prevent losing connection on connection lost event
-				addressNameToEndpointId.put(remoteAddressName, endpointId);
-
-				deviceConnectionListeners.forEach(listener -> listener.onDeviceConnected(endpointId, connectedEndpointAddresses.get(endpointId)));
+		public void onConnectionResult(@NonNull String endpointId, @NonNull ConnectionResolution result) {
+			String remoteAddressName;
+			// Determine if the connection was initiated by us or by the remote device
+			if (pendingEndpointAddresses.containsKey(endpointId)) {
+				// We initiated the connection
+				remoteAddressName = pendingEndpointAddresses.remove(endpointId);
+			} else if (incomingEndpointAddresses.containsKey(endpointId)) {
+				// Remote device initiated the connection
+				remoteAddressName = incomingEndpointAddresses.remove(endpointId);
 			} else {
-				Log.e(TAG, "Connection failed with: " + endpointId + " Status: " + result.getStatus().getStatusMessage());
+				Log.e(TAG, "onConnectionResult: Endpoint ID " + endpointId + " not found in pending or incoming maps. Orphaned connection result.");
+				return; // Cannot proceed without a known remote address name
+			}
+
+			if (result.getStatus().isSuccess()) {
+				Log.d(TAG, "Connection established with: " + remoteAddressName + " (EndpointId: " + endpointId + ")");
+				// Store the mapping between endpointId and the remote device's SignalProtocolAddress name
+				connectedEndpointAddresses.put(endpointId, remoteAddressName);
+				addressNameToEndpointId.put(remoteAddressName, endpointId); // Update the core mapping
+
+				deviceConnectionListeners.forEach(listener -> listener.onDeviceConnected(endpointId, remoteAddressName));
+			} else {
+				Log.e(TAG, "Connection failed with: " + remoteAddressName + " (EndpointId: " + endpointId + "). Status: " + result.getStatus().getStatusMessage());
 				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(remoteAddressName, result.getStatus()));
-				if (remoteAddressName != null && !connectedEndpointAddresses.containsKey(endpointId)) {
-					addressNameToEndpointId.remove(remoteAddressName);
-				}
+				// Clean up any remaining entries if connection failed
+				addressNameToEndpointId.remove(remoteAddressName);
+				connectedEndpointAddresses.remove(endpointId); // Ensure it's not mistakenly added
 			}
 		}
 
 		@Override
 		public void onDisconnected(@NonNull String endpointId) {
 			Log.d(TAG, "Disconnected from: " + endpointId);
-			String deviceAddress = connectedEndpointAddresses.remove(endpointId);
+			String deviceAddress = connectedEndpointAddresses.remove(endpointId); // Remove from active connections
 			if (deviceAddress != null) {
 				deviceConnectionListeners.forEach(l -> l.onDeviceDisconnected(endpointId, deviceAddress));
-				addressNameToEndpointId.remove(deviceAddress);
+				addressNameToEndpointId.remove(deviceAddress); // Remove from the core mapping
+			} else {
+				// This can happen if an endpoint was in pending/incoming and got disconnected before fully connecting
+				// or if it was manually removed.
+				String pendingAddress = pendingEndpointAddresses.remove(endpointId);
+				String incomingAddress = incomingEndpointAddresses.remove(endpointId);
+				String address = pendingAddress != null ? pendingAddress : incomingAddress;
+				if (address != null) {
+					Log.d(TAG, "Disconnected from pending/incoming endpoint: " + address + " (EndpointId: " + endpointId + ")");
+					addressNameToEndpointId.remove(address);
+					// Notify as a connection failed, as it never truly completed.
+					deviceConnectionListeners.forEach(l -> l.onConnectionFailed(address, Status.RESULT_CANCELED));
+				} else {
+					Log.w(TAG, "onDisconnected: Endpoint ID " + endpointId + " not found in any active, pending, or incoming maps.");
+				}
 			}
 		}
 	};
+
 	/**
 	 * True if we are advertising.
 	 */
@@ -152,13 +192,22 @@ public class NearbyManager {
 		return INSTANCE;
 	}
 
+	public static NearbyManager getInstance() {
+		if (INSTANCE == null) {
+			throw new RuntimeException("The nearby manager isn't initialized!");
+		}
+		return INSTANCE;
+	}
+
 	/**
 	 * Adds the listener for device connection/disconnection events.
 	 *
 	 * @param listener The implementation of DeviceConnectionListener.
 	 */
 	public void addDeviceConnectionListener(DeviceConnectionListener listener) {
-		this.deviceConnectionListeners.add(listener);
+		if (listener != null && !this.deviceConnectionListeners.contains(listener)) {
+			this.deviceConnectionListeners.add(listener);
+		}
 	}
 
 	/**
@@ -167,34 +216,9 @@ public class NearbyManager {
 	 * @param listener The implementation of DeviceConnectionListener.
 	 */
 	public void removeDeviceConnectionListener(DeviceConnectionListener listener) {
-		this.deviceConnectionListeners.remove(listener);
-	}
-
-	/**
-	 * Adds the listener for advertising events.
-	 *
-	 * @param listener The implementation of {@link AdvertisingListener}.
-	 */
-	public void addAdvertisingListener(AdvertisingListener listener) {
-		this.advertisingListeners.add(listener);
-	}
-
-	/**
-	 * Adds the listener for discovering events.
-	 *
-	 * @param listener The implementation of {@link DiscoveringListener}.
-	 */
-	public void addDiscoveringListener(DiscoveringListener listener) {
-		this.discoveringListeners.add(listener);
-	}
-
-	/**
-	 * Removes the listener for discovering events.
-	 *
-	 * @param listener The implementation of {@link DiscoveringListener}.
-	 */
-	public void removeDiscoveringListener(DiscoveringListener listener) {
-		this.discoveringListeners.remove(listener);
+		if (listener != null) {
+			this.deviceConnectionListeners.remove(listener);
+		}
 	}
 
 	/**
@@ -203,7 +227,9 @@ public class NearbyManager {
 	 * @param listener The implementation of {@link PayloadListener}.
 	 */
 	public void addPayloadListener(PayloadListener listener) {
-		this.payloadListeners.add(listener);
+		if (listener != null && !this.payloadListeners.contains(listener)) {
+			this.payloadListeners.add(listener);
+		}
 	}
 
 	/**
@@ -212,19 +238,34 @@ public class NearbyManager {
 	 * @param listener The implementation of {@link PayloadListener}.
 	 */
 	public void removePayloadListener(PayloadListener listener) {
-		this.payloadListeners.remove(listener);
-	}
-
-	public String getEndpointName(String endpointId) {
-		String endpointName = connectedEndpointAddresses.get(endpointId);
-		if (endpointName == null) {
-			endpointName = pendingEndpointAddresses.get(endpointId);
+		if (listener != null) {
+			this.payloadListeners.remove(listener);
 		}
-		return endpointName;
 	}
 
 	/**
-	 * Gets the list of pending endpoint name
+	 * Returns the SignalProtocolAddress name associated with a given Nearby endpoint ID.
+	 * It checks both currently connected and pending/incoming connections.
+	 *
+	 * @param endpointId The ID of the Nearby endpoint.
+	 * @return The SignalProtocolAddress name of the remote device, or null if not found.
+	 */
+	@Nullable
+	public String getEndpointName(String endpointId) {
+		String name = connectedEndpointAddresses.get(endpointId);
+		if (name == null) {
+			name = pendingEndpointAddresses.get(endpointId);
+		}
+		if (name == null) {
+			name = incomingEndpointAddresses.get(endpointId);
+		}
+		return name;
+	}
+
+	/**
+	 * Gets the list of pending endpoint address names (initiated by us).
+	 *
+	 * @return An unmodifiable collection of SignalProtocolAddress names.
 	 */
 	@NonNull
 	public Collection<String> getAllPendingAddressName() {
@@ -232,7 +273,9 @@ public class NearbyManager {
 	}
 
 	/**
-	 * Gets the list of currently connected endpoint name
+	 * Gets the list of currently connected endpoint address names.
+	 *
+	 * @return An unmodifiable collection of SignalProtocolAddress names.
 	 */
 	@NonNull
 	public Collection<String> getAllConnectedAddressName() {
@@ -240,7 +283,9 @@ public class NearbyManager {
 	}
 
 	/**
-	 * Gets the list of all pending and connection point endpoint name
+	 * Gets the list of all incoming connection endpoint address names (initiated by remote).
+	 *
+	 * @return An unmodifiable collection of SignalProtocolAddress names.
 	 */
 	@NonNull
 	public Collection<String> getAllIncomingAddressName() {
@@ -248,9 +293,15 @@ public class NearbyManager {
 	}
 
 	/**
-	 * Gets the linked endpoint ID to the specified node address name
+	 * Gets the linked endpoint ID to the specified node address name.
+	 * This relies on the `addressNameToEndpointId` map which is populated
+	 * upon successful connection or connection initiation.
+	 *
+	 * @param addressName The SignalProtocolAddress name to look up.
+	 * @return The associated endpoint ID, or null if not found.
 	 */
-	public String getLinkedEndpointId(String addressName) {
+	@Nullable
+	public String getLinkedEndpointId(@Nullable String addressName) {
 		if (addressName == null) {
 			return null;
 		}
@@ -265,8 +316,8 @@ public class NearbyManager {
 	 * @return {@code true} if and only if the specified address name is bound to an endpoint
 	 * in the map of connected node.
 	 */
-	public boolean isAddressDirectlyConnected(String addressName) {
-		return connectedEndpointAddresses.containsValue(addressName);
+	public boolean isAddressDirectlyConnected(@Nullable String addressName) {
+		return addressName != null && connectedEndpointAddresses.containsValue(addressName);
 	}
 
 	/**
@@ -279,9 +330,14 @@ public class NearbyManager {
 	/**
 	 * Starts advertising this device to be discovered by others.
 	 * The advertising name used is the device's SignalProtocolAddress name.
+	 *
+	 * @param onSuccess Callback for successful advertising start.
+	 * @param onFailure Callback for advertising failure.
 	 */
-	public void startAdvertising() {
+	public void startAdvertising(@Nullable Runnable onSuccess, @Nullable Consumer<Exception> onFailure) {
 		if (isAdvertising()) {
+			Log.i(TAG, "Already advertising, skipping startAdvertising call.");
+			if (onSuccess != null) onSuccess.run(); // Still call success if already advertising
 			return;
 		}
 		AdvertisingOptions advertisingOptions = new AdvertisingOptions.Builder()
@@ -295,11 +351,11 @@ public class NearbyManager {
 				).addOnSuccessListener(unused -> {
 					Log.d(TAG, "Advertising started successfully");
 					isAdvertising = true;
-					advertisingListeners.forEach(AdvertisingListener::onAdvertisingStarted);
+					if (onSuccess != null) onSuccess.run();
 				})
 				.addOnFailureListener(e -> {
 					Log.e(TAG, "Failed to start advertising", e);
-					advertisingListeners.forEach(l -> l.onAdvertisingFailed(e));
+					if (onFailure != null) onFailure.accept(e);
 				});
 	}
 
@@ -307,6 +363,10 @@ public class NearbyManager {
 	 * Stops advertising.
 	 */
 	public void stopAdvertising() {
+		if (!isAdvertising) {
+			Log.i(TAG, "Not advertising, skipping stopAdvertising call.");
+			return;
+		}
 		connectionsClient.stopAdvertising();
 		isAdvertising = false;
 		Log.d(TAG, "Advertising stopped");
@@ -317,33 +377,128 @@ public class NearbyManager {
 	}
 
 	/**
-	 * Request connection to the remote device
+	 * Requests connection to the remote device with the given endpoint ID.
+	 *
+	 * @param remoteEndpointId  The ID of the remote endpoint to connect to.
+	 * @param remoteAddressName The SignalProtocolAddress name of the remote device. This helps track the connection.
+	 * @param callback          Callback for success/failure of the connection request.
 	 */
-	public void requestConnection(String remoteEndpointId) {
-		connectionsClient.requestConnection(this.localName, // Local device's advertising name
-				remoteEndpointId, connectionLifecycleCallback);
+	public void requestConnection(@NonNull String remoteEndpointId, @NonNull String remoteAddressName,
+	                              @Nullable BiConsumer<String, Boolean> callback) {
+		if (connectedEndpointAddresses.containsKey(remoteEndpointId)) {
+			Log.i(TAG, "Already connected to " + remoteAddressName + ". Skipping connection request.");
+			if (callback != null) callback.accept(remoteEndpointId, true);
+			return;
+		}
+		if (pendingEndpointAddresses.containsKey(remoteEndpointId)) {
+			Log.i(TAG, "Connection request already pending for " + remoteAddressName + ". Skipping duplicate request.");
+			if (callback != null)
+				callback.accept(remoteEndpointId, true); // Treat as success for idempotence
+			return;
+		}
+		if (incomingEndpointAddresses.containsKey(remoteEndpointId)) {
+			Log.i(TAG, "Incoming connection already initiated by " + remoteAddressName + ". Skipping outgoing request.");
+			if (callback != null)
+				callback.accept(remoteEndpointId, true); // Treat as success for idempotence
+			return;
+		}
+
+		Log.d(TAG, "Requesting connection to " + remoteAddressName + " (EndpointId: " + remoteEndpointId + ")");
+		pendingEndpointAddresses.put(remoteEndpointId, remoteAddressName); // Mark as pending
+		addressNameToEndpointId.put(remoteAddressName, remoteEndpointId); // Store the mapping early
+
+		connectionsClient.requestConnection(this.localName,
+						remoteEndpointId,
+						connectionLifecycleCallback)
+				.addOnSuccessListener(unused -> {
+					Log.d(TAG, "Connection request sent to " + remoteEndpointId);
+					// The actual connection success/failure is handled in connectionLifecycleCallback.onConnectionResult
+					if (callback != null) callback.accept(remoteEndpointId, true);
+				})
+				.addOnFailureListener(e -> {
+					Log.e(TAG, "Failed to send connection request to " + remoteEndpointId, e);
+					pendingEndpointAddresses.remove(remoteEndpointId); // Remove from pending on immediate failure
+					addressNameToEndpointId.remove(remoteAddressName); // Clean up
+					if (callback != null) callback.accept(remoteEndpointId, false);
+				});
 	}
 
 	/**
-	 * Accept the request connection from the remote device
+	 * Accepts a connection request from a remote device.
+	 *
+	 * @param remoteEndpointId The ID of the remote endpoint to accept the connection from.
+	 * @param callback         Optional callback for success/failure of accepting.
 	 */
-	public void acceptConnection(String remoteEndpointId) {
-		connectionsClient.acceptConnection(remoteEndpointId, payloadCallback);
+	public void acceptConnection(@NonNull String remoteEndpointId, @Nullable BiConsumer<String, Boolean> callback) {
+		if (!incomingEndpointAddresses.containsKey(remoteEndpointId)) {
+			Log.w(TAG, "Attempted to accept connection from " + remoteEndpointId + " which was not in incoming connections.");
+			if (callback != null) callback.accept(remoteEndpointId, false);
+			return;
+		}
+
+		Log.d(TAG, "Accepting connection from: " + remoteEndpointId);
+		connectionsClient.acceptConnection(remoteEndpointId, payloadCallback)
+				.addOnSuccessListener(unused -> {
+					Log.d(TAG, "Connection accepted with " + remoteEndpointId);
+					// Actual connection establishment handled in onConnectionResult
+					if (callback != null) callback.accept(remoteEndpointId, true);
+				})
+				.addOnFailureListener(e -> {
+					Log.e(TAG, "Failed to accept connection from " + remoteEndpointId, e);
+					incomingEndpointAddresses.remove(remoteEndpointId); // Clean up
+					// addressNameToEndpointId will be cleaned by onConnectionResult if failure
+					if (callback != null) callback.accept(remoteEndpointId, false);
+				});
 	}
 
 	/**
-	 * Request disconnection from the remote device
+	 * Rejects a connection request from a remote device.
+	 *
+	 * @param remoteEndpointId The ID of the remote endpoint to reject the connection from.
 	 */
-	public void disconnectFromEndpoint(String remoteEndpointId) {
-		connectionsClient.disconnectFromEndpoint(remoteEndpointId);
+	public void rejectConnection(@NonNull String remoteEndpointId) {
+		if (incomingEndpointAddresses.remove(remoteEndpointId) != null) {
+			connectionsClient.rejectConnection(remoteEndpointId);
+			Log.d(TAG, "Rejected connection from: " + remoteEndpointId);
+			// addressNameToEndpointId will be cleaned up by onConnectionResult due to status failure
+		} else {
+			Log.w(TAG, "Attempted to reject connection from " + remoteEndpointId + " which was not in incoming connections.");
+		}
+	}
+
+	/**
+	 * Request disconnection from the remote device.
+	 *
+	 * @param remoteEndpointId The ID of the remote endpoint to disconnect from.
+	 */
+	public void disconnectFromEndpoint(@NonNull String remoteEndpointId) {
+		if (connectedEndpointAddresses.containsKey(remoteEndpointId) ||
+				pendingEndpointAddresses.containsKey(remoteEndpointId) ||
+				incomingEndpointAddresses.containsKey(remoteEndpointId)) {
+			connectionsClient.disconnectFromEndpoint(remoteEndpointId);
+			Log.d(TAG, "Requested disconnection from: " + remoteEndpointId);
+			// Cleanup maps will happen in onDisconnected callback
+		} else {
+			Log.w(TAG, "Attempted to disconnect from unknown/non-existent endpoint: " + remoteEndpointId);
+		}
 	}
 
 	/**
 	 * Starts discovering other devices advertising the same service ID.
+	 *
+	 * @param onEndpointFoundCallback Called when a new endpoint is found (endpointId, endpointName).
+	 * @param onEndpointLostCallback  Called when a previously found endpoint is no longer discoverable (endpointId, endpointName).
+	 * @param onSuccess               Callback for successful discovery start.
+	 * @param onFailure               Callback for discovery failure.
 	 */
-	public void startDiscovery() {
+	public void startDiscovery(
+			@Nullable BiConsumer<String, String> onEndpointFoundCallback,
+			@Nullable BiConsumer<String, String> onEndpointLostCallback,
+			@Nullable Runnable onSuccess,
+			@Nullable Consumer<Exception> onFailure) {
 		if (isDiscovering()) {
-			Log.i(TAG, "Already discovering !");
+			Log.i(TAG, "Already discovering, skipping startDiscovery call.");
+			if (onSuccess != null) onSuccess.run();
 			return;
 		}
 		DiscoveryOptions discoveryOptions = new DiscoveryOptions.Builder()
@@ -354,47 +509,48 @@ public class NearbyManager {
 			@Override
 			public void onEndpointFound(@NonNull String endpointId, DiscoveredEndpointInfo info) {
 				Log.d(TAG, "Endpoint found: " + info.getEndpointName() + " with ID: " + endpointId);
-				// Checks if there is no existing connection to the remote endpoint
-				addressNameToEndpointId.put(info.getEndpointName(), endpointId);
-				if (connectedEndpointAddresses.containsKey(endpointId)) {
-					Log.i(TAG, "Double connection attempt to " + info.getEndpointName());
-					return;
+
+				// Add to addressNameToEndpointId if not already present
+				addressNameToEndpointId.putIfAbsent(info.getEndpointName(), endpointId);
+
+				// Check if there's an existing or pending connection to avoid duplicate requests
+				if (connectedEndpointAddresses.containsKey(endpointId) ||
+						pendingEndpointAddresses.containsKey(endpointId) ||
+						incomingEndpointAddresses.containsKey(endpointId)) {
+					Log.i(TAG, "Endpoint " + info.getEndpointName() + " already connected or in pending state. Not requesting connection.");
 				}
-				if (incomingEndpointAddresses.containsKey(endpointId)) {
-					/*
-					 * The remote device has initiate a connection to the host device.
-					 * The behavior is accepting the request. So if the remote device
-					 * is found again, despite the incoming request, it's because there
-					 * is an existing connection between the nodes but only the remote
-					 * device had store it. This way, we are going to mark the connection
-					 * as established.
-					 */
-					Log.d(TAG, "Maps the connection!");
-					connectedEndpointAddresses.put(endpointId, incomingEndpointAddresses.remove(endpointId));
-					deviceConnectionListeners.forEach(l -> l.onDeviceConnected(endpointId, info.getEndpointName()));
-					return;
-				}
-				// Request connection to the discovered endpoint.
-				// In production, you might want to filter or prompt the user before connecting.
-				pendingEndpointAddresses.put(endpointId, info.getEndpointName());
-				discoveringListeners.forEach(l -> l.onEndpointFound(endpointId, info.getEndpointName()));
-				requestConnection(endpointId);
+
+				// Notify about found endpoint
+				if (onEndpointFoundCallback != null)
+					onEndpointFoundCallback.accept(endpointId, info.getEndpointName());
+
+				/*
+				 * We don't automatically request connection here. `NearbySignalMessenger` or
+				 * `SATMeshCommunicationService` will do that based on its session logic or
+				 * explicit user action after discovering.
+				 */
 			}
 
 			@Override
 			public void onEndpointLost(@NonNull String endpointId) {
-				if (connectedEndpointAddresses.containsKey(endpointId)) {
-					// This endpoint lost is not important for us, only disconnection is important after connection
-					return;
-				}
-				String endpointName = pendingEndpointAddresses.remove(endpointId);
+				String endpointName = getEndpointName(endpointId); // Try to get the name for logging/callback
 				if (endpointName == null) {
-					Log.w(TAG, "onEndpointLost : unable to locate the endpoint(" + endpointId + ")");
+					Log.w(TAG, "onEndpointLost: unable to locate the endpoint with ID: " + endpointId);
 					return;
 				}
-				Log.d(TAG, "Endpoint lost: " + endpointId);
-				discoveringListeners.forEach(l -> l.onEndpointLost(endpointId, endpointName));
-				addressNameToEndpointId.remove(endpointName);
+				Log.d(TAG, "Endpoint lost: " + endpointName + " (ID: " + endpointId + ")");
+
+				// Remove from relevant maps if it's not a currently connected endpoint
+				// If it's connected, the onDisconnected callback will handle it.
+				if (!connectedEndpointAddresses.containsKey(endpointId)) {
+					pendingEndpointAddresses.remove(endpointId);
+					incomingEndpointAddresses.remove(endpointId);
+					addressNameToEndpointId.remove(endpointName);
+				}
+
+				// Notify about lost endpoint
+				if (onEndpointLostCallback != null)
+					onEndpointLostCallback.accept(endpointId, endpointName);
 			}
 		};
 
@@ -405,12 +561,12 @@ public class NearbyManager {
 				).addOnSuccessListener(unused -> {
 					Log.d(TAG, "Discovery started successfully");
 					isDiscovering = true;
-					discoveringListeners.forEach(DiscoveringListener::onDiscoveringStarted);
+					if (onSuccess != null) onSuccess.run();
 				})
 				.addOnFailureListener(e -> {
 					Log.e(TAG, "Failed to start discovery", e);
 					isDiscovering = false;
-					discoveringListeners.forEach(l -> l.onDiscoveringFailed(e));
+					if (onFailure != null) onFailure.accept(e);
 				});
 	}
 
@@ -418,6 +574,10 @@ public class NearbyManager {
 	 * Stops discovering devices.
 	 */
 	public void stopDiscovery() {
+		if (!isDiscovering) {
+			Log.i(TAG, "Not discovering, skipping stopDiscovery call.");
+			return;
+		}
 		connectionsClient.stopDiscovery();
 		isDiscovering = false;
 		Log.d(TAG, "Discovery stopped");
@@ -429,38 +589,56 @@ public class NearbyManager {
 	public void stopNearby() {
 		stopDiscovery();
 		stopAdvertising();
-		for (String endpoint : connectedEndpointAddresses.keySet()) {
+		// Disconnect from all active connections
+		for (String endpoint : new CopyOnWriteArrayList<>(connectedEndpointAddresses.keySet())) {
+			// Iterate on copy to avoid ConcurrentModificationException
 			connectionsClient.disconnectFromEndpoint(endpoint);
 		}
+		// Clear all maps
 		pendingEndpointAddresses.clear();
+		incomingEndpointAddresses.clear();
 		connectedEndpointAddresses.clear();
+		addressNameToEndpointId.clear();
+		Log.d(TAG, "All Nearby interactions stopped and connections reset.");
 	}
 
 	/**
-	 * Helper method to send a Protobuf NearbyMessage over a connection.
+	 * Helper method to send a raw byte array payload over a connection.
+	 * This is the method `NearbySignalMessenger` will call.
 	 *
 	 * @param endpointId The ID of the endpoint to send the message to.
-	 * @param message    The NearbyMessage Protobuf object to send.
-	 * @param callback   consume the payload, after attempt to send the message, and a boolean
-	 *                   specifying success or failure of the message.
+	 * @param data       The raw byte array to send.
+	 * @param callback   A {@link BiConsumer} that accepts the sent {@link Payload} and a boolean
+	 *                   indicating success (true) or failure (false) of the send operation.
+	 *                   The {@link Payload} argument will be null if the `data` was null or if the send operation failed before payload creation.
 	 */
-	public void sendNearbyMessage(@NonNull String endpointId, @NonNull NearbyMessage message, BiConsumer<Payload, Boolean> callback) {
-		Payload payload = Payload.fromBytes(message.toByteArray());
+	public void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable BiConsumer<Payload, Boolean> callback) {
+		if (data.length == 0) {
+			Log.e(TAG, "Attempted to send null or empty data to " + endpointId);
+			if (callback != null) callback.accept(null, false);
+			return;
+		}
+
+		Payload payload = Payload.fromBytes(data); // Create payload from bytes
 		connectionsClient.sendPayload(endpointId, payload)
 				.addOnSuccessListener(unused -> {
-					Log.d(TAG, "Payload sent to " + endpointId);
+					Log.d(TAG, "Payload ID " + payload.getId() + " sent successfully to " + endpointId);
 					if (callback != null) {
 						callback.accept(payload, true);
 					}
 				})
 				.addOnFailureListener(e -> {
-					Log.e(TAG, "Failed to send payload to " + endpointId, e);
+					Log.e(TAG, "Failed to send Payload ID " + payload.getId() + " to " + endpointId, e);
 					if (callback != null) {
 						callback.accept(payload, false);
 					}
 				});
 	}
 
+	/**
+	 * Listener for device connection and disconnection events.
+	 * This is crucial for higher-level logic (e.g., Signal Protocol session management).
+	 */
 	public interface DeviceConnectionListener {
 		/**
 		 * Called when a connection is initiated with a device.
@@ -473,12 +651,13 @@ public class NearbyManager {
 		/**
 		 * Called when a device successfully connects.
 		 *
+		 * @param endpointId        The Nearby Connections endpoint ID.
 		 * @param deviceAddressName The Signal address name of the connected device.
 		 */
 		void onDeviceConnected(String endpointId, String deviceAddressName);
 
 		/**
-		 * Called when a connection attempt fails.
+		 * Called when a connection attempt fails or is disconnected prematurely.
 		 *
 		 * @param deviceAddressName The Signal address name of the device.
 		 * @param status            The status of the connection failure.
@@ -486,68 +665,34 @@ public class NearbyManager {
 		void onConnectionFailed(String deviceAddressName, Status status);
 
 		/**
-		 * Called when a device disconnects.
+		 * Called when a device explicitly disconnects (or is lost).
 		 *
+		 * @param endpointId        The Nearby Connections endpoint ID.
 		 * @param deviceAddressName The Signal address name of the disconnected device.
 		 */
 		void onDeviceDisconnected(String endpointId, String deviceAddressName);
 	}
 
 	/**
-	 * Listening for advertising operations.
-	 */
-	public interface AdvertisingListener {
-		/**
-		 * Called when advertising has successfully started.
-		 */
-		void onAdvertisingStarted();
-
-		/**
-		 * Called when advertising fails to start.
-		 *
-		 * @param e The exception that caused the failure.
-		 */
-		void onAdvertisingFailed(Exception e);
-	}
-
-	/**
-	 * Listening for discovery operations.
-	 */
-	public interface DiscoveringListener {
-		/**
-		 * Called when discovery has successfully started.
-		 */
-		void onDiscoveringStarted();
-
-		/**
-		 * Called when discovery fails to start.
-		 *
-		 * @param e The exception that caused the failure.
-		 */
-		void onDiscoveringFailed(Exception e);
-
-		/**
-		 * Called when a new endpoint is found.
-		 *
-		 * @param endpointId   The unique ID of the discovered endpoint.
-		 * @param endpointName The display name of the discovered endpoint.
-		 */
-		void onEndpointFound(String endpointId, String endpointName);
-
-		/**
-		 * Called when an previously found endpoint is no longer discoverable.
-		 *
-		 * @param endpointId The unique ID of the lost endpoint.
-		 */
-		void onEndpointLost(String endpointId, String endpointName);
-	}
-
-	/**
-	 * Listen for Payload receiving
+	 * Listener for Payload receiving events.
+	 * Essential for processing incoming messages.
 	 */
 	public interface PayloadListener {
+		/**
+		 * Called when a payload is received.
+		 *
+		 * @param endpointId The ID of the endpoint from which the payload was received.
+		 * @param payload    The received Payload object.
+		 */
 		void onPayloadReceived(@NonNull String endpointId, @NonNull Payload payload);
 
+		/**
+		 * Called for updates on payload transfer (progress, completion).
+		 * Default implementation does nothing, can be overridden if detailed progress is needed.
+		 *
+		 * @param ignoredEndpointId The ID of the endpoint involved in the transfer.
+		 * @param ignoredUpdate     The PayloadTransferUpdate object.
+		 */
 		default void onPayloadTransferUpdate(@NonNull String ignoredEndpointId, @NonNull PayloadTransferUpdate ignoredUpdate) {
 		}
 	}

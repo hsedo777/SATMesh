@@ -2,7 +2,8 @@
 <resources>
 	<color name="black">#FF000000</color>
 	<color name="white">#FFFFFFFF</color>
-	<color name="colorError">#FF0000</color>
+	<color name="colorError">#B00000</color>
+	<color name="colorOnError">#FFFFFF</color>
 
 	<color name="colorPrimary">#4E8CA3</color>
 	<color name="colorPrimarySlightlyDarker">#478299</color>
@@ -18,8 +19,10 @@
 
 	<!-- Surfaces and cards -->
 	<color name="colorSurface">#FFFFFF</color>
+	<color name="colorSurfaceContainerHigh">#F3EDF7</color>
 	<color name="colorSurfaceLight">#F7FAFA</color>
 	<color name="colorOnSurface">#1F3338</color>
+	<color name="colorOnSurfaceVariant">#49454F</color>
 	<color name="surfaceMedium">#04BFB6</color>
 
 	<!-- Button text, links… -->
@@ -31,11 +34,13 @@
 	<color name="cardBackground">#EFF5F5</color>
 	<color name="cardText">@color/colorOnSurface</color>
 
-	<color name="node_state_found">#FFD54F</color>
-	<color name="node_state_connecting">#AEEAB1</color>
+	<color name="colorOutline">#79747E</color>
+
+	<color name="node_state_found">#FBFAF8</color>
+	<color name="node_state_connecting">#FF9800</color>
 	<color name="node_state_connected">#367839</color>
 	<color name="node_state_lost">#E5AB4644</color>
-	<color name="node_state_disconnected">#BDBDBD</color>
+	<color name="node_state_disconnected">#040404</color>
 	<color name="node_state_initiated">#075C87</color>
 	<color name="node_state_failed">#FF0202</color>
 

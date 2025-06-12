@@ -29,7 +29,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 	private static final String ADD_TO_BACK_STACK = "add_to_back_stack";
 	private static final String TAG = Constants.TAG_DISCOVERY_FRAGMENT;
 
-	private DiscoveryFragmentListener listener;
+	private DiscussionListener listener;
 	private NearbyDiscoveryViewModel viewModel;
 	private NearbyDiscoveryAdapter adapter;
 	private FragmentNearbyDiscoveryBinding binding;
@@ -52,8 +52,8 @@ public class NearbyDiscoveryFragment extends Fragment {
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof DiscoveryFragmentListener) {
-			listener = (DiscoveryFragmentListener) context;
+		if (context instanceof DiscussionListener) {
+			listener = (DiscussionListener) context;
 		} else {
 			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener'");
 		}
@@ -180,9 +180,5 @@ public class NearbyDiscoveryFragment extends Fragment {
 	public void onStart() {
 		super.onStart();
 		viewModel.load(); // Initial load when fragment starts
-	}
-
-	public interface DiscoveryFragmentListener {
-		void discussWith(@NonNull Node remoteNode);
 	}
 }

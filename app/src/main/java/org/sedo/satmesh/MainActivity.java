@@ -27,14 +27,17 @@ import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.service.SATMeshCommunicationService;
 import org.sedo.satmesh.ui.ChatFragment;
+import org.sedo.satmesh.ui.ChatListFragment;
+import org.sedo.satmesh.ui.DiscussionListener;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.WelcomeFragment;
+import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class MainActivity extends AppCompatActivity implements WelcomeFragment.OnWelcomeCompletedListener, NearbyDiscoveryFragment.DiscoveryFragmentListener {
+public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -182,7 +185,7 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 			// Check if setup is complete
 			boolean isSetupComplete = getDefaultSharedPreferences().getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
 			if (isSetupComplete) {
-				navigateToMainScreen(false);
+				navigateToMainScreen();
 			} else {
 				showWelcomeFragment();
 			}
@@ -236,7 +239,7 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 					Log.d(TAG, "Host node created and saved: " + hostNode.getDisplayName() + " (" + hostNode.getAddressName() + ") with ID: " + hostNode.getId());
 
 					// Navigate to ChatListFragment or NearbyDiscoveryFragment on UI thread
-					runOnUiThread(() -> navigateToMainScreen(false));
+					runOnUiThread(this::navigateToMainScreen);
 				} else {
 					Log.e(TAG, "Failed to insert host node into database.");
 					runOnUiThread(() -> Toast.makeText(this, R.string.node_profile_saving_failed, Toast.LENGTH_LONG).show());
@@ -280,20 +283,21 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 	/**
 	 * Show the fragment to display after configuration or node loading.
 	 */
-	private void navigateToMainScreen(boolean addToBackStack) {
+	private void navigateToMainScreen() {
 		// The host node is identified, init app service
 		startCommunicationService();
 		appDatabase.getQueryExecutor().execute(() -> {
 			long count = appDatabase.messageDao().countAll();
-			String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 			if (count > 0L) {
 				// There is at least one message, navigate to ChatListFragment
 				Log.i(TAG, "Ready to display chat list");
+				Long hostNodeId = getDefaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
 				// ChatListFragment.newInstance(), Constants.TAG_CHAT_LIST_FRAGMENT
-				navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
+				navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, false, false);
 			} else {
 				// There is no message, redirect user on discovery fragment
-				navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, true, addToBackStack);
+				String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
+				navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), false), Constants.TAG_DISCOVERY_FRAGMENT, true, false);
 			}
 		});
 	}
@@ -348,40 +352,43 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 	 *                       previous state by pressing the back button.
 	 */
 	public void navigateTo(Fragment fragment, String fragmentTag, boolean removeLast, boolean addToBackStack) {
-		FragmentManager fragmentManager = getSupportFragmentManager();
-		FragmentTransaction transaction = fragmentManager.beginTransaction();
+		checkNearbyApiPreConditions((unused) -> {
+			// Navigate only if the pre-conditions are verified.
+			FragmentManager fragmentManager = getSupportFragmentManager();
+			FragmentTransaction transaction = fragmentManager.beginTransaction();
 
-		/*
-		 * Determine if the current fragment needs to be explicitly removed and its back stack entry popped.
-		 * This is useful for scenarios where you want to ensure the previous fragment is fully
-		 * destroyed and its state is not retained in the back stack.
-		 */
-		Fragment currentToRemove = removeLast ? getCurrentFragmentInContainer() : null;
+			/*
+			 * Determine if the current fragment needs to be explicitly removed and its back stack entry popped.
+			 * This is useful for scenarios where you want to ensure the previous fragment is fully
+			 * destroyed and its state is not retained in the back stack.
+			 */
+			Fragment currentToRemove = removeLast ? getCurrentFragmentInContainer() : null;
 
-		if (currentToRemove != null) {
-			// Explicitly remove the specified fragment
-			transaction.remove(currentToRemove).commit(); // Commit this removal operation immediately
+			if (currentToRemove != null) {
+				// Explicitly remove the specified fragment
+				transaction.remove(currentToRemove).commit(); // Commit this removal operation immediately
 
-			// Pop the last transaction from the back stack to prevent the removed fragment from reappearing
-			fragmentManager.popBackStack();
+				// Pop the last transaction from the back stack to prevent the removed fragment from reappearing
+				fragmentManager.popBackStack();
 
-			// Start a new transaction for the subsequent operations, as the previous one was committed
-			transaction = fragmentManager.beginTransaction();
-		}
+				// Start a new transaction for the subsequent operations, as the previous one was committed
+				transaction = fragmentManager.beginTransaction();
+			}
 
-		// Replace the fragment in the container with the new fragment
-		transaction.replace(R.id.fragment_container, fragment, fragmentTag);
+			// Replace the fragment in the container with the new fragment
+			transaction.replace(R.id.fragment_container, fragment, fragmentTag);
 
-		// Add the transaction to the back stack if requested
-		if (addToBackStack) {
-			transaction.addToBackStack(null); // 'null' means no specific name for this back stack entry
-		}
+			// Add the transaction to the back stack if requested
+			if (addToBackStack) {
+				transaction.addToBackStack(null); // 'null' means no specific name for this back stack entry
+			}
 
-		// Allow the FragmentManager to reorder operations for performance and visual consistency
-		transaction.setReorderingAllowed(true);
+			// Allow the FragmentManager to reorder operations for performance and visual consistency
+			transaction.setReorderingAllowed(true);
 
-		// Commit the final set of operations (replace, and optionally addToBackStack)
-		transaction.commit();
+			// Commit the final set of operations (replace, and optionally addToBackStack)
+			transaction.commit();
+		});
 	}
 
 	private boolean isLocationServicesEnabled() {
@@ -395,7 +402,7 @@ public class MainActivity extends AppCompatActivity implements WelcomeFragment.O
 				locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
 	}
 
-	private void checkNearbyApiPreConditions(Consumer<Void> onSuccess) {
+	private void checkNearbyApiPreConditions(@NonNull Consumer<Void> onSuccess) {
 		if (!isLocationServicesEnabled()) {
 			new AlertDialog.Builder(this)
 					.setTitle(R.string.nearby_requirement_dialog_title)

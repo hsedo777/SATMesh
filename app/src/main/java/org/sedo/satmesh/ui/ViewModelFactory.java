@@ -30,7 +30,7 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
 		return INSTANCE;
 	}
 
-	/** @noinspection unchecked*/
+	@SuppressWarnings("unchecked")
 	@NonNull
 	@Override // It's good practice to add @Override for clarity
 	public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
@@ -42,6 +42,9 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
 		}
 		if (modelClass.isAssignableFrom(ChatViewModel.class)) {
 			return (T) new ChatViewModel(application);
+		}
+		if (modelClass.isAssignableFrom(ChatListViewModel.class)){
+			return (T) new ChatListViewModel(application);
 		}
 		// If no matching ViewModel is found, throw an IllegalArgumentException
 		throw new IllegalArgumentException("Unknown ViewModel class: " + modelClass.getName());

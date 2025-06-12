@@ -100,4 +100,16 @@ public class MessageRepository {
 	public List<Message> getMessagesWithStatusSync(Long recipientNodeId, int status) {
 		return messageDao.getMessagesWithStatusSync(recipientNodeId, status);
 	}
+
+	/**
+	 * Retrieves a LiveData list of ChatListItem objects, representing active chat conversations.
+	 * Each item includes the remote node, the latest message, and the unread message count.
+	 * The data is observed from the database and will update automatically.
+	 *
+	 * @param hostNodeId The ID of the local (host) node to filter conversations for.
+	 * @return A LiveData object containing a list of ChatListItem.
+	 */
+	public LiveData<List<ChatListItem>> getChatListItems(Long hostNodeId) {
+		return messageDao.getChatListItems(hostNodeId);
+	}
 }

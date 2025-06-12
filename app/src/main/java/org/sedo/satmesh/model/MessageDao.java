@@ -6,6 +6,8 @@ import androidx.room.Insert;
 import androidx.room.Query;
 import androidx.room.Update;
 
+import org.sedo.satmesh.ui.data.ChatListItem;
+
 import java.util.List;
 
 /**
@@ -130,4 +132,66 @@ public interface MessageDao {
 	 */
 	@Query("SELECT COUNT(id) FROM message")
 	long countAll();
+
+	/**
+	 * Retrieves a LiveData list of ChatListItem objects, each representing a distinct chat conversation.
+	 * Each item includes:
+	 * - The remote Node involved in the conversation, using its actual defined columns.
+	 * - The latest Message exchanged in that conversation, using its actual defined columns.
+	 * - The count of unread messages for that specific conversation (messages received by the host).
+	 *
+	 * The list is ordered by the timestamp of the latest message, with the most recent conversations first.
+	 *
+	 * @param hostNodeId The ID of the local (host) node for which to retrieve conversations.
+	 * @return A LiveData object containing a list of ChatListItem.
+	 */
+	@Query("SELECT " +
+			"  N.id AS remote_node_id, " +
+			"  N.displayName AS remote_node_displayName, " +
+			"  N.addressName AS remote_node_addressName, " +
+			"  N.trusted AS remote_node_trusted, " +
+			"  N.lastSeen AS remote_node_lastSeen, " +
+			"  N.connected AS remote_node_connected, " +
+			"  M.id AS last_msg_id, " +
+			"  M.payloadId AS last_msg_payloadId, " +
+			"  M.content AS last_msg_content, " +
+			"  M.timestamp AS last_msg_timestamp, " +
+			"  M.status AS last_msg_status, " +
+			"  M.type AS last_msg_type, " +
+			"  M.senderNodeId AS last_msg_senderNodeId, " +
+			"  M.recipientNodeId AS last_msg_recipientNodeId, " +
+			"  COALESCE(UC.unreadCount, 0) AS unreadCount " +
+			"FROM message AS M " +
+			"JOIN ( " +
+			"  SELECT " +
+			"    CASE " +
+			"      WHEN senderNodeId = :hostNodeId THEN recipientNodeId " +
+			"      ELSE senderNodeId " +
+			"    END AS partnerId, " +
+			"    MAX(timestamp) AS latestTimestamp " +
+			"  FROM message " +
+			"  WHERE senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId " +
+			"  GROUP BY partnerId " +
+			") AS LM ON ( " +
+			"     ((M.senderNodeId = :hostNodeId AND M.recipientNodeId = LM.partnerId) " +
+			"   OR (M.recipientNodeId = :hostNodeId AND M.senderNodeId = LM.partnerId)) " +
+			"   AND M.timestamp = LM.latestTimestamp " +
+			") " +
+			"JOIN node AS N ON N.id = LM.partnerId " +
+			"LEFT JOIN ( " +
+			"  SELECT " +
+			"    CASE " +
+			"      WHEN senderNodeId = :hostNodeId THEN recipientNodeId " +
+			"      ELSE senderNodeId " +
+			"    END AS partner_id_for_unread, " +
+			"    COUNT(id) AS unreadCount " +
+			"  FROM message " +
+			"  WHERE (senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId) " +
+			"    AND status != " + Message.MESSAGE_STATUS_READ + " " +
+			"    AND recipientNodeId = :hostNodeId " +
+			"  GROUP BY partner_id_for_unread " +
+			") AS UC ON UC.partner_id_for_unread = LM.partnerId " +
+			"ORDER BY M.timestamp DESC")
+	LiveData<List<ChatListItem>> getChatListItems(Long hostNodeId);
+
 }

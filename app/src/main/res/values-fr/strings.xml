@@ -50,6 +50,7 @@
 
 	<string name="re_initiating_key_exchange">Renégociation de la session sécurisée…</string>
 
+	<string name="empty_conversations_message">Aucune conversation pour le moment. Commencez une nouvelle discussion !</string>
 
 	<!-- Application Service -->
 	<string name="notification_title">SATMesh en cours d\'exécution</string>
@@ -58,6 +59,19 @@
 	<string name="channel_description">Notifications pour les activités de communication en arrière-plan.</string>
 
 	<string name="yesterday">Hier</string>
+
+	<!-- Conversations -->
+	<string name="action_search">Rechercher</string>
+	<string name="search_content_description">Rechercher des messages globalement</string>
+	<string name="action_more_options">Plus d\'options</string>
+	<string name="new_chat_fab_content_description">Démarrer une nouvelle discussion</string>
+	<string name="you">Vous</string>
+	<!-- Menu -->
+	<string name="menu_settings">Paramètres</string>
+	<string name="menu_known_nodes">Nœuds connus</string>
+	<string name="menu_help_feedback">Aide &amp; Retour</string>
+	<string name="menu_about">À propos</string>
+
 	<!--
 	<string name=""></string>
 	-->

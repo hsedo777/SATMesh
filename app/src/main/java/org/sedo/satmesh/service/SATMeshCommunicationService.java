@@ -106,7 +106,12 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 						break;
 					case ACTION_STOP_FOREGROUND_SERVICE:
 						// Stop the foreground service and the service itself
-						stopForeground(true);
+						if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) { // API 34
+							stopForeground(STOP_FOREGROUND_REMOVE);
+						} else {
+							stopForeground(true);
+						}
+
 						stopSelf();
 						break;
 					default:

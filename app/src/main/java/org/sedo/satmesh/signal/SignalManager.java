@@ -46,7 +46,7 @@ public class SignalManager {
 	private static final int MIN_AVAILABLE_PREKEYS = 10; // Minimal number of prekeys to keep available
 	private static final long SIGNED_PREKEY_LIFETIME_MILLIS = 90L * 24 * 60 * 60 * 1000; // 90 days in milliseconds
 
-	private static SignalManager INSTANCE;
+	private static volatile SignalManager INSTANCE;
 
 	private final SharedPreferences preferences;
 

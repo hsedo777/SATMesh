@@ -27,11 +27,11 @@ public interface NodeDao {
 
 	/**
 	 * Updates an existing Node in the database.
+	 *
 	 * @param node The Node object to update.
-	 * @return The number of rows updated.
 	 */
 	@Update
-	int update(Node node);
+	void update(Node node);
 
 	/**
 	 * Retrieves a Node by its unique Signal Protocol address name.

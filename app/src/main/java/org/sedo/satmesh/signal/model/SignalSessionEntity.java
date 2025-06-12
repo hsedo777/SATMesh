@@ -9,11 +9,11 @@ import androidx.room.PrimaryKey;
 public class SignalSessionEntity {
 	@PrimaryKey
 	@NonNull
-	public String address;
+	public final String address;
 
-	public byte[] record;
+	public final byte[] record;
 
-	public SignalSessionEntity(String address, byte[] record) {
+	public SignalSessionEntity(@NonNull String address, byte[] record) {
 		this.address = address;
 		this.record = record;
 	}

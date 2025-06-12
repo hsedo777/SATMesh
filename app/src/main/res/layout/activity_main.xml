@@ -4,8 +4,8 @@
 	android:id="@+id/main"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:background="?attr/colorPrimary"
-	tools:context=".MainActivity">
+	tools:context=".MainActivity"
+	tools:ignore="Overdraw">
 
 	<FrameLayout
 		android:id="@+id/fragment_container"

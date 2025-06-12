@@ -3,14 +3,11 @@
 	<string name="welcome_title">Welcome!</string>
 	<string name="welcome_description">Set your username to start chatting.</string>
 	<string name="username_hint">Username</string>
-	<string name="remaining_characters">%1$d characters remaining</string>
 	<string name="continue_button">Continue</string>
 
 	<string name="positive_button_activate">Activate</string>
 	<string name="negative_button_cancel">Cancel</string>
 
-	<string name="signal_key_init_failed">Failed to initialize encryption keys.</string>
-	<string name="signal_key_init_success">Encryption keys initialized successfully!</string>
 	<string name="node_profile_saving_failed">Failed to save user profile. Please try again.</string>
 
 	<string name="internal_error">Impossible to execute the operation</string>
@@ -29,14 +26,9 @@
 	<string name="clear_chat">Clear chat</string>
 	<string name="export_chat">Export chat</string>
 	<string name="send_message_description">Send message</string>
-	<string name="messaging_impossible">Dear user, the communication is lost.</string>
-	<string name="error_message_send_failed">Error, failed to send the message.</string>
-	<string name="session_established_with">Secure connection established.</string>
-	<string name="error_message_decryption_failed">Sorry, message decryption failed.</string>
 	<string name="unknown_node">Unknown Node</string>
 	<string name="error_no_conversation_selected">No conversation selected. Please select a node to chat with.</string>
 	<string name="error_no_direct_connection">No direct connection to %1$s. Message might not be delivered.</string>
-	<string name="status_negotiating_secure_session">Negotiating secure session…</string>
 
 	<string name="status_no_remote_node_selected">No remote node selected for chat.</string>
 	<string name="status_secure_session_active">Secure session active.</string>
@@ -45,8 +37,6 @@
 	<string name="status_negotiating_secure_session_with_issue">Negotiating secure session (issue detected)…</string>
 	<string name="status_not_connected_nearby">Not connected to %s via Nearby.</string>
 
-	<string name="error_key_exchange_failed">Key exchange failed with %s.</string>
-	<string name="error_session_failed">Secure session failed to establish.</string>
 	<string name="error_connection_state_unknown">Connection state unknown.</string>
 
 	<string name="error_secure_session_not_active">Secure session not active. Cannot send message.</string>

@@ -21,10 +21,9 @@ public interface SignalKeyExchangeStateDao {
 	 * If a state with the same remoteAddress already exists, it will be replaced.
 	 *
 	 * @param state The SignalKeyExchangeState to insert.
-	 * @return The row ID of the newly inserted state.
 	 */
 	@Insert(onConflict = OnConflictStrategy.REPLACE)
-	long insert(SignalKeyExchangeState state);
+	void insert(SignalKeyExchangeState state);
 
 	/**
 	 * Updates an existing SignalKeyExchangeState in the database.

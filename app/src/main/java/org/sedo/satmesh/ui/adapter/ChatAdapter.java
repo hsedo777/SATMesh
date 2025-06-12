@@ -54,8 +54,8 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 	}
 
 	public static abstract class MessageViewHolder extends RecyclerView.ViewHolder {
-		protected TextView messageText;
-		protected TextView timestampText;
+		protected final TextView messageText;
+		protected final TextView timestampText;
 
 		public MessageViewHolder(@NonNull View itemView) {
 			super(itemView);

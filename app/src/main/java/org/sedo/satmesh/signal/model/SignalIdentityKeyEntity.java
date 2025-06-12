@@ -9,9 +9,9 @@ public class SignalIdentityKeyEntity {
 
 	@PrimaryKey
 	@NonNull
-	public String address;
+	public final String address;
 
-	public byte[] identityKey;
+	public final byte[] identityKey;
 
 	public SignalIdentityKeyEntity(@NonNull String address, byte[] identityKey) {
 		this.address = address;

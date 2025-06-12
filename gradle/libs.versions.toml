@@ -1,21 +1,19 @@
 [versions]
-agp = "8.5.1"
-androidDatabaseSqlcipher = "4.5.4"
+agp = "8.5.2"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-appcompat = "1.7.0"
+appcompat = "1.7.1"
 libsignalProtocolJava = "master-SNAPSHOT"
 material = "1.12.0"
 activity = "1.9.3"
-constraintlayout = "2.2.0"
+constraintlayout = "2.2.1"
 playServicesNearby = "19.3.0"
 roomCompiler = "2.7.1"
 roomRuntime = "2.7.1"
 sqlcipherAndroid = "4.9.0"
 
 [libraries]
-android-database-sqlcipher = { module = "net.zetetic:android-database-sqlcipher", version.ref = "androidDatabaseSqlcipher" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 androidx-room-testing = { module = "androidx.room:room-testing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -62,7 +62,7 @@ public class MessageRepository {
 	}
 
 	public Message getMessageById(long messageId){
-		return getMessageById(messageId);
+		return messageDao.getMessageById(messageId);
 	}
 
 	/**

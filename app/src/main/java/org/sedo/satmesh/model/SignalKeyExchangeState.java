@@ -3,7 +3,6 @@ package org.sedo.satmesh.model;
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
-import androidx.room.Ignore;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
@@ -45,10 +44,6 @@ public class SignalKeyExchangeState {
 	@ColumnInfo(name = "last_their_received_attempt")
 	private Long lastTheirReceivedAttempt;
 
-	public SignalKeyExchangeState() {
-	}
-
-	@Ignore
 	public SignalKeyExchangeState(@NonNull String remoteAddress) {
 		this.remoteAddress = remoteAddress;
 	}

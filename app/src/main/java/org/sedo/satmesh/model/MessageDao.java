@@ -28,11 +28,11 @@ public interface MessageDao {
 	/**
 	 * Updates an existing Message in the database. This is typically used to update
 	 * the status of a message (e.g., from PENDING to DELIVERED or READ).
+	 *
 	 * @param message The Message object to update.
-	 * @return The number of rows updated.
 	 */
 	@Update
-	int update(Message message);
+	void update(Message message);
 
 	/**
 	 * Retrieves a single message by its primary key ID.

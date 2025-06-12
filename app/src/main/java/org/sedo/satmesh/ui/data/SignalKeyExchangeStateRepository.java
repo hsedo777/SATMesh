@@ -1,6 +1,5 @@
 package org.sedo.satmesh.ui.data;
 
-import android.app.Application;
 import android.content.Context;
 import android.util.Log;
 

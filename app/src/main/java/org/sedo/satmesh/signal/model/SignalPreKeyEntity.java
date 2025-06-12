@@ -6,9 +6,9 @@ import androidx.room.PrimaryKey;
 @Entity(tableName = "signal_prekeys")
 public class SignalPreKeyEntity {
 	@PrimaryKey
-	public int keyId;
+	public final int keyId;
 
-	public byte[] record;
+	public final byte[] record;
 
 	public boolean used;
 

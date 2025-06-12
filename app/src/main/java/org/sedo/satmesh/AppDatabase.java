@@ -7,8 +7,6 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-import net.zetetic.database.sqlcipher.SQLiteConnection;
-import net.zetetic.database.sqlcipher.SQLiteDatabaseHook;
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory;
 
 import org.sedo.satmesh.model.Message;
@@ -16,6 +14,8 @@ import org.sedo.satmesh.model.MessageDao;
 import org.sedo.satmesh.model.MessageFts;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.model.NodeDao;
+import org.sedo.satmesh.model.SignalKeyExchangeState;
+import org.sedo.satmesh.model.SignalKeyExchangeStateDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyEntity;
 import org.sedo.satmesh.signal.model.SignalPreKeyDao;
@@ -28,7 +28,8 @@ import org.sedo.satmesh.utils.AndroidKeyManager;
 
 @Database(entities = {Node.class, Message.class, MessageFts.class,
 		SignalSessionEntity.class, SignalPreKeyEntity.class,
-		SignalSignedPreKeyEntity.class, SignalIdentityKeyEntity.class},
+		SignalSignedPreKeyEntity.class, SignalIdentityKeyEntity.class,
+		SignalKeyExchangeState.class,},
 		version = 1)
 public abstract class AppDatabase extends RoomDatabase {
 
@@ -38,6 +39,7 @@ public abstract class AppDatabase extends RoomDatabase {
 	public abstract SignalPreKeyDao preKeyDao();
 	public abstract SignalSignedPreKeyDao signedPreKeyDao();
 	public abstract SignalIdentityKeyDao identityKeyDao();
+	public abstract SignalKeyExchangeStateDao signalKeyExchangeStateDao();
 
 	private static volatile AppDatabase INSTANCE;
 
@@ -58,7 +60,7 @@ public abstract class AppDatabase extends RoomDatabase {
 		return INSTANCE;
 	}
 
-	// Sample of hook for actions to execute before db encryption or after db decryption
+	/* Sample of hook for actions to execute before db encryption or after db decryption
 	private static final SQLiteDatabaseHook databaseHook = new SQLiteDatabaseHook() {
 		@Override
 		public void preKey(SQLiteConnection database) {
@@ -68,13 +70,13 @@ public abstract class AppDatabase extends RoomDatabase {
 
 		@Override
 		public void postKey(SQLiteConnection database) {
-			/* Called after db encryption
+			// Called after db encryption
 			database.execSQL("PRAGMA cipher_memory_security = ON;");
-			database.execSQL("PRAGMA secure_delete = ON;");*/
+			database.execSQL("PRAGMA secure_delete = ON;");
 		}
 	};
 
-    /* Define migrations here
+    // Define migrations here
     static final Migration MIGRATION_1_2 = new Migration(1, 2) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {

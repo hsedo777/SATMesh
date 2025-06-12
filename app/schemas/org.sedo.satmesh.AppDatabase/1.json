@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "0443d843ea2f3dec5ee7f4633f212040",
+    "identityHash": "118af625330626f961a29df5baaaead7",
     "entities": [
       {
         "tableName": "node",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `displayName` TEXT, `addressName` TEXT, `trusted` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `displayName` TEXT, `addressName` TEXT, `trusted` INTEGER NOT NULL, `lastSeen` INTEGER, `connected` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -26,6 +26,17 @@
           {
             "fieldPath": "trusted",
             "columnName": "trusted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSeen",
+            "columnName": "lastSeen",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "connected",
+            "columnName": "connected",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -297,11 +308,55 @@
             "address"
           ]
         }
+      },
+      {
+        "tableName": "signal_key_exchange_states",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `remote_address` TEXT NOT NULL, `last_our_sent_attempt` INTEGER, `last_their_received_attempt` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "remoteAddress",
+            "columnName": "remote_address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastOurSentAttempt",
+            "columnName": "last_our_sent_attempt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastTheirReceivedAttempt",
+            "columnName": "last_their_received_attempt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_signal_key_exchange_states_remote_address",
+            "unique": true,
+            "columnNames": [
+              "remote_address"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_signal_key_exchange_states_remote_address` ON `${TABLE_NAME}` (`remote_address`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0443d843ea2f3dec5ee7f4633f212040')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '118af625330626f961a29df5baaaead7')"
     ]
   }
 }

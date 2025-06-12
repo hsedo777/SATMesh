@@ -51,6 +51,14 @@ public interface NodeDao {
 	Node getNodeById(Long id);
 
 	/**
+	 * Retrieves a Node by its primary key ID and wraps it in a `LiveData`.
+	 * @param id The primary key ID of the Node.
+	 * @return The Node object, or null if not found.
+	 */
+	@Query("SELECT * FROM node WHERE id = :id")
+	LiveData<Node>  getNodeByIdAsLiveData(long id);
+
+	/**
 	 * Get the live data of nodes in state connected
 	 * @see Node#isConnected()
 	 */

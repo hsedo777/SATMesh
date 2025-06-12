@@ -17,7 +17,8 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeState;
-import org.sedo.satmesh.ui.data.NodeStateRepository;
+import org.sedo.satmesh.ui.data.NodeTransientState;
+import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,7 +34,7 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	private static final String TAG = "NearbyDiscoveryVM";
 
 	private final MediatorLiveData<List<Node>> displayNodeListLiveData = new MediatorLiveData<>();
-	private final NodeStateRepository nodeStateRepository;
+	private final NodeTransientStateRepository nodeStateRepository;
 	private final MutableLiveData<Integer> recyclerVisibility = new MutableLiveData<>();
 	private final MutableLiveData<DescriptionState> descriptionState = new MutableLiveData<>();
 	private final MutableLiveData<Integer> emptyStateTextView = new MutableLiveData<>();
@@ -49,13 +50,13 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 		super(application);
 		// This map still holds transient states not directly in the DB Node model
 		NodeRepository nodeRepository = new NodeRepository(application);
-		nodeStateRepository = NodeStateRepository.getInstance();
+		nodeStateRepository = NodeTransientStateRepository.getInstance();
 		nearbyManager = NearbyManager.getInstance();
 
 		// Observe the connected nodes from the database
 		LiveData<List<Node>> connectedNodesFromDb = nodeRepository.getConnectedNode();
 		// Observe data from NodeStateRepository (transient UI states)
-		LiveData<Map<String, NodeState>> transientStatesFromRepo = nodeStateRepository.getTransientNodeStates();
+		LiveData<Map<String, NodeTransientState>> transientStatesFromRepo = nodeStateRepository.getTransientNodeStates();
 
 		// Combine DB nodes with transient states
 		// Use MediatorLiveData to combine these two sources
@@ -120,9 +121,10 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
 	public NodeState getStateForNode(Node node) {
 		// Retrieve state from NodeStateRepository first (for transient states)
-		Map<String, NodeState> transientStates = nodeStateRepository.getTransientNodeStates().getValue();
-		if (transientStates != null && transientStates.containsKey(node.getAddressName())) {
-			return transientStates.get(node.getAddressName());
+		Map<String, NodeTransientState> transientStates = nodeStateRepository.getTransientNodeStates().getValue();
+		NodeTransientState state;
+		if (transientStates != null && (state = transientStates.get(node.getAddressName())) != null) {
+			return state.connectionState;
 		}
 		// If not in transient states, use the DB's connected status
 		return node.isConnected() ? NodeState.ON_CONNECTED : NodeState.ON_ENDPOINT_FOUND;
@@ -171,7 +173,7 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	 * @param dbNodes         The current list of connected nodes from the database.
 	 * @param transientStates The current map of transient states from NodeStateRepository.
 	 */
-	private void updateDisplayNodes(@Nullable List<Node> dbNodes, @Nullable Map<String, NodeState> transientStates) {
+	private void updateDisplayNodes(@Nullable List<Node> dbNodes, @Nullable Map<String, NodeTransientState> transientStates) {
 		viewModelExecutor.execute(() -> { // Perform combining logic on a background thread
 			Map<String, Node> seenNodes = new HashMap<>(); // To handle uniqueness
 
@@ -184,9 +186,9 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
 			// 2. Overlay or add transient states
 			if (transientStates != null) {
-				for (Map.Entry<String, NodeState> entry : transientStates.entrySet()) {
+				for (Map.Entry<String, NodeTransientState> entry : transientStates.entrySet()) {
 					String addressName = entry.getKey();
-					NodeState state = entry.getValue();
+					NodeTransientState state = entry.getValue();
 
 					if (seenNodes.containsKey(addressName)) {
 						/*
@@ -195,7 +197,7 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 						 * (e.g., ON_DISCONNECTED for a briefly disconnected but still in DB node).
 						 * Otherwise, connected state from DB usually takes precedence for display.
 						 */
-						if (state == NodeState.ON_DISCONNECTED) {
+						if (state.connectionState == NodeState.ON_DISCONNECTED) {
 							Node nodeInList = seenNodes.get(addressName);
 							Objects.requireNonNull(nodeInList).setConnected(false); // Mark as not connected for UI purposes
 							// The NodeStateRepository is responsible for eventually removing this if truly lost.

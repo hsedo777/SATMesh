@@ -99,7 +99,7 @@ public class Node {
 		return lastSeen;
 	}
 
-	public void setLastSeen(long lastSeen) {
+	public void setLastSeen(Long lastSeen) {
 		this.lastSeen = lastSeen;
 	}
 
@@ -116,12 +116,12 @@ public class Node {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Node node = (Node) o;
-		return trusted == node.trusted && Objects.equals(id, node.id) && Objects.equals(displayName, node.displayName) && Objects.equals(addressName, node.addressName);
+		return trusted == node.trusted && connected == node.connected && Objects.equals(displayName, node.displayName) && Objects.equals(addressName, node.addressName) && Objects.equals(lastSeen, node.lastSeen);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(id, displayName, addressName, trusted);
+		return Objects.hash(displayName, addressName, trusted, lastSeen, connected);
 	}
 
 	public void write(@NonNull Bundle input, @NonNull String prefix){

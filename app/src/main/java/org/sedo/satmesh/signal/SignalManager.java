@@ -209,13 +209,14 @@ public class SignalManager {
 	}
 
 	/**
-	 * Checks if an active Signal Protocol session exists for the given recipient.
+	 * Checks if a Signal Protocol session exists for the given recipient.
 	 * This determines if a new PreKeyBundle exchange is necessary.
 	 *
 	 * @param recipientAddress The SignalProtocolAddress of the recipient.
-	 * @return true if an active session exists, false otherwise.
+	 * @return true if an active session exists for {@code recipientAddress}
+	 * near the host node, false otherwise.
 	 */
-	public boolean hasActiveSession(@NonNull SignalProtocolAddress recipientAddress) {
+	public boolean hasSession(@NonNull SignalProtocolAddress recipientAddress) {
 		if (sessionStore == null) {
 			Log.e(TAG, "SessionStore is null. SignalManager not initialized.");
 			return false;
@@ -276,7 +277,7 @@ public class SignalManager {
 		if (sessionStore == null || preKeyStore == null || signedPreKeyStore == null || identityKeyStore == null) {
 			throw new IllegalStateException("SignalManager stores not initialized.");
 		}
-		if (!hasActiveSession(recipientAddress)) {
+		if (!hasSession(recipientAddress)) {
 			throw new NoSessionException("No active session with " + recipientAddress.getName() + ". Cannot encrypt message.");
 		}
 

@@ -1,6 +1,8 @@
 package org.sedo.satmesh.ui;
 
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -13,6 +15,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
@@ -22,7 +25,6 @@ import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.ChatAdapter;
-import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.Objects;
@@ -60,15 +62,16 @@ public class ChatFragment extends Fragment {
 			hostNode = Node.restoreFromBundle(getArguments(), ARG_HOST_PREFIX);
 			remoteNode = Node.restoreFromBundle(getArguments(), ARG_REMOTE_PREFIX);
 			// Ensure nodes are restored
-			if (hostNode.getId() == null || remoteNode.getId() == null) {
+			if (hostNode == null || hostNode.getId() == null || remoteNode == null || remoteNode.getId() == null) {
 				// Alert and close the fragment
-				Log.e(Constants.TAG_CHAT_FRAGMENT, "onCreate() : failed to fetch nodes from arguments!");
+				Log.e(Constants.TAG_CHAT_FRAGMENT, "onCreate() : failed to fetch nodes from arguments or nodes are null!");
 				Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
 				requireActivity().getOnBackPressedDispatcher().onBackPressed();
 			}
 		}
 		/*
 		 * Else, nodes are mapped in the view model, cause `getArguments() == null ===> the fragment is recreated by android`
+		 * We retrieve them later from ViewModel.
 		 */
 	}
 
@@ -83,22 +86,46 @@ public class ChatFragment extends Fragment {
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 
-		viewModel = new ViewModelProvider(this, new ViewModelFactory(requireActivity().getApplication())).get(ChatViewModel.class);
+		// Initialize ViewModel using ViewModelFactory.
+		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance(requireActivity().getApplication())).get(ChatViewModel.class);
+
+		// If ViewModel already has nodes set (e.g., after orientation change), use them.
+		// Otherwise, use the ones from arguments and tell ViewModel to set them.
 		if (viewModel.areNodesSet()) {
-			hostNode = viewModel.getHostNode();
-			remoteNode = viewModel.getRemoteNode();
-		} // else, nodes are freshly loaded from fragment' arguments
+			hostNode = viewModel.getHostNodeLiveData().getValue(); // Use LiveData.getValue()
+			remoteNode = viewModel.getRemoteNodeLiveData().getValue(); // Use LiveData.getValue()
+		}
+
+		// IMPORTANT: Ensure hostNode and remoteNode are not null before proceeding
+		if (hostNode == null || remoteNode == null) {
+			Log.e(Constants.TAG_CHAT_FRAGMENT, "onViewCreated() : hostNode or remoteNode is null after ViewModel initialization!");
+			Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
+			requireActivity().getOnBackPressedDispatcher().onBackPressed();
+			return; // Prevent NullPointerException
+		}
 
 		Toolbar toolbar = binding.chatToolbar;
 		toolbar.setNavigationOnClickListener(v -> requireActivity().getOnBackPressedDispatcher().onBackPressed());
+
+		// IMPROVED: Toolbar click listener for potential manual re-initiation or info display
 		toolbar.setOnClickListener(v -> {
-			if (!NodeState.ON_CONNECTED.equals(viewModel.getConnectionDetailedStatus().getValue())
-					&& viewModel.getNearbyManager().isAddressDirectlyConnected(remoteNode.getAddressName())) {
-				viewModel.getConnectionActive().postValue(true);
-				viewModel.getConnectionDetailedStatus().postValue(NodeState.ON_CONNECTED);
-				viewModel.getConnectionActive().postValue(true);
+			// If connection is not active (i.e., not secure or not connected Nearby)
+			if (viewModel.getConnectionActive().getValue() == null || !viewModel.getConnectionActive().getValue()) {
+				// Attempt to re-initiate key exchange if there's an endpoint available
+				String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(remoteNode.getAddressName());
+				if (endpointId != null) {
+					Toast.makeText(getContext(), R.string.re_initiating_key_exchange, Toast.LENGTH_SHORT).show();
+					viewModel.getNearbyManager().requestConnection(endpointId, remoteNode.getAddressName(), null); // Re-request connection if needed
+					viewModel.setConversationNodes(hostNode, remoteNode); // This will trigger handleInitialKeyExchange
+				} else {
+					Toast.makeText(getContext(), getString(R.string.error_no_direct_connection, remoteNode.getDisplayName()), Toast.LENGTH_SHORT).show();
+				}
+			} else {
+				// If connection is active/secure, maybe show a "secured" toast or details
+				Toast.makeText(getContext(), R.string.status_secure_session_active, Toast.LENGTH_SHORT).show();
 			}
 		});
+
 
 		adapter = new ChatAdapter(hostNode.getId());
 		binding.chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -112,11 +139,35 @@ public class ChatFragment extends Fragment {
 			}
 		});
 
+		binding.messageEditText.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+				// Not needed for this logic
+			}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				// Enable send button only if text is not empty
+				binding.sendButton.setEnabled(!s.toString().trim().isEmpty());
+			}
+
+			@Override
+			public void afterTextChanged(Editable s) {
+				// Not needed for this logic
+			}
+		});
+
+		// Initial state: disable send button if text field is empty
+		binding.sendButton.setEnabled(!Objects.requireNonNullElse(binding.messageEditText.getText(), "").toString().trim().isEmpty());
+
 		// Observers of `ViewModel`'s `LiveData`s
 		viewModel.getConversation().observe(getViewLifecycleOwner(), messages -> {
 			adapter.submitList(messages);
-			if (!messages.isEmpty())
+			if (!messages.isEmpty()) {
+				// Scroll to bottom only if it's not already at the bottom to avoid jumpiness
+				// Or always scroll if it's a new message
 				binding.chatRecyclerView.scrollToPosition(messages.size() - 1);
+			}
 		});
 
 		viewModel.getUiMessage().observe(getViewLifecycleOwner(), message -> {
@@ -125,27 +176,58 @@ public class ChatFragment extends Fragment {
 			}
 		});
 
-		viewModel.getRemoteDisplayName().observe(getViewLifecycleOwner(), displayName -> {
-			if (displayName != null && !displayName.isEmpty()) {
-				toolbar.setTitle(displayName);
-			} else {
-				toolbar.setTitle(getString(R.string.app_name)); // Fallback
+		// IMPROVED: Observe remoteNodeLiveData for dynamic display name updates
+		viewModel.getRemoteNodeLiveData().observe(getViewLifecycleOwner(), updatedRemoteNode -> {
+			if (updatedRemoteNode != null) {
+				remoteNode = updatedRemoteNode; // Update local remoteNode reference
+				if (updatedRemoteNode.getDisplayName() != null && !updatedRemoteNode.getDisplayName().isEmpty()) {
+					toolbar.setTitle(updatedRemoteNode.getDisplayName());
+				} else {
+					toolbar.setTitle(getString(R.string.app_name));
+				}
 			}
 		});
 
+		// Current status (connected/disconnected) - determines visibility of indicator
 		viewModel.getConnectionActive().observe(getViewLifecycleOwner(), isActive -> {
-			Log.d("ChatFragment", "Connection Active: " + isActive);
-			binding.connectionIndicator.setVisibility(isActive ? View.VISIBLE : View.GONE);
+			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Active: " + isActive);
+			// Show indicator only if NOT active/secure
+			binding.connectionIndicator.setVisibility(isActive ? View.GONE : View.VISIBLE);
+			// binding.messageEditText.setEnabled(isActive); binding.sendButton.setEnabled(isActive);
 		});
 
+		// Detailed status (color indicator)
 		viewModel.getConnectionDetailedStatus().observe(getViewLifecycleOwner(), status -> {
-			Log.d("ChatFragment", "Connection Detailed Status: " + status.name());
-			binding.connectionIndicator.setBackgroundColor(getResources().getColor(status.getColorResId(), requireActivity().getTheme()));
+			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Detailed Status: " + status.name());
+			// Use ContextCompat.getColor for consistent color loading
+			binding.connectionIndicator.setBackgroundColor(ContextCompat.getColor(requireContext(), status.getColorResId()));
+			// To be added: Update status text next to the toolbar title if you add a TextView for it.
+			// Example: binding.connectionIndicator.setTooltipText(status.getDisplayString());
 		});
 
-		// (Re)load conversation
+		// NEW: Observe remoteKeyExchangeState for more detailed status messages
+		// This can be used to update a more prominent status display, e.g., a TextView under the toolbar
+		viewModel.getRemoteKeyExchangeState().observe(getViewLifecycleOwner(), keyExchangeState -> {
+			/*
+			 * This observer allows ChatFragment to react to precise key exchange states
+			 * Example: You could update a separate TextView here with custom messages
+			 * based on keyExchangeState.getLastOurSentAttempt() and getLastTheirReceivedAttempt()
+			 */
+			if (keyExchangeState != null) {
+				// Log the state for debugging
+				Log.d(Constants.TAG_CHAT_FRAGMENT, "Key Exchange State: Our Sent: " + keyExchangeState.getLastOurSentAttempt() +
+						", Their Received: " + keyExchangeState.getLastTheirReceivedAttempt());
+			} else {
+				Log.d(Constants.TAG_CHAT_FRAGMENT, "Key exchange state is undefined for device: " + remoteNode.getAddressName());
+			}
+		});
+
+
+		// (Re)load conversation and initiate connection/key exchange process
+		// This should be called AFTER all observers are set up, so they can immediately react.
 		viewModel.setConversationNodes(hostNode, remoteNode);
 
+		// Menu provider setup (no changes here, already good)
 		requireActivity().addMenuProvider(new MenuProvider() {
 			@Override
 			public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
@@ -155,6 +237,7 @@ public class ChatFragment extends Fragment {
 			@Override
 			public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
 				if (menuItem.getItemId() == R.id.action_clear_chat) {
+					// TODO: Implement actual chat clearing logic in ViewModel and Repository
 					Toast.makeText(getContext(), R.string.clear_chat, Toast.LENGTH_SHORT).show();
 					return true;
 				}
@@ -166,6 +249,6 @@ public class ChatFragment extends Fragment {
 	@Override
 	public void onDestroyView() {
 		super.onDestroyView();
-		binding = null;
+		binding = null; // Clear binding
 	}
 }

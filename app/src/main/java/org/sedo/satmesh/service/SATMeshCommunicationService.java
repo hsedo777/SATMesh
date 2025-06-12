@@ -25,7 +25,7 @@ import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.NodeState;
-import org.sedo.satmesh.ui.data.NodeStateRepository;
+import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.concurrent.ExecutorService;
@@ -266,7 +266,7 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 					getApplicationContext(),
 					nearbyManager,
 					signalManager,
-					appDatabase, // Pass the database instance
+					// Pass the database instance
 					hostNode // Pass the host node
 			);
 		}
@@ -313,7 +313,7 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 		// === Decision point: Initiate a connection ===
 		// We decide to request a connection to any discovered peer if no active, pending,
 		// or incoming connection exists for that specific Signal Protocol address name.
-		NodeStateRepository.getInstance().updateTransientNodeState(endpointName, NodeState.ON_ENDPOINT_FOUND);
+		NodeTransientStateRepository.getInstance().updateTransientNodeState(endpointName, NodeState.ON_ENDPOINT_FOUND);
 		Log.i(TAG, "Attempting to request connection to " + endpointName + " (ID: " + endpointId + ")");
 		nearbyManager.requestConnection(endpointId, endpointName, (id, success) -> {
 			if (success) {
@@ -341,7 +341,7 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 		 * longer available. The NearbyManager's internal mechanisms and its DeviceConnectionListener
 		 * will handle the actual state changes for connected or actively pending endpoints.
 		 */
-		NodeStateRepository.getInstance().updateTransientNodeState(endpointName, NodeState.ON_ENDPOINT_LOST);
+		NodeTransientStateRepository.getInstance().updateTransientNodeState(endpointName, NodeState.ON_ENDPOINT_LOST);
 	}
 
 	/**

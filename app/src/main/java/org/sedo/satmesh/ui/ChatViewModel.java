@@ -1,21 +1,19 @@
 package org.sedo.satmesh.ui;
 
 import android.app.Application;
-import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.google.android.gms.common.api.Status;
-import com.google.android.gms.nearby.connection.Payload;
-
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
+import org.sedo.satmesh.model.SignalKeyExchangeState;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.proto.PersonalInfo;
@@ -23,119 +21,258 @@ import org.sedo.satmesh.proto.TextMessage;
 import org.sedo.satmesh.ui.data.MessageRepository;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeState;
+import org.sedo.satmesh.ui.data.NodeTransientState;
+import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
+import org.sedo.satmesh.ui.data.SignalKeyExchangeStateRepository;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ChatViewModel extends AndroidViewModel implements NearbySignalMessenger.SignalMessengerCallback {
+public class ChatViewModel extends AndroidViewModel {
 
 	private static final String TAG = "ChatViewModel";
 	private final MessageRepository messageRepository;
 	private final NodeRepository nodeRepository;
 	private final NearbyManager nearbyManager;
 	private final NearbySignalMessenger nearbySignalMessenger;
-	// MediatorLiveData to observe conversation messages from the repository based on nodes.
+	private final NodeTransientStateRepository nodeTransientStateRepository;
+	private final SignalKeyExchangeStateRepository signalKeyExchangeStateRepository;
+
 	private final MediatorLiveData<List<Message>> conversation = new MediatorLiveData<>();
-	// LiveData for displaying transient UI messages (e.g., toasts, snack bars).
 	private final MutableLiveData<String> uiMessage = new MutableLiveData<>();
-	private final MutableLiveData<String> remoteDisplayName = new MutableLiveData<>();
-	// Wrap the state connected or not of the implied nodes
+
+	private final MutableLiveData<Node> hostNodeLiveData = new MutableLiveData<>();
+	private final MediatorLiveData<Node> remoteNodeLiveData = new MediatorLiveData<>();
+
 	private final MutableLiveData<Boolean> connectionActive = new MutableLiveData<>();
 	private final MutableLiveData<NodeState> connectionDetailedStatus = new MutableLiveData<>();
-	// Store pending messages
-	private final Map<Long, Message> pendingMessages = new HashMap<>();
+
+	private final MediatorLiveData<SignalKeyExchangeState> remoteKeyExchangeState = new MediatorLiveData<>();
+	private LiveData<SignalKeyExchangeState> currentKeyExchangeStateSource; // Source from repository
+
+	private final MediatorLiveData<Void> transientStatesMediator = new MediatorLiveData<>();
+
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-	private Node hostNode;
-	private Node remoteNode;
+	private LiveData<Node> currentRemoteNodeSource;
 
-	/**
-	 * Constructor for ChatViewModel.
-	 * Initializes NearbyManager, NearbySignalMessenger, MessageRepository,
-	 * and registers as listeners.
-	 *
-	 * @param application The Application context., see {@link Context#getApplicationContext()}
-	 */
 	public ChatViewModel(@NonNull Application application) {
 		super(application);
 		this.messageRepository = new MessageRepository(application);
-		this.nodeRepository = new NodeRepository((application));
+		this.nodeRepository = new NodeRepository(application);
+		this.nodeTransientStateRepository = NodeTransientStateRepository.getInstance();
+		this.signalKeyExchangeStateRepository = new SignalKeyExchangeStateRepository(application);
+
+		nearbyManager = NearbyManager.getInstance();
+		nearbySignalMessenger = NearbySignalMessenger.getInstance(); // Pass application here
+
+		setupConnectionStatusMonitoring();
+	}
+
+	private void setupConnectionStatusMonitoring() {
+		// Use the explicit observer instance
+		transientStatesMediator.addSource(nodeTransientStateRepository.getTransientNodeStates(), this::updateConnectionStatus);
+	}
+
+	/**
+	 * Updates the connection status LiveData based on the latest states from NodeTransientStateRepository
+	 * and now also from SignalKeyExchangeStateRepository.
+	 *
+	 * @param statesMap The current map of transient node states.
+	 */
+	private void updateConnectionStatus(@Nullable Map<String, NodeTransientState> statesMap) {
+		Node currentRemoteNode = remoteNodeLiveData.getValue();
+		if (currentRemoteNode == null || currentRemoteNode.getAddressName() == null) {
+			connectionActive.postValue(false);
+			connectionDetailedStatus.postValue(NodeState.ON_DISCONNECTED);
+			uiMessage.postValue(getApplication().getString(R.string.status_no_remote_node_selected)); // Provide feedback
+			return;
+		}
+
+		String remoteAddress = currentRemoteNode.getAddressName();
+
+		// 1. Get Transient State
+		NodeTransientState remoteTransientState = (statesMap != null) ?
+				statesMap.get(remoteAddress) :
+				nodeTransientStateRepository.getTransientNodeStates().getValue() != null ?
+						nodeTransientStateRepository.getTransientNodeStates().getValue().get(remoteAddress) : null;
 
 		/*
-		 * The local name may be unknown at this time, but the main activity had initialize
-		 * the manager so we are just fetching the existing instance.
+		 * 2. Get Persistent Key Exchange State (synchronously for immediate update, but it's LiveData in repo)
+		 * We will observe remoteKeyExchangeState separately if more complex UI logic is needed.
+		 * For this immediate update, we use the last known value of remoteKeyExchangeState.
 		 */
-		nearbyManager = NearbyManager.getInstance();
-		nearbySignalMessenger = NearbySignalMessenger.getInstance();
+		SignalKeyExchangeState currentPersistentKeyExchangeState = remoteKeyExchangeState.getValue();
 
-		// Add listeners
-		nearbySignalMessenger.addKeyExchangeListener(this);
-		nearbySignalMessenger.addInfoChangeListener(this);
-		nearbySignalMessenger.addMessageSendingListener(this);
-		nearbySignalMessenger.addMessengerCallback(this);
-		nearbySignalMessenger.addMessageDecryptionFailureListener(this);
-		nearbyManager.addDeviceConnectionListener(this);
+		boolean active = false;
+		NodeState detailedStatus = NodeState.ON_DISCONNECTED; // Default to disconnected
+		String uiMessageText;
+
+		if (remoteTransientState != null) {
+			// Start with the general connection state from Nearby Connections
+			detailedStatus = remoteTransientState.connectionState;
+
+			// Refine status based on Signal Protocol states
+			// Use the more comprehensive persistent state where possible, combined with transient.
+			if (remoteTransientState.connectionState == NodeState.ON_CONNECTED) { // Only proceed if Nearby is connected
+				boolean sessionReadyByTransient = (remoteTransientState.keyExchangeStatus != null && remoteTransientState.keyExchangeStatus) &&
+						(remoteTransientState.sessionInitStatus != null && remoteTransientState.sessionInitStatus);
+
+				boolean ourBundleSent = currentPersistentKeyExchangeState != null &&
+						currentPersistentKeyExchangeState.getLastOurSentAttempt() != null &&
+						currentPersistentKeyExchangeState.getLastOurSentAttempt() > 0L;
+
+				boolean theirBundleReceived = currentPersistentKeyExchangeState != null &&
+						currentPersistentKeyExchangeState.getLastTheirReceivedAttempt() != null &&
+						currentPersistentKeyExchangeState.getLastTheirReceivedAttempt() > 0L;
+
+				if (sessionReadyByTransient) {
+					// Signal session is fully active according to transient state
+					active = true;
+					uiMessageText = getApplication().getString(R.string.status_secure_session_active);
+				} else {
+					// Nearby is connected, but Signal session is not yet fully active (transient state)
+					// Not fully secure yet
+
+					if (!ourBundleSent) {
+						uiMessageText = getApplication().getString(R.string.status_waiting_to_send_our_keys);
+					} else if (!theirBundleReceived) {
+						uiMessageText = getApplication().getString(R.string.status_waiting_for_their_keys);
+					} else {
+						/*
+						 * If both bundles sent/received persistence-wise, but transient says no session
+						 * This might indicate an internal Signal protocol error, or a delay.
+						 */
+						uiMessageText = getApplication().getString(R.string.status_negotiating_secure_session_with_issue);
+						detailedStatus = NodeState.ON_CONNECTION_FAILED;
+					}
+				}
+			} else {
+				// Nearby connection is NOT active (disconnected, connecting, failed, etc.)
+				// UI message and detailed status already reflect this from the initial check.
+				uiMessageText = getApplication().getString(R.string.status_not_connected_nearby, remoteAddress);
+			}
+
+		} else {
+			// No transient state found (should not happen if `setConversationNodes` was called).
+			Log.e(TAG, "Unable to find the `NodeTransientState` for address : " + remoteAddress);
+			uiMessageText = getApplication().getString(R.string.error_connection_state_unknown);
+		}
+
+		if (!uiMessageText.isEmpty()) {
+			uiMessage.postValue(uiMessageText);
+		}
+
+		connectionActive.postValue(active);
+		connectionDetailedStatus.postValue(detailedStatus);
+		Log.d(TAG, "Connection status updated for " + remoteAddress +
+				": Active=" + active + ", Detailed=" + detailedStatus.name() +
+				", OurBundleSent=" + (currentPersistentKeyExchangeState != null ? currentPersistentKeyExchangeState.getLastOurSentAttempt() : "N/A") +
+				", TheirBundleReceived=" + (currentPersistentKeyExchangeState != null ? currentPersistentKeyExchangeState.getLastTheirReceivedAttempt() : "N/A"));
 	}
+
 
 	@Override
 	protected void onCleared() {
 		super.onCleared();
-		nearbySignalMessenger.removeKeyExchangeListener(this);
-		nearbySignalMessenger.removeInfoChangeListener(this);
-		nearbySignalMessenger.removeMessageSendingListener(this);
-		nearbySignalMessenger.removeMessengerCallback(this);
-		nearbySignalMessenger.removeMessageDecryptionFailureListener(this);
-		nearbyManager.removeDeviceConnectionListener(this);
-		pendingMessages.clear();
 		executor.shutdown();
-		Log.d(TAG, "ChatViewModel cleared and listeners removed.");
+		if (currentRemoteNodeSource != null) {
+			remoteNodeLiveData.removeSource(currentRemoteNodeSource);
+		}
+		if (currentKeyExchangeStateSource != null) { // NEW: Remove source for persistent key exchange state
+			remoteKeyExchangeState.removeSource(currentKeyExchangeStateSource);
+		}
+		// Use the explicit observer instance for removal
+		transientStatesMediator.removeSource(nodeTransientStateRepository.getTransientNodeStates());
+		Log.d(TAG, "ChatViewModel cleared.");
 	}
 
 	public NearbyManager getNearbyManager() {
 		return nearbyManager;
 	}
 
-	public Node getRemoteNode() {
-		return remoteNode;
+	public LiveData<Node> getHostNodeLiveData() {
+		return hostNodeLiveData;
 	}
 
-	public Node getHostNode() {
-		return hostNode;
+	public LiveData<Node> getRemoteNodeLiveData() {
+		return remoteNodeLiveData;
 	}
 
-	/**
-	 * Sets the local (host) and remote nodes for the conversation.
-	 * This method should be called when navigating to a specific chat.
-	 * This method will start the conversation between the remote and the host nodes..
-	 *
-	 * @param hostNode   The local device's node.
-	 * @param remoteNode The remote device's node for this conversation.
-	 */
 	public void setConversationNodes(@NonNull Node hostNode, @NonNull Node remoteNode) {
-		// In case of reuse of the view model, disconnect from old observer
-		if (this.hostNode != null && this.remoteNode != null) {
-			conversation.removeSource(messageRepository.getConversationMessages(this.hostNode.getId(), this.remoteNode.getId()));
+		hostNodeLiveData.postValue(hostNode);
+
+		// Remove previous remote node and key exchange state sources if they exist
+		if (currentRemoteNodeSource != null) {
+			remoteNodeLiveData.removeSource(currentRemoteNodeSource);
+		}
+		if (currentKeyExchangeStateSource != null) { // NEW: Remove old key exchange state source
+			remoteKeyExchangeState.removeSource(currentKeyExchangeStateSource);
 		}
 
-		this.hostNode = hostNode;
-		this.remoteNode = remoteNode;
-		// Update remote device display name printing on the view
-		remoteDisplayName.postValue(remoteNode.getDisplayName());
+		// Setup new remote node source from NodeRepository
+		LiveData<Node> newRemoteNodeSource = nodeRepository.findLiveNode(remoteNode.getId());
+		currentRemoteNodeSource = newRemoteNodeSource;
+		// The MediatorLiveData will observe this source and set its value.
+		// We use addSource with a lambda that calls setValue to ensure it's propagated.
+		// We also use this callback to trigger updateConnectionStatus when remote node changes.
+		remoteNodeLiveData.addSource(newRemoteNodeSource, newNode -> {
+			remoteNodeLiveData.setValue(newNode);
+			// This ensures that connection status update is triggered when the remote node object itself changes in DB
+			updateConnectionStatus(null);
+		});
 
-		// Add new source to the conversation
+		// NEW: Setup new SignalKeyExchangeState source from its repository
+		LiveData<SignalKeyExchangeState> newKeyExchangeStateSource = signalKeyExchangeStateRepository.getByRemoteAddressLiveData(remoteNode.getAddressName());
+		currentKeyExchangeStateSource = newKeyExchangeStateSource;
+		// Observe this source and update the remoteKeyExchangeState MediatorLiveData
+		// We also use this callback to trigger updateConnectionStatus when key exchange state changes.
+		remoteKeyExchangeState.addSource(newKeyExchangeStateSource, newState -> {
+			remoteKeyExchangeState.setValue(newState);
+			updateConnectionStatus(null); // Trigger status update when persistent key exchange state changes
+		});
+
+
+		// Remove old conversation source if any
+		Node oldHostNode = hostNodeLiveData.getValue();
+		Node oldRemoteNode = remoteNodeLiveData.getValue(); // This will still hold the OLD node if set before new remoteNodeSource
+		if (oldHostNode != null && oldRemoteNode != null) {
+			// Note: This needs to be removed carefully if previous source was different.
+			// A safer approach might be to store the exact LiveData instance added earlier.
+			// For simplicity with `remoteNodeLiveData` as source, it's fine for now.
+			conversation.removeSource(messageRepository.getConversationMessages(oldHostNode.getId(), oldRemoteNode.getId()));
+		}
+
+		// Add new conversation source
 		conversation.addSource(messageRepository.getConversationMessages(hostNode.getId(), remoteNode.getId()),
 				conversation::setValue);
 
-		connectionActive.postValue(false);
+		// Initial call to update connection status.
+		// This will now implicitly factor in both transient and persistent states via the observers.
+		updateConnectionStatus(null);
+
 		executor.execute(() -> {
 			String endpointId = nearbyManager.getLinkedEndpointId(remoteNode.getAddressName());
 			if (endpointId != null) {
-				// The nodes can communicate
-				nearbySignalMessenger.initiateKeyExchange(endpointId, remoteNode.getAddressName());
+				// Initiate key exchange if necessary. This method is now smart enough
+				// to check for existing sessions and debounce.
+				nearbySignalMessenger.handleInitialKeyExchange(endpointId, remoteNode.getAddressName());
+
+				// Send PersonalInfo if display name is unknown/empty
+				if (remoteNode.getDisplayName() == null || remoteNode.getDisplayName().isEmpty() ||
+						Objects.equals(remoteNode.getDisplayName(), getApplication().getString(R.string.unknown_node))) {
+					PersonalInfo info = hostNode.toPersonalInfo().toBuilder().setExpectResult(true).build();
+					nearbySignalMessenger.sendPersonalInfo(info, remoteNode.getAddressName());
+				}
+			} else {
+				// If no direct endpoint, we are not connected for Nearby Messages.
+				// This state should be reflected.
+				connectionActive.postValue(false);
+				connectionDetailedStatus.postValue(NodeState.ON_DISCONNECTED);
+				uiMessage.postValue(getApplication().getString(R.string.error_no_direct_connection, remoteNode.getDisplayName()));
 			}
 		});
 	}
@@ -148,10 +285,6 @@ public class ChatViewModel extends AndroidViewModel implements NearbySignalMesse
 		return uiMessage;
 	}
 
-	public MutableLiveData<String> getRemoteDisplayName() {
-		return remoteDisplayName;
-	}
-
 	public MutableLiveData<Boolean> getConnectionActive() {
 		return connectionActive;
 	}
@@ -160,254 +293,73 @@ public class ChatViewModel extends AndroidViewModel implements NearbySignalMesse
 		return connectionDetailedStatus;
 	}
 
+	/**
+	 * Expose the LiveData for the persistent key exchange state for detailed UI feedback.
+	 */
+	public LiveData<SignalKeyExchangeState> getRemoteKeyExchangeState() {
+		return remoteKeyExchangeState;
+	}
+
 	public boolean areNodesSet() {
-		return hostNode != null && remoteNode != null;
+		return hostNodeLiveData.getValue() != null && remoteNodeLiveData.getValue() != null;
 	}
-
-	public boolean isRemoteDeviceAddressName(@NonNull String addressName) {
-		return remoteNode != null && addressName.equals(remoteNode.getAddressName());
-	}
-
 
 	public void sendMessage(@NonNull String content) {
-		if (hostNode == null || remoteNode == null) {
+		Node currentHostNode = hostNodeLiveData.getValue();
+		Node currentRemoteNode = remoteNodeLiveData.getValue();
+
+		if (currentHostNode == null || currentRemoteNode == null) {
 			uiMessage.postValue(getApplication().getString(R.string.error_no_conversation_selected));
 			return;
+		}
+
+		// NEW: Check for active session using `nearbySignalMessenger.hasSession` for a more direct check
+		// and combine with transient and persistent states for robust check.
+		boolean isSessionSecure = nearbySignalMessenger.hasSession(currentRemoteNode.getAddressName());
+
+		if (!isSessionSecure) {
+			// Also check transient and persistent states for more specific feedback to user
+			NodeTransientState remoteTransientState = nodeTransientStateRepository.getTransientNodeStates().getValue() != null ?
+					nodeTransientStateRepository.getTransientNodeStates().getValue().get(currentRemoteNode.getAddressName()) : null;
+			SignalKeyExchangeState persistentState = remoteKeyExchangeState.getValue();
+
+			String feedbackMessage = getApplication().getString(R.string.error_secure_session_not_active);
+
+			if (remoteTransientState != null && remoteTransientState.connectionState != NodeState.ON_CONNECTED) {
+				feedbackMessage = getApplication().getString(R.string.error_not_connected_to_send);
+			} else if (persistentState == null || persistentState.getLastOurSentAttempt() == 0L) {
+				feedbackMessage = getApplication().getString(R.string.error_our_keys_not_sent);
+			} else if (persistentState.getLastTheirReceivedAttempt() == 0L) {
+				feedbackMessage = getApplication().getString(R.string.error_waiting_for_their_keys);
+			} else if (remoteTransientState != null && (!remoteTransientState.keyExchangeStatus || !remoteTransientState.sessionInitStatus)) {
+				feedbackMessage = getApplication().getString(R.string.error_secure_session_negotiating); // Still negotiating, or transient issue
+			}
+
+			uiMessage.postValue(feedbackMessage);
+			return; // Block message send if session is not secure
 		}
 
 		Message message = new Message();
 		message.setContent(content);
 		message.setTimestamp(System.currentTimeMillis());
-		message.setSenderNodeId(hostNode.getId());
-		message.setRecipientNodeId(remoteNode.getId());
+		message.setSenderNodeId(currentHostNode.getId());
+		message.setRecipientNodeId(currentRemoteNode.getId());
 		message.setStatus(Message.MESSAGE_STATUS_PENDING);
 		message.setType(Message.MESSAGE_TYPE_TEXT);
 
 		messageRepository.insertMessage(message, success -> {
 			if (success) {
-				// Put the message in pending messages
-				pendingMessages.put(message.getId(), message);
 				TextMessage text = TextMessage.newBuilder()
 						.setContent(message.getContent())
-						.setPayloadId(0L)
+						.setPayloadId(0L) // Payload ID will be set by NearbyManager on send
 						.setTimestamp(message.getTimestamp())
 						.build();
-				nearbySignalMessenger.sendEncryptedMessage(remoteNode.getAddressName(), text, message.getId());
+				nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text, message.getId());
 			} else {
 				message.setStatus(Message.MESSAGE_STATUS_FAILED);
 				messageRepository.updateMessage(message);
+				uiMessage.postValue(getApplication().getString(R.string.error_message_persistence_failed));
 			}
 		});
-	}
-
-	// NearbySignalMessenger.KeyExchangeListener implementation
-	@Override
-	public void onKeyExchangeInitSuccess(@NonNull String remoteAddressName, long payloadId) {
-		Log.d(TAG, "Key exchange initiated successfully with " + remoteAddressName);
-		executor.execute(() -> {
-			if (remoteNode.getDisplayName() == null) {
-				PersonalInfo info = hostNode.toPersonalInfo().toBuilder().setExpectResult(true).build();
-				nearbySignalMessenger.sendPersonalInfo(info, remoteAddressName);
-			}
-		});
-	}
-
-	@Override
-	public void onKeyExchangeInitFailed(@NonNull String remoteAddressName) {
-		Log.w(TAG, "onKeyExchangeInitFailed() : Impossible to encrypt discussion with `" + remoteAddressName + "`");
-		if (isRemoteDeviceAddressName(remoteAddressName)) {
-			connectionActive.postValue(false);
-			uiMessage.postValue(getApplication().getString(R.string.error_key_exchange_failed, remoteAddressName));
-			Log.e(TAG, "Key exchange failed with " + remoteAddressName);
-		}
-	}
-
-	@Override
-	public void onSessionInitSuccess(String remoteAddressName) {
-		Log.d(TAG, "ViewModel: Secure session established with " + remoteAddressName);
-		// Notify the UI
-		if (isRemoteDeviceAddressName(remoteAddressName)) {
-			connectionActive.postValue(true);
-			uiMessage.postValue(getApplication().getString(R.string.session_established_with));
-			Log.d(TAG, "Signal session established successfully with " + remoteAddressName);
-		}
-	}
-
-	@Override
-	public void onSessionInitFailed(String remoteAddressName, Exception e) {
-		Log.e(TAG, "ViewModel: Failed to establish secure session with " + remoteAddressName + ": " + e.getMessage(), e);
-		// Notify the UI
-		if (isRemoteDeviceAddressName(remoteAddressName)) {
-			connectionActive.postValue(false);
-			uiMessage.postValue(getApplication().getString(R.string.error_session_failed));
-		}
-	}
-
-	// Implementation of `NearbySignalMessenger.PersonalInfoChangeListener`
-	@Override
-	public void onInfoReceived(@NonNull PersonalInfo info) {
-		// The implementation is covered by method `SignalMessengerCallback.onPersonalInfoReceived`
-	}
-
-	@Override
-	public void onInfoSendingSucceed(@NonNull String remoteAddress) {
-		Log.d(TAG, "onInfoSendingSucceed() to `" + remoteAddress + "`");
-	}
-
-	@Override
-	public void onInfoSendingFailed(@NonNull String remoteAddress) {
-		// Burk...
-		Log.d(TAG, "onInfoSendingFailed() to `" + remoteAddress + "`");
-	}
-
-	// Implementation of `NearbyManager.DeviceConnectionListener`
-	private void updateConnectionStatusIndicator(@NonNull NodeState state, String deviceAddressName) {
-		if (!isRemoteDeviceAddressName(deviceAddressName))
-			return;
-		connectionDetailedStatus.postValue(state);
-	}
-
-	public void onConnectionInitiated(String endpointId, String deviceAddressName) {
-		updateConnectionStatusIndicator(NodeState.ON_CONNECTION_INITIATED, deviceAddressName);
-	}
-
-	public void onDeviceConnected(String endpointId, String deviceAddressName) {
-		updateConnectionStatusIndicator(NodeState.ON_CONNECTED, deviceAddressName);
-	}
-
-	public void onConnectionFailed(String deviceAddressName, Status status) {
-		updateConnectionStatusIndicator(NodeState.ON_CONNECTION_FAILED, deviceAddressName);
-	}
-
-	public void onDeviceDisconnected(String endpointId, String deviceAddressName) {
-		updateConnectionStatusIndicator(NodeState.ON_DISCONNECTED, deviceAddressName);
-	}
-
-	// Implementation of `NearbySignalMessenger.MessageSendingListener`
-	public void onSendSucceed(@NonNull String recipientAddressName, @NonNull Object id, long payloadId) {
-		try {
-			Long messageDbId = (Long) id;
-			Message messageToUpdate = pendingMessages.get(messageDbId);
-			if (messageToUpdate != null) {
-				// Maps the payload ID
-				messageToUpdate.setPayloadId(payloadId);
-				messageRepository.updateMessage(messageToUpdate);
-				pendingMessages.remove(messageDbId);
-				Log.d(TAG, "Message with ID " + messageDbId + " sent successfully.");
-			} else {
-				Log.w(TAG, "onSendSucceed: Message not found in pending map with ID: " + messageDbId);
-			}
-		} catch (Exception ignored) {
-		}
-	}
-
-	@Override
-	public void onSendFailed(@NonNull String recipientAddressName, @NonNull Object id) {
-		try {
-			Long messageDbId = (Long) id;
-			Message messageToUpdate = pendingMessages.remove(messageDbId);
-			if (messageToUpdate != null) {
-				messageToUpdate.setStatus(Message.MESSAGE_STATUS_FAILED);
-				messageRepository.updateMessage(messageToUpdate);
-				uiMessage.postValue(getApplication().getString(R.string.error_message_send_failed));
-				Log.e(TAG, "Message with ID " + messageDbId + " sending failed. Status updated to FAILED.");
-			} else {
-				Log.w(TAG, "onSendFailed: Message not found in pending map with ID: " + messageDbId);
-			}
-		} catch (Exception ignored) {
-		}
-	}
-
-	// Implementation of `NearbySignalMessenger.SignalMessengerCallback`
-	@Override
-	public void onTextMessageReceived(@NonNull TextMessage message, @NonNull String senderAddressName) {
-		Node sender = nodeRepository.findNode(senderAddressName);
-		if (sender == null) {
-			Log.e(TAG, "onTextMessageReceived() : unable to find the message sender, msg=" + message.getContent());
-			return;
-		}
-		Message receivedMessage = new Message();
-		receivedMessage.setPayloadId(message.getPayloadId());
-		receivedMessage.setContent(message.getContent());
-		receivedMessage.setType(Message.MESSAGE_TYPE_TEXT);
-		receivedMessage.setStatus(Message.MESSAGE_STATUS_PENDING); // Temporary value
-		receivedMessage.setTimestamp(message.getTimestamp());
-		receivedMessage.setRecipientNodeId(hostNode.getId());
-		receivedMessage.setSenderNodeId(sender.getId());
-		messageRepository.insertMessage(receivedMessage, success -> {
-			if (success) {
-				nearbySignalMessenger.sendMessageAck(message.getPayloadId(), senderAddressName, true, ackSuccess -> {
-					if (ackSuccess) {
-						receivedMessage.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-						messageRepository.updateMessage(receivedMessage);
-					} else {
-						Log.w(TAG, "Failed to send delivery ACK for message with payloadId: " + receivedMessage.getPayloadId());
-					}
-				});
-			} else {
-				Log.e(TAG, "onTextMessageReceived() : Failed to persist the message, msg=" + message.getContent());
-			}
-		});
-	}
-
-	@Override
-	public void onMessageStatusChanged(long payloadId, boolean delivered) {
-		// Execute in background
-		executor.execute(() -> {
-			Message messageToUpdate = messageRepository.getMessageByPayloadId(payloadId);
-			if (messageToUpdate != null) {
-				if (delivered) {
-					messageToUpdate.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-					Log.d(TAG, "Message with payloadId " + payloadId + " marked as DELIVERED.");
-				} else {
-					messageToUpdate.setStatus(Message.MESSAGE_STATUS_READ);
-					Log.d(TAG, "Message with payloadId " + payloadId + " marked as READ.");
-				}
-				messageRepository.updateMessage(messageToUpdate);
-			} else {
-				Log.w(TAG, "Message with payloadId " + payloadId + " not found in DB for status update.");
-			}
-		});
-	}
-
-	@Override
-	public void onPersonalInfoReceived(@NonNull PersonalInfo info) {
-		Node nodeToUpdate = nodeRepository.findNode(info.getAddressName());
-		if (nodeToUpdate == null) {
-			Log.e(TAG, "onPersonalInfoReceived() : unable to find node with address=" + info.getAddressName());
-			return;
-		}
-		// Execute operation in background
-		executor.execute(() -> {
-			if (!Objects.equals(nodeToUpdate.getDisplayName(), info.getDisplayName())) {
-				nodeToUpdate.setDisplayName(info.getDisplayName());
-				nodeRepository.update(nodeToUpdate);
-				if (Objects.equals(remoteNode.getAddressName(), nodeToUpdate.getAddressName())) {
-					remoteDisplayName.postValue(info.getDisplayName());
-					Log.d(TAG, "Remote node display name updated to: " + info.getDisplayName());
-				}
-			}
-		});
-		if (info.getExpectResult()) {
-			nearbySignalMessenger.sendPersonalInfo(hostNode.toPersonalInfo(), info.getAddressName());
-		}
-	}
-
-	@Override
-	public void onPayloadSentConfirmation(@NonNull String recipientAddressName, @NonNull Payload payload) {
-		/*
-		 * This is just a confirmation for success payload sending
-		 * TODO
-		 */
-	}
-
-	// Implementation of `NearbySignalMessenger.MessageDecryptionFailureListener`
-	@Override
-	public void onFailure(String senderEndpointId, String senderAddressName, long payloadId, Exception e) {
-		Log.e(TAG, "Decryption failed for message from " + senderAddressName + " (payloadId: " + payloadId + "): " + e.getMessage());
-		if (isRemoteDeviceAddressName(senderAddressName)) {
-			uiMessage.postValue(getApplication().getString(R.string.error_message_decryption_failed));
-		}
-		// We may add instructions to notify the sender
 	}
 }

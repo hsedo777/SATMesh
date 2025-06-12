@@ -3,6 +3,7 @@ package org.sedo.satmesh.ui.data;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 
 import org.sedo.satmesh.AppDatabase;
@@ -31,7 +32,7 @@ public class MessageRepository {
 	/**
 	 * Inserts a message asynchronously. and map
 	 */
-	public void insertMessage(Message message, Consumer<Boolean> callback) {
+	public void insertMessage(Message message, @Nullable Consumer<Boolean> callback) {
 		executor.execute(() -> {
 			try{
 				message.setId(messageDao.insert(message));
@@ -60,6 +61,10 @@ public class MessageRepository {
 		return messageDao.getConversationMessages(nodeId1, nodeId2);
 	}
 
+	public Message getMessageById(long messageId){
+		return getMessageById(messageId);
+	}
+
 	/**
 	 * Returns a message based on its payload ID and participants.
 	 * This method is synchronous and should be called from a background thread.
@@ -74,19 +79,5 @@ public class MessageRepository {
 	 */
 	public List<Message> getPendingMessagesForRecipient(Long recipientNodeId) {
 		return messageDao.getPendingMessagesForRecipient(recipientNodeId);
-	}
-
-	/**
-	 * Deletes a message by ID asynchronously.
-	 */
-	public void deleteMessageById(Long id) {
-		executor.execute(() -> messageDao.deleteMessageById(id));
-	}
-
-	/**
-	 * Deletes all messages sent or received by a node asynchronously.
-	 */
-	public void deleteMessagesWithNode(Long nodeId) {
-		executor.execute(() -> messageDao.deleteMessagesWithNode(nodeId));
 	}
 }

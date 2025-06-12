@@ -23,19 +23,43 @@
 	<string name="nearby_requirement_dialog_title">Location services is required</string>
 	<string name="nearby_requirement_dialog_message">To discover nearby devices, please enable location services.</string>
 
+	<!-- Discussion -->
 	<string name="chat_title">Chat</string>
 	<string name="message_hint">Write a message…</string>
 	<string name="clear_chat">Clear chat</string>
 	<string name="export_chat">Export chat</string>
 	<string name="send_message_description">Send message</string>
 	<string name="messaging_impossible">Dear user, the communication is lost.</string>
-	<string name="error_no_conversation_selected">Please, select a conversation.</string>
 	<string name="error_message_send_failed">Error, failed to send the message.</string>
-	<string name="error_key_exchange_failed">Error, key exchange with %1$s failed.</string>
 	<string name="session_established_with">Secure connection established.</string>
-	<string name="error_session_failed">Sorry, your secure session has expired.</string>
 	<string name="error_message_decryption_failed">Sorry, message decryption failed.</string>
+	<string name="unknown_node">Unknown Node</string>
+	<string name="error_no_conversation_selected">No conversation selected. Please select a node to chat with.</string>
+	<string name="error_no_direct_connection">No direct connection to %1$s. Message might not be delivered.</string>
+	<string name="status_negotiating_secure_session">Negotiating secure session…</string>
 
+	<string name="status_no_remote_node_selected">No remote node selected for chat.</string>
+	<string name="status_secure_session_active">Secure session active.</string>
+	<string name="status_waiting_to_send_our_keys">Waiting to send our keys to the remote node.</string>
+	<string name="status_waiting_for_their_keys">Waiting for remote node\'s keys…</string>
+	<string name="status_negotiating_secure_session_with_issue">Negotiating secure session (issue detected)…</string>
+	<string name="status_not_connected_nearby">Not connected to %s via Nearby.</string>
+
+	<string name="error_key_exchange_failed">Key exchange failed with %s.</string>
+	<string name="error_session_failed">Secure session failed to establish.</string>
+	<string name="error_connection_state_unknown">Connection state unknown.</string>
+
+	<string name="error_secure_session_not_active">Secure session not active. Cannot send message.</string>
+	<string name="error_our_keys_not_sent">Our keys have not been sent yet. Please wait.</string>
+	<string name="error_waiting_for_their_keys">Waiting for the remote node\'s keys. Please wait.</string>
+	<string name="error_not_connected_to_send">Not connected to send message.</string>
+	<string name="error_secure_session_negotiating">Secure session is still negotiating. Please wait.</string>
+	<string name="error_message_persistence_failed">Failed to save message locally.</string>
+
+	<string name="re_initiating_key_exchange">Re-initiating secure session negotiation…</string>
+
+
+	<!-- System Communication Service  -->
 	<string name="notification_title">SATMesh Running</string>
 	<string name="notification_content">Maintaining secure communication in the background.</string>
 	<string name="channel_name">Communication Service</string>

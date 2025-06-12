@@ -86,7 +86,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 
-		viewModel = new ViewModelProvider(this, new ViewModelFactory(requireActivity().getApplication())).get(NearbyDiscoveryViewModel.class);
+		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance(requireActivity().getApplication())).get(NearbyDiscoveryViewModel.class);
 		if (hostDeviceName == null || addToBackStack == null) {
 			// Fragment recreated
 			hostDeviceName = viewModel.getHostDeviceName();

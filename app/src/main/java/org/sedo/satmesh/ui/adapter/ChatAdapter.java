@@ -97,5 +97,4 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 			return oldItem.equals(newItem);
 		}
 	}
-
 }

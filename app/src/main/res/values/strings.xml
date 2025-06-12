@@ -29,6 +29,8 @@
 	<string name="unknown_node">Unknown Node</string>
 	<string name="error_no_conversation_selected">No conversation selected. Please select a node to chat with.</string>
 	<string name="error_no_direct_connection">No direct connection to %1$s. Message might not be delivered.</string>
+	<string name="message_queued_for_resend">Message queued for resend when secure session is active.</string>
+	<string name="resending_failed_messages">Attempting to resend previously failed messages.</string>
 
 	<string name="status_no_remote_node_selected">No remote node selected for chat.</string>
 	<string name="status_secure_session_active">Secure session active.</string>

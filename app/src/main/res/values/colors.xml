@@ -32,7 +32,8 @@
 	<color name="cardText">@color/colorOnSurface</color>
 
 	<color name="node_state_found">#FFD54F</color>
-	<color name="node_state_connected">#66BB6A</color>
+	<color name="node_state_connecting">#AEEAB1</color>
+	<color name="node_state_connected">#367839</color>
 	<color name="node_state_lost">#E5AB4644</color>
 	<color name="node_state_disconnected">#BDBDBD</color>
 	<color name="node_state_initiated">#075C87</color>

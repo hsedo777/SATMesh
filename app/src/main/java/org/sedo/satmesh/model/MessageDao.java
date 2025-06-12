@@ -76,8 +76,18 @@ public interface MessageDao {
 	@Query("SELECT * FROM message WHERE recipientNodeId = :recipientNodeId AND (status = " +
 			Message.MESSAGE_STATUS_PENDING + " OR status = " + Message.MESSAGE_STATUS_FAILED + ") " +
 			"ORDER BY timestamp ASC")
-	List<Message> getPendingMessagesForRecipient(Long recipientNodeId);
+	List<Message> getPendingMessagesForRecipientSync(Long recipientNodeId);
 
+	/**
+	 * Retrieves a list of messages with a specific status for a given recipient node ID.
+	 * This method is synchronous (blocking) and should be called from a background thread.
+	 *
+	 * @param recipientNodeId The ID of the recipient node.
+	 * @param status The status of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @return A list of messages matching the criteria.
+	 */
+	@Query("SELECT * FROM message WHERE recipientNodeId = :recipientNodeId AND status = :status ORDER BY timestamp ASC")
+	List<Message> getMessagesWithStatusSync(Long recipientNodeId, int status);
 
 	/**
 	 * Deletes a specific message by its primary key ID.

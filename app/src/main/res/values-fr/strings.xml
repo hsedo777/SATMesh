@@ -4,14 +4,11 @@
 	<string name="welcome_title">Bienvenue !</string>
 	<string name="welcome_description">Votre nom d\'utilisateur svp</string>
 	<string name="username_hint">Nom d\'utilisateur</string>
-	<string name="remaining_characters">%1$d caractères restants</string>
 	<string name="continue_button">Continuer</string>
 
 	<string name="positive_button_activate">Activer</string>
 	<string name="negative_button_cancel">Annuler</string>
 
-	<string name="signal_key_init_failed">Erreur d\'initialisation des clés de chiffrement.</string>
-	<string name="signal_key_init_success">Clés de chiffrement créés avec success !</string>
 	<string name="node_profile_saving_failed">Échec de sauvegarde des informations, veuillez réessayer .</string>
 
 	<string name="internal_error">Impossible d\'exécuter cette operation</string>
@@ -30,14 +27,11 @@
 	<string name="clear_chat">Effacer la discussion</string>
 	<string name="export_chat">Exporter la discussion</string>
 	<string name="send_message_description">Envoyer le message</string>
-	<string name="messaging_impossible">Cher utilisateur, la communication est perdue.</string>
-	<string name="error_message_send_failed">Erreur, impossible nous n\'avons pas pu envoyer le message.</string>
-	<string name="session_established_with">Connexion sécurisée établie.</string>
-	<string name="error_message_decryption_failed">Erreur, le déchiffrement du message a échoué.</string>
 	<string name="unknown_node">Nœud inconnu</string>
 	<string name="error_no_conversation_selected">Aucune conversation sélectionnée. Veuillez sélectionner un nœud pour discuter.</string>
 	<string name="error_no_direct_connection">Aucune connexion directe avec %1$s. Le message pourrait ne pas être livré.</string>
-	<string name="status_negotiating_secure_session">Négociation de la session sécurisée…</string>
+	<string name="message_queued_for_resend">Message mis en file d\'attente pour être renvoyé lorsque la session sécurisée sera active.</string>
+	<string name="resending_failed_messages">Tentative de renvoi des messages précédemment échoués.</string>
 
 	<string name="status_no_remote_node_selected">Aucun nœud distant sélectionné pour la conversation.</string>
 	<string name="status_secure_session_active">Session sécurisée active.</string>
@@ -45,9 +39,6 @@
 	<string name="status_waiting_for_their_keys">En attente des clés du nœud distant…</string>
 	<string name="status_negotiating_secure_session_with_issue">Négociation de la session sécurisée (problème détecté)…</string>
 	<string name="status_not_connected_nearby">Non connecté à %s via Nearby.</string>
-
-	<string name="error_key_exchange_failed">Échange de clés échoué avec %s.</string>
-	<string name="error_session_failed">Établissement de la session sécurisée échoué.</string>
 	<string name="error_connection_state_unknown">État de la connexion inconnu.</string>
 
 	<string name="error_secure_session_not_active">Session sécurisée non active. Impossible d\'envoyer le message.</string>

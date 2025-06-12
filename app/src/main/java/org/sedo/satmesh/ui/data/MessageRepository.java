@@ -30,7 +30,11 @@ public class MessageRepository {
 	}
 
 	/**
-	 * Inserts a message asynchronously. and map
+	 * Inserts a message into the database.
+	 * The callback will be invoked on the main thread after the operation.
+	 *
+	 * @param message The message to insert.
+	 * @param callback A consumer to receive the success status (true for success, false for failure).
 	 */
 	public void insertMessage(Message message, @Nullable Consumer<Boolean> callback) {
 		executor.execute(() -> {
@@ -46,19 +50,23 @@ public class MessageRepository {
 	}
 
 	/**
-	 * Updates a message asynchronously.
+	 * Updates an existing message in the database.
+	 *
+	 * @param message The message to update.
 	 */
 	public void updateMessage(Message message) {
 		executor.execute(() -> messageDao.update(message));
 	}
 
 	/**
-	 * Returns LiveData containing the list of messages exchanged between two nodes.
-	 * @param nodeId1 ID of the first node (host or remote)
-	 * @param nodeId2 ID of the second node (host or remote)
+	 * Retrieves live data of messages for a specific conversation between two nodes.
+	 *
+	 * @param hostNodeId The ID of the local node.
+	 * @param remoteNodeId The ID of the remote node.
+	 * @return LiveData containing a list of messages for the conversation.
 	 */
-	public LiveData<List<Message>> getConversationMessages(Long nodeId1, Long nodeId2) {
-		return messageDao.getConversationMessages(nodeId1, nodeId2);
+	public LiveData<List<Message>> getConversationMessages(Long hostNodeId, Long remoteNodeId) {
+		return messageDao.getConversationMessages(hostNodeId, remoteNodeId);
 	}
 
 	public Message getMessageById(long messageId){
@@ -77,7 +85,19 @@ public class MessageRepository {
 	 * Retrieves pending or failed messages that are to be delivered to a given recipient.
 	 * This method is synchronous and should be called from a background thread.
 	 */
-	public List<Message> getPendingMessagesForRecipient(Long recipientNodeId) {
-		return messageDao.getPendingMessagesForRecipient(recipientNodeId);
+	public List<Message> getPendingMessagesForRecipientSync(Long recipientNodeId) {
+		return messageDao.getPendingMessagesForRecipientSync(recipientNodeId);
+	}
+
+	/**
+	 * Retrieves a list of messages with a specific status for a given recipient node ID.
+	 * This method performs a synchronous database query and should be called from a background thread.
+	 *
+	 * @param recipientNodeId The ID of the recipient node.
+	 * @param status The status of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @return A list of messages matching the criteria. Returns an empty list if no messages are found or on error.
+	 */
+	public List<Message> getMessagesWithStatusSync(Long recipientNodeId, int status) {
+		return messageDao.getMessagesWithStatusSync(recipientNodeId, status);
 	}
 }

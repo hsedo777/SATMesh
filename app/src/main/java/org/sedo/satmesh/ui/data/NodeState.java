@@ -9,7 +9,8 @@ public enum NodeState {
 	ON_ENDPOINT_LOST(R.color.node_state_lost),
 	ON_DISCONNECTED(R.color.node_state_disconnected),
 	ON_CONNECTION_INITIATED(R.color.node_state_initiated),
-	ON_CONNECTION_FAILED(R.color.node_state_failed);
+	ON_CONNECTION_FAILED(R.color.node_state_failed),
+	ON_CONNECTING(R.color.node_state_connecting);
 
 	@ColorRes
 	private final int colorResId;

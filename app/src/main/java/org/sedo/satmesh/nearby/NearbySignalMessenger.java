@@ -29,7 +29,6 @@ import org.sedo.satmesh.proto.TextMessage;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.MessageRepository;
 import org.sedo.satmesh.ui.data.NodeRepository;
-import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.ui.data.SignalKeyExchangeStateRepository;
 import org.whispersystems.libsignal.InvalidKeyException;
@@ -142,34 +141,9 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	@Override
 	public void onConnectionInitiated(String endpointId, String deviceAddressName) {
 		Log.d(TAG, "Connection initiated with: " + deviceAddressName + " (EndpointId: " + endpointId + ")");
-		NodeTransientStateRepository.getInstance().updateTransientNodeState(deviceAddressName, NodeState.ON_CONNECTION_INITIATED);
 		// When a connection is initiated, we should accept it.
 		// The key exchange logic will happen once connected or upon first message.
-		nearbyManager.acceptConnection(endpointId, (id, success) -> {
-			if (success) {
-				Log.d(TAG, "Accepted connection with " + deviceAddressName);
-				// Update node status in DB
-				executor.execute(() -> {
-					try {
-						Node node = nodeRepository.findNode(deviceAddressName);
-						if (node != null) {
-							node.setLastSeen(System.currentTimeMillis());
-							node.setConnected(false);
-							nodeRepository.update(node);
-							Log.d(TAG, "Node " + deviceAddressName + " marked as connected in DB.");
-						} else {
-							// Potentially create a new node if it's the first time discovering it
-							// For now, we assume nodes are pre-populated or discovered via other means.
-							Log.w(TAG, "Node " + deviceAddressName + " not found in DB on connection initiated. Not marking as connected.");
-						}
-					} catch (Exception e) {
-						Log.e(TAG, "Error updating node status on connection initiation: " + e.getMessage(), e);
-					}
-				});
-			} else {
-				Log.e(TAG, "Failed to accept connection with " + deviceAddressName);
-			}
-		});
+		nearbyManager.acceptConnection(endpointId);
 	}
 
 	// This method is called when Nearby Connections establishes a connection.
@@ -202,14 +176,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Log.e(TAG, "Error updating/inserting node status on device connected: " + e.getMessage(), e);
 			}
 		});
-		NodeTransientStateRepository.getInstance().updateTransientNodeState(deviceAddressName, NodeState.ON_CONNECTED);
 	}
 
 	// This method is called when Nearby Connections fails to establish a connection.
 	@Override
 	public void onConnectionFailed(String deviceAddressName, Status status) {
 		Log.e(TAG, "Connection failed for " + deviceAddressName + " with status: " + status);
-		NodeTransientStateRepository.getInstance().updateTransientNodeState(deviceAddressName, NodeState.ON_CONNECTION_FAILED);
 		executor.execute(() -> {
 			try {
 				Node node = nodeRepository.findNode(deviceAddressName);
@@ -227,9 +199,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 	// This method is called when Nearby Connections detects a disconnection.
 	@Override
-	public void onDeviceDisconnected(String endpointId, String deviceAddressName) {
+	public void onDeviceDisconnected(@NonNull String endpointId, @NonNull String deviceAddressName) {
 		Log.d(TAG, "Device disconnected: " + deviceAddressName + " (EndpointId: " + endpointId + ")");
-		NodeTransientStateRepository.getInstance().updateTransientNodeState(deviceAddressName, NodeState.ON_DISCONNECTED);
 		executor.execute(() -> {
 			try {
 				Node node = nodeRepository.findNode(deviceAddressName);
@@ -242,7 +213,38 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Log.e(TAG, "Error updating node status on device disconnected: " + e.getMessage(), e);
 			}
 		});
-		//messengerCallbacks.forEach(cb -> cb.onDeviceDisconnected(deviceAddressName));
+	}
+
+	/**
+	 * Handles the event when a NEW Nearby endpoint is found.
+	 * Decides whether to initiate a connection based on the current connection state.
+	 *
+	 * @param endpointId   The ID of the discovered endpoint.
+	 * @param endpointName The Signal Protocol address name of the discovered endpoint.
+	 */
+	public void onEndpointFound(@NonNull String endpointId, @NonNull String endpointName) {
+		Log.i(TAG, "Attempting to request connection to " + endpointName + " (ID: " + endpointId + ")");
+		/*
+		 * The actual connection success/failure will be handled by
+		 * the onConnectionResult callback in NearbyManager's ConnectionLifecycleCallback.
+		 */
+		nearbyManager.requestConnection(endpointId, endpointName);
+	}
+
+	/**
+	 * Handles the event when a Nearby endpoint is lost (goes out of range).
+	 * This method primarily serves for logging and potentially notifying other components,
+	 * as NearbyManager's own onDisconnected callback handles active connections.
+	 *
+	 * @param endpointId   The ID of the lost endpoint.
+	 * @param endpointName The Signal Protocol address name of the lost endpoint.
+	 */
+	public void onEndpointLost(@NonNull String endpointId, @NonNull String endpointName) {
+		Log.d(TAG, "handleEndpointLost: Lost " + endpointName + " (ID: " + endpointId + ")");
+		/*
+		 * This method is primarily for notification and logging that a discovered endpoint is no
+		 * longer available. The NearbyManager's internal mechanisms.
+		 */
 	}
 
 	// Implementation of `NearbyManager.PayloadListener`
@@ -331,7 +333,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	/**
 	 * Delegated method for {@link SignalManager#hasSession(SignalProtocolAddress)}
 	 */
-	public boolean hasSession(@NonNull String deviceAddressName){
+	public boolean hasSession(@NonNull String deviceAddressName) {
 		return signalManager.hasSession(getAddress(deviceAddressName));
 	}
 
@@ -842,13 +844,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			Log.e(TAG, "No Signal session to decrypt message from " + senderAddressName + " (Payload ID: " + payloadId + "): " + e.getMessage(), e);
 			// This could happen if sender sends message before session is fully established, or if our session was lost.
 			// We should re-initiate key exchange if possible, or request sender to re-send.
-			// For now, just log and notify failure.
-			//messengerCallbacks.forEach(cb -> cb.onMessageDecryptionFailure(endpointId, senderAddressName, payloadId, "No Signal session to decrypt."));
 			// Optionally, try to initiate key exchange again to fix session
 			executor.execute(() -> handleInitialKeyExchange(endpointId, senderAddressName));
 		} catch (Exception e) {
 			Log.e(TAG, "Error processing encrypted message from " + senderAddressName + " (Payload ID: " + payloadId + "): " + e.getMessage(), e);
-			//messengerCallbacks.forEach(cb -> cb.onMessageDecryptionFailure(endpointId, senderAddressName, payloadId, "Unexpected error during decryption."));
 		}
 	}
 }

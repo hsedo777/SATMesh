@@ -30,7 +30,7 @@ import org.sedo.satmesh.utils.AndroidKeyManager;
 		SignalSessionEntity.class, SignalPreKeyEntity.class,
 		SignalSignedPreKeyEntity.class, SignalIdentityKeyEntity.class,
 		SignalKeyExchangeState.class,},
-		version = 1)
+		version = 2)
 public abstract class AppDatabase extends RoomDatabase {
 
 	public abstract NodeDao nodeDao();

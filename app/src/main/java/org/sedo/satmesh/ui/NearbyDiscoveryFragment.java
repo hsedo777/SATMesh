@@ -126,14 +126,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(node.getAddressName());
 					if (endpointId != null) {
 						Log.d(TAG, viewModel.getHostDeviceName() + " request connection to " + endpointId + "(" + node.getAddressName() + ")");
-						viewModel.getNearbyManager().requestConnection(endpointId, node.getAddressName(), (endpoint, success) -> {
-							if (success){
-								Log.d(TAG, "Connection request initiated for " + node.getAddressName() + " by click.");
-							} else {
-								Log.d(TAG, "Connection request failed for " + node.getAddressName() + " by click.");
-							}
-							// ViewModel will update transient state via service -> DB update
-						});
+						viewModel.getNearbyManager().requestConnection(endpointId, node.getAddressName());
 					} else {
 						Log.w(TAG, "Cannot request connection: No endpoint ID found for " + node.getAddressName());
 					}
@@ -160,7 +153,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 		binding.nearbyTitle.setOnClickListener(v -> reload());
 	}
 
-	private void reload(){
+	private void reload() {
 		Log.d(TAG, "Reloading nodes list.");
 		adapter.clear();
 		viewModel.load();

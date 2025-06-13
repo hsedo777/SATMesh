@@ -115,7 +115,7 @@ public class ChatFragment extends Fragment {
 				String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(remoteNode.getAddressName());
 				if (endpointId != null) {
 					Toast.makeText(getContext(), R.string.re_initiating_key_exchange, Toast.LENGTH_SHORT).show();
-					viewModel.getNearbyManager().requestConnection(endpointId, remoteNode.getAddressName(), null); // Re-request connection if needed
+					viewModel.getNearbyManager().requestConnection(endpointId, remoteNode.getAddressName()); // Re-request connection if needed
 					viewModel.setConversationNodes(hostNode, remoteNode); // This will trigger handleInitialKeyExchange
 				} else {
 					Toast.makeText(getContext(), getString(R.string.error_no_direct_connection, remoteNode.getDisplayName()), Toast.LENGTH_SHORT).show();

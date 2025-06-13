@@ -11,11 +11,8 @@ import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
-
-import com.google.android.gms.common.api.Status;
 
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.MainActivity;
@@ -24,14 +21,12 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.signal.SignalManager;
-import org.sedo.satmesh.ui.data.NodeState;
-import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class SATMeshCommunicationService extends Service implements NearbyManager.DeviceConnectionListener {
+public class SATMeshCommunicationService extends Service {
 
 	// Intent Actions for the service
 	public static final String ACTION_START_FOREGROUND_SERVICE = "org.sedo.satmesh.action.START_FOREGROUND_SERVICE";
@@ -106,12 +101,7 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 						break;
 					case ACTION_STOP_FOREGROUND_SERVICE:
 						// Stop the foreground service and the service itself
-						if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) { // API 34
-							stopForeground(STOP_FOREGROUND_REMOVE);
-						} else {
-							stopForeground(true);
-						}
-
+						stopForeground(STOP_FOREGROUND_REMOVE);
 						stopSelf();
 						break;
 					default:
@@ -248,7 +238,6 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 		if (nearbyManager == null) {
 			// Pass the service's application context and the host node's address name
 			nearbyManager = NearbyManager.getInstance(getApplicationContext(), hostNode.getAddressName());
-			nearbyManager.addDeviceConnectionListener(this);
 		}
 		if (signalManager == null) {
 			// Pass the service's application context
@@ -278,75 +267,12 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 
 		// Start Nearby Connections advertising/discovery after initialization
 		// No specific UI action on advertising start/fail needed here
-		nearbyManager.startAdvertising(null, null);
-		nearbyManager.startDiscovery(
-				this::handleEndpointFound,
-				this::handleEndpointLost,
-				null,
-				e -> Log.e(TAG, "Failed to start discovery: " + e.getMessage())
-		);
+		try {
+			nearbyManager.startAdvertising(null, null);
+			nearbyManager.startDiscovery();
+		} catch (Exception ignore) {
+		}
 		Log.d(TAG, "NearbyManager started in service.");
-	}
-
-	/**
-	 * Handles the event when a new Nearby endpoint is found.
-	 * Decides whether to initiate a connection based on the current connection state.
-	 *
-	 * @param endpointId   The ID of the discovered endpoint.
-	 * @param endpointName The Signal Protocol address name of the discovered endpoint.
-	 */
-	private void handleEndpointFound(@NonNull String endpointId, @NonNull String endpointName) {
-		Log.d(TAG, "handleEndpointFound: Discovered " + endpointName + " (ID: " + endpointId + ")");
-
-		// Check if we are already connected to this endpoint's address.
-		if (nearbyManager.isAddressDirectlyConnected(endpointName)) {
-			Log.i(TAG, "Already connected to " + endpointName + ". Skipping connection attempt.");
-			return;
-		}
-
-		/*
-		 * Check if a connection request is already pending for this endpoint,
-		 * or if an incoming connection has been initiated by this endpoint.
-		 * We use the NearbyManager's internal maps for these checks.
-		 */
-		if (nearbyManager.getAllPendingAddressName().contains(endpointName) ||
-				nearbyManager.getAllIncomingAddressName().contains(endpointName)) {
-			Log.i(TAG, "Connection is already pending or incoming for " + endpointName + ". No new request initiated.");
-			return;
-		}
-
-		// === Decision point: Initiate a connection ===
-		// We decide to request a connection to any discovered peer if no active, pending,
-		// or incoming connection exists for that specific Signal Protocol address name.
-		NodeTransientStateRepository.getInstance().updateTransientNodeState(endpointName, NodeState.ON_ENDPOINT_FOUND);
-		Log.i(TAG, "Attempting to request connection to " + endpointName + " (ID: " + endpointId + ")");
-		nearbyManager.requestConnection(endpointId, endpointName, (id, success) -> {
-			if (success) {
-				Log.d(TAG, "Connection request sent to " + endpointName);
-				// The actual connection success/failure will be handled by
-				// the onConnectionResult callback in NearbyManager's ConnectionLifecycleCallback.
-			} else {
-				Log.e(TAG, "Failed to send connection request to " + endpointName);
-			}
-		});
-	}
-
-	/**
-	 * Handles the event when a Nearby endpoint is lost (goes out of range).
-	 * This method primarily serves for logging and potentially notifying other components,
-	 * as NearbyManager's own onDisconnected callback handles active connections.
-	 *
-	 * @param endpointId   The ID of the lost endpoint.
-	 * @param endpointName The Signal Protocol address name of the lost endpoint.
-	 */
-	private void handleEndpointLost(@NonNull String endpointId, @NonNull String endpointName) {
-		Log.d(TAG, "handleEndpointLost: Lost " + endpointName + " (ID: " + endpointId + ")");
-		/*
-		 * This method is primarily for notification and logging that a discovered endpoint is no
-		 * longer available. The NearbyManager's internal mechanisms and its DeviceConnectionListener
-		 * will handle the actual state changes for connected or actively pending endpoints.
-		 */
-		NodeTransientStateRepository.getInstance().updateTransientNodeState(endpointName, NodeState.ON_ENDPOINT_LOST);
 	}
 
 	/**
@@ -359,40 +285,11 @@ public class SATMeshCommunicationService extends Service implements NearbyManage
 		}
 		nearbySignalMessenger = null; // Release the instance
 		if (nearbyManager != null) {
-			nearbyManager.removeDeviceConnectionListener(this);
 			nearbyManager.stopNearby();
 			nearbyManager = null; // Release the instance
 			Log.d(TAG, "NearbyManager stopped in service.");
 		}
 		signalManager = null;
 		Log.i(TAG, "Communication modules stopped.");
-	}
-
-	// Implementation of `NearbyManager.DeviceConnectionListener`
-	@Override
-	public void onConnectionInitiated(String endpointId, String deviceAddressName) {
-		// For simplicity, we auto-accept initiated connections.
-		nearbyManager.acceptConnection(endpointId, (payload, success) -> {
-			if (success) {
-				Log.d(TAG, "Accepted connection to " + deviceAddressName);
-			} else {
-				Log.e(TAG, "Failed to accept connection to " + deviceAddressName);
-			}
-		});
-	}
-
-	@Override
-	public void onDeviceConnected(String endpointId, String deviceAddressName) {
-		// pass
-	}
-
-	@Override
-	public void onConnectionFailed(String deviceAddressName, Status status) {
-		// pass
-	}
-
-	@Override
-	public void onDeviceDisconnected(String endpointId, String deviceAddressName) {
-		// pass
 	}
 }

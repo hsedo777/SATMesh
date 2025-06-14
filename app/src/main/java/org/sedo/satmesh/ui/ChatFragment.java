@@ -91,9 +91,9 @@ public class ChatFragment extends Fragment {
 
 		// If ViewModel already has nodes set (e.g., after orientation change), use them.
 		// Otherwise, use the ones from arguments and tell ViewModel to set them.
-		if (viewModel.areNodesSet()) {
-			hostNode = viewModel.getHostNodeLiveData().getValue(); // Use LiveData.getValue()
-			remoteNode = viewModel.getRemoteNodeLiveData().getValue(); // Use LiveData.getValue()
+		if (hostNode == null || remoteNode == null) {
+			hostNode = viewModel.getHostNodeLiveData().getValue();
+			remoteNode = viewModel.getRemoteNodeLiveData().getValue();
 		}
 
 		// IMPORTANT: Ensure hostNode and remoteNode are not null before proceeding
@@ -110,7 +110,7 @@ public class ChatFragment extends Fragment {
 		// IMPROVED: Toolbar click listener for potential manual re-initiation or info display
 		toolbar.setOnClickListener(v -> {
 			// If connection is not active (i.e., not secure or not connected Nearby)
-			if (viewModel.getConnectionActive().getValue() == null || !viewModel.getConnectionActive().getValue()) {
+			if (!Boolean.TRUE.equals(viewModel.getConnectionActive().getValue())) {
 				// Attempt to re-initiate key exchange if there's an endpoint available
 				String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(remoteNode.getAddressName());
 				if (endpointId != null) {
@@ -191,35 +191,27 @@ public class ChatFragment extends Fragment {
 		// Current status (connected/disconnected) - determines visibility of indicator
 		viewModel.getConnectionActive().observe(getViewLifecycleOwner(), isActive -> {
 			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Active: " + isActive);
-			// Show indicator only if NOT active/secure
-			binding.connectionIndicator.setVisibility(isActive ? View.GONE : View.VISIBLE);
-			// binding.messageEditText.setEnabled(isActive); binding.sendButton.setEnabled(isActive);
+			/* Show indicator only if NOT active/secure
+			 * binding.connectionIndicator.setVisibility(isActive ? View.GONE : View.VISIBLE);
+			 * binding.messageEditText.setEnabled(isActive); binding.sendButton.setEnabled(isActive);
+			 */
+			String message = viewModel.getUiMessage().getValue();
+			if (Boolean.FALSE.equals(isActive) && message != null && !message.isEmpty()){
+				binding.chatToolbar.setSubtitle(message);
+			}
+			if (Boolean.TRUE.equals(isActive)){
+				binding.chatToolbar.setSubtitle(R.string.status_secure_session_active);
+			}
 		});
 
 		// Detailed status (color indicator)
 		viewModel.getConnectionDetailedStatus().observe(getViewLifecycleOwner(), status -> {
-			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Detailed Status: " + status.name());
+			if (status == null) return;
+			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Detailed Status: " + status);
 			// Use ContextCompat.getColor for consistent color loading
 			binding.connectionIndicator.setBackgroundColor(ContextCompat.getColor(requireContext(), status.getColorResId()));
 			// To be added: Update status text next to the toolbar title if you add a TextView for it.
 			// Example: binding.connectionIndicator.setTooltipText(status.getDisplayString());
-		});
-
-		// NEW: Observe remoteKeyExchangeState for more detailed status messages
-		// This can be used to update a more prominent status display, e.g., a TextView under the toolbar
-		viewModel.getRemoteKeyExchangeState().observe(getViewLifecycleOwner(), keyExchangeState -> {
-			/*
-			 * This observer allows ChatFragment to react to precise key exchange states
-			 * Example: You could update a separate TextView here with custom messages
-			 * based on keyExchangeState.getLastOurSentAttempt() and getLastTheirReceivedAttempt()
-			 */
-			if (keyExchangeState != null) {
-				// Log the state for debugging
-				Log.d(Constants.TAG_CHAT_FRAGMENT, "Key Exchange State: Our Sent: " + keyExchangeState.getLastOurSentAttempt() +
-						", Their Received: " + keyExchangeState.getLastTheirReceivedAttempt());
-			} else {
-				Log.d(Constants.TAG_CHAT_FRAGMENT, "Key exchange state is undefined for device: " + remoteNode.getAddressName());
-			}
 		});
 
 

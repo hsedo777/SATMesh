@@ -13,7 +13,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import org.sedo.satmesh.databinding.FragmentChatBinding;
+import org.sedo.satmesh.databinding.FragmentChatListBinding;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
 
@@ -22,7 +22,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	private static final String TAG = "ChatListFragment";
 	private static final String ARG_HOST_NODE_ID = "host_node_id";
 
-	private FragmentChatBinding binding;
+	private FragmentChatListBinding binding;
 	private ChatListAdapter chatListAdapter;
 	private DiscussionListener listener;
 
@@ -44,7 +44,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	@Override
 	public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
 	                         @Nullable Bundle savedInstanceState) {
-		binding = FragmentChatBinding.inflate(inflater, container, false);
+		binding = FragmentChatListBinding.inflate(inflater, container, false);
 		return binding.getRoot();
 	}
 
@@ -73,14 +73,14 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 			hostNodeId = chatListViewModel.getHostNodeId();
 		}
 
-		binding.chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+		binding.conversationsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
 		// Initialize the adapter (requires hostNodeId for sender display logic)
 		// Ensure hostNodeId is not null before passing it to the adapter constructor
 		if (hostNodeId != null) {
 			chatListAdapter = new ChatListAdapter(hostNodeId);
 			chatListAdapter.setOnItemClickListener(this); // Set the item click listener
-			binding.chatRecyclerView.setAdapter(chatListAdapter);
+			binding.conversationsRecyclerView.setAdapter(chatListAdapter);
 		} else {
 			// Handle case where hostNodeId is null, stop the fragment
 			Log.e(TAG, "Unable to get ID of the host node!");

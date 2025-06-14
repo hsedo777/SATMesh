@@ -59,8 +59,8 @@ public class Node {
 		this.displayName = info.getDisplayName();
 	}
 
-	public PersonalInfo toPersonalInfo(){
-		return PersonalInfo.newBuilder().setAddressName(addressName).setExpectResult(false).setDisplayName(displayName).build();
+	public PersonalInfo toPersonalInfo(boolean expectResult){
+		return PersonalInfo.newBuilder().setAddressName(addressName).setExpectResult(expectResult).setDisplayName(displayName).build();
 	}
 
 	public Long getId() {
@@ -85,6 +85,11 @@ public class Node {
 
 	public void setAddressName(String addressName) {
 		this.addressName = addressName;
+	}
+
+	@NonNull
+	public String getNonNullName(){
+		return displayName == null ? addressName : displayName;
 	}
 
 	public boolean isTrusted() {

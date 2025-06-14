@@ -21,6 +21,7 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.signal.SignalManager;
+import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.concurrent.ExecutorService;
@@ -207,7 +208,7 @@ public class SATMeshCommunicationService extends Service {
 				String hostAddressName = sharedPreferences.getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 
 				if (hostNodeId != -1L && hostAddressName != null) {
-					hostNode = appDatabase.nodeDao().getNodeById(hostNodeId);
+					hostNode = appDatabase.nodeDao().getNodeByIdSync(hostNodeId);
 					if (hostNode != null) {
 						Log.d(TAG, "Host node loaded in service: " + hostNode.getDisplayName());
 						// Actual initialization of communication managers
@@ -235,6 +236,8 @@ public class SATMeshCommunicationService extends Service {
 			Log.e(TAG, "Host node is null. Cannot initialize communication managers.");
 			return;
 		}
+		// Reset node connection state
+		new NodeRepository(getApplicationContext()).setAllNodesDisconnected();
 		if (nearbyManager == null) {
 			// Pass the service's application context and the host node's address name
 			nearbyManager = NearbyManager.getInstance(getApplicationContext(), hostNode.getAddressName());
@@ -267,12 +270,17 @@ public class SATMeshCommunicationService extends Service {
 
 		// Start Nearby Connections advertising/discovery after initialization
 		// No specific UI action on advertising start/fail needed here
-		try {
-			nearbyManager.startAdvertising(null, null);
-			nearbyManager.startDiscovery();
-		} catch (Exception ignore) {
-		}
-		Log.d(TAG, "NearbyManager started in service.");
+		new android.os.Handler(getMainLooper()).post(() -> {
+			try {
+				Log.d(TAG, "Attempting to start NearbyManager advertising and discovery on main thread.");
+				nearbyManager.startAdvertising();
+				nearbyManager.startDiscovery();
+				Log.d(TAG, "NearbyManager advertising and discovery successfully started.");
+				Log.d(TAG, "NearbyManager started in service.");
+			} catch (Exception e) {
+				Log.w(TAG, "Failed to start NearbyManager operations on main thread: " + e.getMessage(), e);
+			}
+		});
 	}
 
 	/**
@@ -290,6 +298,7 @@ public class SATMeshCommunicationService extends Service {
 			Log.d(TAG, "NearbyManager stopped in service.");
 		}
 		signalManager = null;
+		new NodeRepository(getApplicationContext()).setAllNodesDisconnected();
 		Log.i(TAG, "Communication modules stopped.");
 	}
 }

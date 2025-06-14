@@ -15,9 +15,9 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import org.sedo.satmesh.databinding.FragmentNearbyDiscoveryBinding;
-import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter;
 import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.OnNodeClickListener;
+import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.utils.Constants;
 
@@ -116,34 +116,34 @@ public class NearbyDiscoveryFragment extends Fragment {
 				}
 			});
 		}
-		adapter = new NearbyDiscoveryAdapter(requireContext(), viewModel::getStateForNode);
+		adapter = new NearbyDiscoveryAdapter(requireContext());
 		adapter.attachOnNodeClickListener(new OnNodeClickListener() {
 			@Override
-			public void onClick(Node node, NodeState state) {
-				if (state == null)
+			public void onClick(@NonNull NodeDiscoveryItem item) {
+				if (item.state == null)
 					return;
-				if (state != NodeState.ON_CONNECTED) {
-					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(node.getAddressName());
+				if (item.state != NodeState.ON_CONNECTED) {
+					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(item.getAddressName());
 					if (endpointId != null) {
-						Log.d(TAG, viewModel.getHostDeviceName() + " request connection to " + endpointId + "(" + node.getAddressName() + ")");
-						viewModel.getNearbyManager().requestConnection(endpointId, node.getAddressName());
+						Log.d(TAG, viewModel.getHostDeviceName() + " request connection to " + endpointId + "(" + item.getAddressName() + ")");
+						viewModel.getNearbyManager().requestConnection(endpointId, item.getAddressName());
 					} else {
-						Log.w(TAG, "Cannot request connection: No endpoint ID found for " + node.getAddressName());
+						Log.w(TAG, "Cannot request connection: No endpoint ID found for " + item.getAddressName());
 					}
 				} else {
 					// Redirect the user to chat fragment
 					if (listener != null) {
-						listener.discussWith(node);
+						listener.discussWith(item.node);
 					}
 				}
 			}
 
 			@Override
-			public void onLongClick(Node node, NodeState state) {
-				if (state == NodeState.ON_CONNECTED && node != null) {
-					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(node.getAddressName());
+			public void onLongClick(@NonNull NodeDiscoveryItem item) {
+				if (item.state == NodeState.ON_CONNECTED) {
+					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(item.getAddressName());
 					if (endpointId != null) {
-						Log.d(TAG, viewModel.getHostDeviceName() + " request disconnect from " + endpointId + "(" + node.getAddressName() + ")");
+						Log.d(TAG, viewModel.getHostDeviceName() + " request disconnect from " + endpointId + "(" + item.getAddressName() + ")");
 						viewModel.getNearbyManager().disconnectFromEndpoint(endpointId);
 					}
 				}
@@ -155,23 +155,16 @@ public class NearbyDiscoveryFragment extends Fragment {
 
 	private void reload() {
 		Log.d(TAG, "Reloading nodes list.");
-		adapter.clear();
-		viewModel.load();
+		onNodesChanged(viewModel.getDisplayNodeListLiveData().getValue());
+		viewModel.getNearbyManager().startDiscovery();
 	}
 
-	private void onNodesChanged(List<Node> nodeList) {
-		Log.d(TAG, "Nodes list updated in Fragment: " + nodeList.size() + " nodes.");
-		adapter.clear();
-		for (Node node : nodeList) {
-			adapter.addOrUpdateNode(node);
-		}
+	private void onNodesChanged(@Nullable List<NodeDiscoveryItem> items) {
+		if (items == null)
+			return;
+		Log.d(TAG, "Nodes list updated in Fragment: " + items.size() + " nodes.");
+		adapter.submitList(items);
 
 		viewModel.getProgressBar().postValue(View.GONE); // Always hide progress bar after results are processed
-	}
-
-	@Override
-	public void onStart() {
-		super.onStart();
-		viewModel.load(); // Initial load when fragment starts
 	}
 }

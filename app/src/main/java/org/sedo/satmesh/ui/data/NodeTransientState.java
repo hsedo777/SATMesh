@@ -1,5 +1,7 @@
 package org.sedo.satmesh.ui.data;
 
+import androidx.annotation.NonNull;
+
 import java.util.Objects;
 
 /**
@@ -7,16 +9,6 @@ import java.util.Objects;
  */
 public class NodeTransientState {
 	public NodeState connectionState;
-	/**
-	 * Holds the current key exchange statuses.
-	 * Value: true for success, false for failure, {@code null} if not defined.
-	 */
-	public Boolean keyExchangeStatus;
-	/**
-	 * Holds the current secure session initiation statuses.
-	 * Value: true for success, false for failure, {@code null} if not defined.
-	 */
-	public Boolean sessionInitStatus;
 	//public Boolean typingStatus; //later
 
 	@Override
@@ -24,11 +16,19 @@ public class NodeTransientState {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		NodeTransientState that = (NodeTransientState) o;
-		return connectionState == that.connectionState && Objects.equals(keyExchangeStatus, that.keyExchangeStatus) && Objects.equals(sessionInitStatus, that.sessionInitStatus);
+		return connectionState == that.connectionState;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(connectionState, keyExchangeStatus, sessionInitStatus);
+		return Objects.hash(connectionState);
+	}
+
+	@NonNull
+	@Override
+	public String toString() {
+		return "NodeTransientState{" +
+				"connectionState=" + connectionState +
+				'}';
 	}
 }

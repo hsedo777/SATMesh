@@ -25,6 +25,7 @@
 		android:id="@+id/connection_indicator"
 		android:layout_width="@dimen/space_md"
 		android:layout_height="@dimen/space_md"
+		app:layout_constraintCircleRadius="@dimen/space_md"
 		android:layout_marginEnd="40dp"
 		android:background="@drawable/status_indicator"
 		android:shape="oval"
@@ -70,8 +71,7 @@
 			<com.google.android.material.textfield.TextInputLayout
 				style="@style/Widget.SATMesh.TextInput"
 				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:hint="@string/message_hint">
+				android:layout_height="wrap_content">
 
 				<com.google.android.material.textfield.TextInputEditText
 					android:id="@+id/message_edit_text"
@@ -81,6 +81,7 @@
 					android:gravity="top|start"
 					android:imeOptions="actionSend"
 					android:inputType="textMultiLine"
+					android:hint="@string/message_hint"
 					android:maxLines="4"
 					android:minLines="1"
 					android:paddingStart="12dp"

@@ -24,13 +24,11 @@ import com.google.android.gms.nearby.connection.Strategy;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class NearbyManager {
@@ -48,13 +46,13 @@ public class NearbyManager {
 	/*
 	 * Map to store endpoints connection state: endpointId -> remote device's state
 	 */
-	private final Map<String, ConnectionState> endpointStates = new HashMap<>();
+	private final Map<String, ConnectionState> endpointStates = new ConcurrentHashMap<>();
 	/*
 	 * Maps device' SignalProtocol address to its endpoint
 	 * This map will contain only *currently connected endpoints, as determined by the
 	 * `connectedEndpointAddresses` map. It will be cleared on disconnect.
 	 */
-	private final Map<String, String> addressNameToEndpointId = new HashMap<>();
+	private final Map<String, String> addressNameToEndpointId = new ConcurrentHashMap<>();
 	private final List<DeviceConnectionListener> deviceConnectionListeners = new CopyOnWriteArrayList<>();// Thread-safe list
 	private final List<PayloadListener> payloadListeners = new CopyOnWriteArrayList<>();
 	private final ConnectionsClient connectionsClient;
@@ -103,7 +101,11 @@ public class NearbyManager {
 	 */
 	private final ConnectionLifecycleCallback connectionLifecycleCallback = new ConnectionLifecycleCallback() {
 		@Override
-		public void onConnectionInitiated(@NonNull String endpointId, ConnectionInfo connectionInfo) {
+		public void onConnectionInitiated(@NonNull String endpointId, @NonNull ConnectionInfo connectionInfo) {
+			ConnectionState state = endpointStates.get(endpointId);
+			if (state != null) {
+				Log.d(TAG, "Receiving connection in state=" + state);
+			}
 			Log.d(TAG, "Connection initiated with: " + endpointId + " Name: " + connectionInfo.getEndpointName());
 			putState(endpointId, connectionInfo.getEndpointName(), STATUS_INITIATED_FROM_REMOTE, NodeState.ON_CONNECTING);
 			addressNameToEndpointId.put(connectionInfo.getEndpointName(), endpointId); // Keep track of pending connections
@@ -185,13 +187,15 @@ public class NearbyManager {
 				return;
 			}
 			String endpointName = state.addressName;
-			Log.d(TAG, "Endpoint lost: " + endpointName + " (ID: " + endpointId + ")");
+			Log.d(TAG, "Endpoint lost: " + state + " (endpoint.idID: " + endpointId + ")");
 
 			// Remove from relevant maps if it's not a currently connected endpoint
 			// If it's connected, the onDisconnected callback will handle it.
-			if (state.status != STATUS_CONNECTED) {
-				endpointStates.remove(endpointId);
+			if (state.status == STATUS_CONNECTED) {
+				return;
 			}
+			endpointStates.remove(endpointId);
+			Log.d(TAG, "lost.state=" + state);
 			NodeTransientStateRepository.getInstance().updateTransientNodeState(endpointName, NodeState.ON_ENDPOINT_LOST);
 			deviceConnectionListeners.forEach(l -> l.onEndpointLost(endpointId, endpointName));
 		}
@@ -299,27 +303,6 @@ public class NearbyManager {
 	}
 
 	/**
-	 * Gets the list of pending endpoint address names (initiated by us).
-	 * A node is considered in pending state if thee host node sent it a connection request
-	 *
-	 * @return An unmodifiable collection of SignalProtocolAddress names.
-	 */
-	@NonNull
-	public Collection<String> getAllPendingAddressName() {
-		return getAllAddressNameOf(STATUS_INITIATED_FROM_HOST);
-	}
-
-	/**
-	 * Gets the list of all incoming connection endpoint address names (initiated by remote).
-	 *
-	 * @return An unmodifiable collection of SignalProtocolAddress names.
-	 */
-	@NonNull
-	public Collection<String> getAllIncomingAddressName() {
-		return getAllAddressNameOf(STATUS_INITIATED_FROM_REMOTE);
-	}
-
-	/**
 	 * Gets the linked endpoint ID to the specified node address name.
 	 * This relies on the `addressNameToEndpointId` map which is populated
 	 * upon successful connection or connection initiation.
@@ -336,22 +319,6 @@ public class NearbyManager {
 	}
 
 	/**
-	 * Tests if there is, at call time an active connection with the specified
-	 * Signal Protocol's address name.
-	 *
-	 * @param addressName the address name to test
-	 * @return {@code true} if and only if the specified address name is bound to an endpoint
-	 * in the map of connected node.
-	 */
-	public boolean isAddressDirectlyConnected(@Nullable String addressName) {
-		String endpointId = getLinkedEndpointId(addressName);
-		if (endpointId == null)
-			return false;
-		ConnectionState state = endpointStates.get(endpointId);
-		return state != null && state.status == STATUS_CONNECTED;
-	}
-
-	/**
 	 * Returns {@code true} if currently advertising.
 	 */
 	public boolean isAdvertising() {
@@ -361,19 +328,14 @@ public class NearbyManager {
 	/**
 	 * Starts advertising this device to be discovered by others.
 	 * The advertising name used is the device's SignalProtocolAddress name.
-	 *
-	 * @param onSuccess Callback for successful advertising start.
-	 * @param onFailure Callback for advertising failure.
 	 */
-	public void startAdvertising(@Nullable Runnable onSuccess, @Nullable Consumer<Exception> onFailure) {
+	public void startAdvertising() {
 		if (isAdvertising()) {
 			Log.i(TAG, "Already advertising, skipping startAdvertising call.");
-			if (onSuccess != null) onSuccess.run(); // Still call success if already advertising
 			return;
 		}
 		AdvertisingOptions advertisingOptions = new AdvertisingOptions.Builder()
 				.setStrategy(STRATEGY).build();
-
 		connectionsClient.startAdvertising(
 						this.localName,
 						SERVICE_ID,
@@ -382,12 +344,15 @@ public class NearbyManager {
 				).addOnSuccessListener(unused -> {
 					Log.d(TAG, "Advertising started successfully");
 					isAdvertising = true;
-					if (onSuccess != null) onSuccess.run();
 				})
 				.addOnFailureListener(e -> {
-					if (!isDiscovering) {
+					if (e.getMessage() != null && e.getMessage().contains("STATUS_ALREADY_ADVERTISING")) {
+						Log.d(TAG, "Advertising already started successfully");
+						isAdvertising = true;
+						return;
+					}
+					if (!isAdvertising) {
 						Log.e(TAG, "Failed to start advertising", e);
-						if (onFailure != null) onFailure.accept(e);
 					}
 				});
 	}
@@ -421,12 +386,6 @@ public class NearbyManager {
 			if (state.status == STATUS_CONNECTED) {
 				Log.i(TAG, "Already connected to " + remoteAddressName + ". Skipping connection request.");
 				NodeTransientStateRepository.getInstance().updateTransientNodeState(remoteAddressName, NodeState.ON_CONNECTED);
-				return;
-			}
-			if (state.status == STATUS_INITIATED_FROM_HOST) {
-				Log.i(TAG, "Connection request already pending for " + remoteAddressName + ". Skipping duplicate request.");
-				// Treat as success for idempotence
-				NodeTransientStateRepository.getInstance().updateTransientNodeState(remoteAddressName, NodeState.ON_CONNECTING);
 				return;
 			}
 			if (state.status == STATUS_INITIATED_FROM_REMOTE) {
@@ -503,7 +462,21 @@ public class NearbyManager {
 		DiscoveryOptions discoveryOptions = new DiscoveryOptions.Builder()
 				.setStrategy(STRATEGY).build();
 
-		connectionsClient.startDiscovery(SERVICE_ID, endpointDiscoveryCallback, discoveryOptions);
+		connectionsClient.startDiscovery(SERVICE_ID, endpointDiscoveryCallback, discoveryOptions)
+				.addOnSuccessListener(unused -> {
+					Log.d(TAG, "Discovering started successfully!");
+					isDiscovering = true;
+				})
+				.addOnFailureListener(e -> {
+					if (e.getMessage() != null && e.getMessage().contains("STATUS_ALREADY_DISCOVERING")) {
+						Log.d(TAG, "Discovering started successfully!");
+						isDiscovering = true;
+						return;
+					}
+					if (!isDiscovering) {
+						Log.w(TAG, "Discovering failed!", e);
+					}
+				});
 	}
 
 	/**
@@ -659,6 +632,15 @@ public class NearbyManager {
 		public ConnectionState(String addressName, int state) {
 			this.addressName = addressName;
 			this.status = state;
+		}
+
+		@NonNull
+		@Override
+		public String toString() {
+			return "ConnectionState{" +
+					"addressName='" + addressName + '\'' +
+					", status=" + status +
+					'}';
 		}
 	}
 }

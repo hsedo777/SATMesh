@@ -2,10 +2,10 @@ package org.sedo.satmesh.ui.data;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -67,6 +67,7 @@ public class NodeTransientStateRepository {
 	 *
 	 * @return LiveData containing a map where keys are node address names and values are their NodeState.
 	 */
+	@NonNull
 	public LiveData<Map<String, NodeTransientState>> getTransientNodeStates() {
 		return transientNodeStatesLiveData;
 	}
@@ -94,18 +95,18 @@ public class NodeTransientStateRepository {
 				transientNodeStatesLiveData.postValue(currentStates);
 			}
 
-			Log.d(TAG, "Updating transient state for " + addressName + ": " + newState);
 			NodeTransientState transientState = currentStates.get(addressName);
 			if (transientState == null){
 				transientState = new NodeTransientState();
 			}
+			Log.d(TAG, "Updating transient state for " + addressName + " from " + transientState.connectionState + " to " + newState);
 			transientState.connectionState = newState;
 
 			if (newState == NodeState.ON_DISCONNECTED) {
 				// For disconnected state, add it and schedule a removal after a delay.
 				// This allows the UI to show "disconnected" briefly before potentially removing it.
 				currentStates.put(addressName, transientState);
-				transientNodeStatesLiveData.postValue(new HashMap<>(currentStates)); // Post a copy to trigger observers
+				transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(currentStates)); // Post a copy to trigger observers
 
 				executor.schedule(() -> {
 					// Only remove if still in ON_DISCONNECTED state (i.e., not reconnected)
@@ -114,80 +115,16 @@ public class NodeTransientStateRepository {
 					if (stateAfterDelay != null && stateAfterDelay.connectionState == NodeState.ON_DISCONNECTED) {
 						Log.d(TAG, "Removing " + addressName + " from transient states after delay.");
 						statesAfterDelay.remove(addressName);
-						transientNodeStatesLiveData.postValue(new HashMap<>(statesAfterDelay)); // Post update
+						transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(statesAfterDelay)); // Post update
 					}
 				}, REMOVAL_DELAY_MS, TimeUnit.MILLISECONDS);
-			} else if (newState == NodeState.ON_CONNECTED || newState == NodeState.ON_CONNECTION_FAILED) {
-				/*
-				 * When a connection is established (and persisted in DB), or explicitly failed,
-				 * remove it from transient states. The DB LiveData will now handle the connected state.
-				 * Or if failed, we don't want to keep a 'pending' transient state.
-				 */
-				currentStates.remove(addressName);
-				transientNodeStatesLiveData.postValue(new HashMap<>(currentStates)); // Post a copy
 			} else {
 				/*
 				 * For other transient states (ON_ENDPOINT_FOUND, ON_CONNECTION_INITIATED), add or update them.
 				 */
 				currentStates.put(addressName, transientState);
-				transientNodeStatesLiveData.postValue(new HashMap<>(currentStates)); // Post a copy to trigger observers
+				transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(currentStates)); // Post a copy to trigger observers
 			}
-		});
-	}
-
-	/**
-	 * Updates the transient key exchange status for a given node.
-	 * This method is intended to be called by NearbySignalMessenger callbacks.
-	 *
-	 * @param addressName The address name of the remote node.
-	 * @param success     True if key exchange succeeded, false otherwise.
-	 */
-	public void updateKeyExchangeStatus(String addressName, boolean success) {
-		if (addressName == null) {
-			Log.w(TAG, "Attempted to update key exchange status with null addressName.");
-			return;
-		}
-		executor.execute(() -> {
-			Map<String, NodeTransientState> currentStatus = transientNodeStatesLiveData.getValue();
-			if (currentStatus == null) {
-				currentStatus = new ConcurrentHashMap<>();
-			}
-			NodeTransientState current = currentStatus.get(addressName);
-			if (current == null){
-				current = new NodeTransientState();
-			}
-			current.keyExchangeStatus = success;
-			currentStatus.put(addressName, current);
-			transientNodeStatesLiveData.postValue(new HashMap<>(currentStatus)); // Post a new map instance
-			Log.d(TAG, "Key exchange status for " + addressName + " updated to " + success);
-		});
-	}
-
-	// Update Session Initiation Status
-	/**
-	 * Updates the transient secure session initiation status for a given node.
-	 * This method is intended to be called by NearbySignalMessenger callbacks.
-	 * @param addressName The address name of the remote node.
-	 * @param success True if session initiation succeeded, false otherwise.
-	 */
-	public void updateSessionInitStatus(String addressName, boolean success) {
-		if (addressName == null) {
-			Log.w(TAG, "Attempted to update session initiation status with null addressName.");
-			return;
-		}
-		executor.execute(() -> {
-			Map<String, NodeTransientState> currentStatus = transientNodeStatesLiveData.getValue();
-			if (currentStatus == null) {
-				currentStatus = new ConcurrentHashMap<>();
-			}
-			NodeTransientState current = currentStatus.get(addressName);
-			if (current == null){
-				current = new NodeTransientState();
-			}
-			current.sessionInitStatus = success;
-			currentStatus.put(addressName, current);
-			transientNodeStatesLiveData.postValue(new HashMap<>(currentStatus)); // Post a new map instance
-			Log.d(TAG, "Session initiation status for " + addressName + " updated to " + success);
 		});
 	}
 

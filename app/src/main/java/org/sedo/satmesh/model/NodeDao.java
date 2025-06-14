@@ -40,7 +40,11 @@ public interface NodeDao {
 	 * @return The Node object, or null if not found.
 	 */
 	@Query("SELECT * FROM node WHERE addressName = :addressName")
-	Node getNodeByAddressName(String addressName);
+	Node getNodeByAddressNameSync(String addressName);
+
+	@Query("SELECT * FROM node WHERE addressName = :addressName")
+	LiveData<Node> getNodeByAddressName(String addressName);
+
 
 	/**
 	 * Retrieves a Node by its primary key ID.
@@ -48,7 +52,7 @@ public interface NodeDao {
 	 * @return The Node object, or null if not found.
 	 */
 	@Query("SELECT * FROM node WHERE id = :id")
-	Node getNodeById(Long id);
+	Node getNodeByIdSync(Long id);
 
 	/**
 	 * Retrieves a Node by its primary key ID and wraps it in a `LiveData`.
@@ -56,7 +60,7 @@ public interface NodeDao {
 	 * @return The Node object, or null if not found.
 	 */
 	@Query("SELECT * FROM node WHERE id = :id")
-	LiveData<Node>  getNodeByIdAsLiveData(long id);
+	LiveData<Node> getNodeById(long id);
 
 	/**
 	 * Get the live data of nodes in state connected
@@ -64,6 +68,13 @@ public interface NodeDao {
 	 */
 	@Query("SELECT * FROM node WHERE connected = 1")
 	LiveData<List<Node>> getConnectedNode();
+
+	/**
+	 * Set all nodes in state disconnected. This method should be called
+	 * at the app completely shutdown
+	 */
+	@Query("UPDATE node SET connected = 0")
+	void setAllNodesDisconnected();
 
 	/**
 	 * Retrieves all Nodes (contacts) from the database, excluding the local host node.

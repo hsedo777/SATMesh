@@ -256,7 +256,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	public void discussWith(@NonNull Node remoteNode) {
 		// Refresh from db
 		appDatabase.getQueryExecutor().execute(() -> {
-			Node hostNode = appDatabase.nodeDao().getNodeById(
+			Node hostNode = appDatabase.nodeDao().getNodeByIdSync(
 					getDefaultSharedPreferences()
 							.getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L)
 			);
@@ -265,7 +265,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 				finish();
 			}
 			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(Objects.requireNonNull(hostNode), node), Constants.TAG_CHAT_FRAGMENT, false, true);
-			Node node = appDatabase.nodeDao().getNodeByAddressName(remoteNode.getAddressName());
+			Node node = appDatabase.nodeDao().getNodeByAddressNameSync(remoteNode.getAddressName());
 			if (node == null) {
 				try {
 					long id = appDatabase.nodeDao().insert(remoteNode);

@@ -41,7 +41,6 @@
 	<color name="node_state_connected">#367839</color>
 	<color name="node_state_lost">#E5AB4644</color>
 	<color name="node_state_disconnected">#040404</color>
-	<color name="node_state_initiated">#075C87</color>
 	<color name="node_state_failed">#FF0202</color>
 
 	<!--

@@ -78,5 +78,4 @@
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@id/empty_state_text"
 		tools:listitem="@layout/item_nearby_node" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>

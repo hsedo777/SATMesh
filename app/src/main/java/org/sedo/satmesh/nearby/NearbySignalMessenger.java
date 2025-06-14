@@ -35,6 +35,7 @@ import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
+import org.whispersystems.libsignal.protocol.PreKeySignalMessage;
 import org.whispersystems.libsignal.protocol.SignalMessage;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 
@@ -139,7 +140,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	// Implementation of `NearbyManager.DeviceConnectionListener`
 	// This method is called when Nearby Connections initiates a connection.
 	@Override
-	public void onConnectionInitiated(String endpointId, String deviceAddressName) {
+	public void onConnectionInitiated(@NonNull String endpointId, @NonNull String deviceAddressName) {
 		Log.d(TAG, "Connection initiated with: " + deviceAddressName + " (EndpointId: " + endpointId + ")");
 		// When a connection is initiated, we should accept it.
 		// The key exchange logic will happen once connected or upon first message.
@@ -155,7 +156,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		// Update node status in DB
 		executor.execute(() -> {
 			try {
-				Node node = nodeRepository.findNode(deviceAddressName);
+				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
 					node.setLastSeen(System.currentTimeMillis());
 					node.setConnected(true);
@@ -184,7 +185,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		Log.e(TAG, "Connection failed for " + deviceAddressName + " with status: " + status);
 		executor.execute(() -> {
 			try {
-				Node node = nodeRepository.findNode(deviceAddressName);
+				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
 					node.setConnected(false); // Mark as disconnected
 					nodeRepository.update(node);
@@ -203,7 +204,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		Log.d(TAG, "Device disconnected: " + deviceAddressName + " (EndpointId: " + endpointId + ")");
 		executor.execute(() -> {
 			try {
-				Node node = nodeRepository.findNode(deviceAddressName);
+				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
 					node.setConnected(false); // Mark as disconnected
 					nodeRepository.update(node);
@@ -244,7 +245,17 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		/*
 		 * This method is primarily for notification and logging that a discovered endpoint is no
 		 * longer available. The NearbyManager's internal mechanisms.
+		 * But, we need to set the node connected state to false
 		 */
+		executor.execute(() -> {
+			Node remote = nodeRepository.findNodeSync(endpointName);
+			if (remote == null) {
+				Log.w(TAG, "onEndpointLost: unable to locate the lost node.");
+				return;
+			}
+			remote.setConnected(false);
+			nodeRepository.update(remote);
+		});
 	}
 
 	// Implementation of `NearbyManager.PayloadListener`
@@ -352,8 +363,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			// This means we are already ready to send encrypted messages to them.
 			if (hasSession(remoteAddressName)) {
 				Log.d(TAG, "Session already active with " + remoteAddressName);
-				NodeTransientStateRepository.getInstance().updateKeyExchangeStatus(remoteAddressName, true);
-				NodeTransientStateRepository.getInstance().updateSessionInitStatus(remoteAddressName, true);
 			}
 
 			Log.d(TAG, "handleInitialKeyExchange() from " + hostNode.getAddressName() + " to " + remoteAddressName + '@' + endpointId);
@@ -548,10 +557,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						.build();
 
 				CiphertextMessage cipherMessage = signalManager.encryptMessage(recipientAddress, messageBody.toByteArray());
-
+				byte[] cipherData = cipherMessage.serialize();
+				//android.util.Base64.encodeToString(cipherData, android.util.Base64.DEFAULT)
 				NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
 						.setExchange(false)
-						.setBody(ByteString.copyFrom(cipherMessage.serialize()))
+						.setBody(ByteString.copyFrom(cipherData))
 						.build();
 
 				sendNearbyMessageInternal(nearbyMessage, recipientAddressName, (payload, success) -> {
@@ -596,7 +606,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			}
 
 			// Update node's last seen and connected status in DB
-			Node node = nodeRepository.findNode(senderAddressName);
+			Node node = nodeRepository.findNodeSync(senderAddressName);
 			if (node != null) {
 				node.setLastSeen(System.currentTimeMillis());
 				node.setConnected(true); // Assuming message means connected
@@ -666,26 +676,21 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			Log.d(TAG, "Signal session established/updated with " + senderAddressName + ". Endpoint mapped.");
 			//messengerCallbacks.forEach(cb -> cb.onKeyExchangeSuccess(senderAddressName));
 			keyExchangeStateRepository.save(exchangeState);
-			NodeTransientStateRepository.getInstance().updateKeyExchangeStatus(senderAddressName, true);
-			NodeTransientStateRepository.getInstance().updateSessionInitStatus(senderAddressName, true);
 			requireResponse = exchangeState.getLastOurSentAttempt() == null;
 		} catch (InvalidProtocolBufferException e) {
 			Log.e(TAG, "Failed to deserialize PreKeyBundle from " + senderAddressName + ": " + e.getMessage(), e);
 			//messengerCallbacks.forEach(cb -> cb.onKeyExchangeFailed(senderAddressName, "Invalid PreKeyBundle format."));
-			NodeTransientStateRepository.getInstance().updateSessionInitStatus(senderAddressName, false);
 		} catch (InvalidKeyException e) {
 			Log.e(TAG, "Invalid key in PreKeyBundle from " + senderAddressName + ": " + e.getMessage(), e);
 			//messengerCallbacks.forEach(cb -> cb.onKeyExchangeFailed(senderAddressName, "Invalid key in PreKeyBundle."));
-			NodeTransientStateRepository.getInstance().updateSessionInitStatus(senderAddressName, false);
 		} catch (Exception e) {
 			Log.e(TAG, "Error processing key exchange from " + senderAddressName + ": " + e.getMessage(), e);
 			//messengerCallbacks.forEach(cb -> cb.onKeyExchangeFailed(senderAddressName, "Unexpected error during key exchange."));
-			NodeTransientStateRepository.getInstance().updateSessionInitStatus(senderAddressName, false);
 		}
 		// I use two blocks try-catch to ensure there is no conflict about exception throwing
 		try {
 			// Update node status in DB
-			Node node = nodeRepository.findNode(senderAddressName);
+			Node node = nodeRepository.findNodeSync(senderAddressName);
 			if (node != null) {
 				node.setLastSeen(System.currentTimeMillis());
 				node.setConnected(true);
@@ -730,14 +735,20 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		try {
 			Log.d(TAG, "Received Encrypted Message from: " + senderAddressName + " (EndpointId: " + endpointId + "), Payload ID: " + payloadId + ", Size: " + cipherData.length);
 
+			CiphertextMessage receivedCipherMessage;
 			/*
 			 * Reconstruct CiphertextMessage from raw bytes
 			 * Note: We need to properly determine if it's PREKEY_TYPE or WHISPER_TYPE.
-			 * For a first received message in a new session (after PreKeyBundle exchange),
-			 * it will be PREKEY_TYPE. Subsequent messages are WHISPER_TYPE.
-			 * LibSignal's SessionCipher.decrypt() handles this internally.
 			 */
-			CiphertextMessage receivedCipherMessage = new SignalMessage((cipherData)); // Deserialize
+			try {
+				receivedCipherMessage = new SignalMessage(cipherData);
+			} catch (Exception ignored) {
+				/*
+				 * Instruction in the try clause will throw exception if the message
+				 * is the first encrypted through devices
+				 */
+				receivedCipherMessage = new PreKeySignalMessage(cipherData);
+			}
 
 			SignalProtocolAddress senderAddress = getAddress(senderAddressName);
 			byte[] decryptedBytes = signalManager.decryptMessage(senderAddress, receivedCipherMessage);
@@ -754,7 +765,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 							.toBuilder()
 							.setPayloadId(payloadId) // Set the payload ID here
 							.build();
-					Node senderNode = nodeRepository.findNode(senderAddressName);
+					Node senderNode = nodeRepository.findNodeSync(senderAddressName);
 					if (senderNode == null) {
 						Log.e(TAG, "Failed to identify, in DB, the sender node at address " + senderAddress + " msg.payloadId=" + payloadId);
 						return;
@@ -811,12 +822,17 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				case PERSONAL_INFO:
 					PersonalInfo personalInfo = PersonalInfo.parseFrom(decryptedMessageBody.getEncryptedData());
 					// Update node's display name and potentially other info in DB
-					Node nodeToUpdate = nodeRepository.findNode(senderAddressName);
+					Node nodeToUpdate = nodeRepository.findNodeSync(senderAddressName);
 					if (nodeToUpdate != null) {
 						nodeToUpdate.setDisplayName(personalInfo.getDisplayName());
 						nodeToUpdate.setLastSeen(System.currentTimeMillis()); // Update last seen as well
 						nodeRepository.update(nodeToUpdate);
 						Log.d(TAG, "Received and updated PersonalInfo for " + senderAddressName + ": " + personalInfo.getDisplayName());
+						if (personalInfo.getExpectResult()) {
+							Node hostNodeFromDb = nodeRepository.findNodeSync(hostNode.getAddressName());
+							hostNode.setPersonalInfo(hostNodeFromDb.toPersonalInfo(false));
+							sendPersonalInfo(hostNodeFromDb.toPersonalInfo(false), senderAddressName);
+						}
 					} else {
 						// This case might not happen cause exchanging personal info require secured session and the session requires node persistence.
 						Log.d(TAG, "Received PersonalInfo for new node " + senderAddressName + ": " + personalInfo.getDisplayName());

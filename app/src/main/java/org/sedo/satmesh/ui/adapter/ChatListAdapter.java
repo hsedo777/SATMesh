@@ -107,8 +107,8 @@ public class ChatListAdapter extends ListAdapter<ChatListItem, ChatListAdapter.C
 		 *
 		 * @param item The ChatListItem object to bind.
 		 */
-		public void bind(ChatListItem item, long hostNodeId) {
-			remoteNodeDisplayName.setText(item.getLastMessageSenderDisplayName(hostNodeId, itemView.getContext().getString(R.string.you)));
+		public void bind(ChatListItem item, long ignored) {
+			remoteNodeDisplayName.setText(item.remoteNode.getNonNullName());
 			lastMessageContent.setText(item.lastMessage.getContent());
 			lastMessageTimestamp.setText(Utils.formatTimestamp(itemView.getContext(), item.lastMessage.getTimestamp()));
 			// Update connectivity status icon based on nodeState

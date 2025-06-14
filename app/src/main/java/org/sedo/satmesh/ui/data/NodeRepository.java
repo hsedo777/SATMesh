@@ -32,14 +32,22 @@ public class NodeRepository {
 	}
 
 	public LiveData<Node> findLiveNode(long nodeId) {
-		return dao.getNodeByIdAsLiveData(nodeId);
+		return dao.getNodeById(nodeId);
 	}
 
-	public Node findNode(String addressName) {
+	public Node findNodeSync(String addressName) {
+		return dao.getNodeByAddressNameSync(addressName);
+	}
+
+	public LiveData<Node> findNode(String addressName) {
 		return dao.getNodeByAddressName(addressName);
 	}
 
 	public LiveData<List<Node>> getConnectedNode(){
 		return dao.getConnectedNode();
+	}
+
+	public void setAllNodesDisconnected(){
+		executor.execute(dao::setAllNodesDisconnected);
 	}
 }

@@ -11,11 +11,11 @@ public class Constants {
 	public static final String PREF_KEY_HOST_ADDRESS_NAME = "host_address_name";
 
 	// Fragment Tags
-	public static final String TAG_WELCOME_FRAGMENT = "welcome_fragment";
-	public static final String TAG_CHAT_LIST_FRAGMENT = "chat_list_fragment";
-	public static final String TAG_CHAT_FRAGMENT = "chat_fragment";
-	public static final String TAG_DISCOVERY_FRAGMENT = "discovery_fragment";
-	public static final String TAG_SEARCH_FRAGMENT = "search_fragment";
+	public static final String TAG_WELCOME_FRAGMENT = "WelcomeFragment";
+	public static final String TAG_CHAT_LIST_FRAGMENT = "ChatListFragment";
+	public static final String TAG_CHAT_FRAGMENT = "ChatFragment";
+	public static final String TAG_DISCOVERY_FRAGMENT = "NearbyDiscoveryFragment";
+	public static final String TAG_SEARCH_FRAGMENT = "SearchFragment";
 
 	public static final int SIGNAL_PROTOCOL_DEVICE_ID = 1;
 

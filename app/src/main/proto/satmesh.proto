@@ -39,7 +39,7 @@ message TextMessage{
 message NearbyMessage {
   bool exchange = 1; // Specify if it is keys exchange message or not
 
-  oneof payload_content { // Only one of these fields will be set
+  oneof payload_content {// Only one of these fields will be set
     PreKeyBundleExchange key_exchange_message = 2; //  PreKeySignalMessage
     bytes body = 3; // An encrypted value of NearbyMessageBody using the receiver PK
   }
@@ -49,16 +49,15 @@ message NearbyMessage {
 message NearbyMessageBody {
   enum MessageType {
     UNKNOWN = 0;
-    ROUTE_DISCOVERY = 1;
+    ROUTE_DISCOVERY_REQ = 1;
     ENCRYPTED_MESSAGE = 2;
     MESSAGE_DELIVERED_ACK = 3;
     MESSAGE_READ_ACK = 4;
     PERSONAL_INFO = 5;
-    CONTACT_UPDATE_INFO = 6; // Will be replaced, `PERSONAL_INFO` is enough
+    ROUTE_DISCOVERY_RESP = 6;
     TYPING_INDICATOR = 7;
   }
   MessageType message_type = 1;
-  //string sender_address_name = 2; // SignalProtocolAddress.name of the actual sender
   /*
   * Raw bytes of CiphertextMessage (SignalMessage) : in {PersonalInfo, TextMessage,
   * MessageAck, TypingIndicatorMessage}
@@ -67,7 +66,6 @@ message NearbyMessageBody {
   * the packet is subject automatically to encryption
   */
   bytes encrypted_data = 3;
-  //int64 relatedPayloadId = 4;
 }
 
 //Message for types `MESSAGE_DELIVERED_ACK` and `MESSAGE_READ_ACK`
@@ -78,4 +76,47 @@ message MessageAck {
 // Message type for `TYPING_INDICATOR`
 message TypingIndicator {
   bool is_typing = 1; // True if the node is writing, False else
+  string typing_source = 2; // Address name of source
+}
+
+// Defines the RouteRequestMessage structure used for route discovery in the decentralized mesh network.
+// This message is sent between nodes to initiate and propagate a route search.
+message RouteRequestMessage {// Message type `ROUTE_DISCOVERY_REQ`
+  // A unique identifier for this specific route request.
+  string uuid = 1;
+
+  // The global identifier (address name) of the target destination node.
+  string destination_node_id = 2;
+
+  // The maximum number of hops remaining for this request to propagate.
+  int32 remaining_hops = 3;
+
+  // The expiration Time To Live (TTL) for this request, expressed in time units milliseconds.
+  int64 max_ttl = 4;
+}
+
+// Defines the RouteResponseMessage structure used to respond to route discovery requests.
+// This message indicates the specific outcome of a route discovery attempt.
+message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
+  // The UUID of the original RouteRequestMessage that this response pertains to.
+  string request_uuid = 1;
+
+  // The precise status or type of outcome for the route discovery request.
+  enum Status {
+    UNKNOWN_STATUS = 0;             // Default or uninitialized status.
+    NO_ROUTE_FOUND = 1;             // Indicates that no path to the destination could be found.
+    TTL_EXPIRED = 2;                // The message's Time To Live (TTL) expired before reaching the destination.
+    MAX_HOPS_REACHED = 3;           // The maximum number of intermediate hops was reached.
+    ROUTE_FOUND = 4;                // A valid route to the destination has been successfully discovered.
+    REQUEST_ALREADY_IN_PROGRESS = 5; // The request was already being processed by an intermediate node.
+  }
+  Status status = 2;
+
+  /*
+   * If the status indicates a successful route discovery (ROUTE_FOUND),
+   * this field contains the total number of hops (intermediate nodes + destination)
+   * from the original source to the destination node.
+   * This value helps in evaluating the path length. It is irrelevant for failure statuses.
+   */
+  optional int32 hop_count = 3;
 }

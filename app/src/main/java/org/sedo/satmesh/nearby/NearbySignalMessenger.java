@@ -844,7 +844,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					// Log.d(TAG, "Received TypingIndicator from " + senderAddressName + ": " + typingIndicator.getIsTyping());
 					// TODO: Notify UI via NodeStateRepository to show/hide typing indicator if needed
 					break;
-				case ROUTE_DISCOVERY:
+				case ROUTE_DISCOVERY_REQ:
+				case ROUTE_DISCOVERY_RESP:
 					Log.d(TAG, "Received ROUTE_DISCOVERY (to be implemented) from " + senderAddressName);
 					// This involve processing routing data and potentially updating a routing table in DB
 					break;

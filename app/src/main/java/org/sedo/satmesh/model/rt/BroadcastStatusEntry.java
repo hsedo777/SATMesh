@@ -35,6 +35,7 @@ public class BroadcastStatusEntry {
 
 	// The unique identifier of the route request to which this broadcast status belongs.
 	// This is part of the composite primary key and links to RouteRequestEntry.
+	@NonNull
 	@ColumnInfo(name = "request_uuid")
 	private String requestUuid;
 
@@ -42,7 +43,7 @@ public class BroadcastStatusEntry {
 	// RouteRequestMessage was broadcasted.
 	// This is also part of the composite primary key.
 	@ColumnInfo(name = "neighbor_node_local_id")
-	private Long neighborNodeLocalId;
+	private long neighborNodeLocalId;
 
 	// A boolean flag indicating if this specific broadcast to this neighbor
 	// has resulted in a "REQUEST_ALREADY_IN_PROGRESS" response from that neighbor.
@@ -54,18 +55,21 @@ public class BroadcastStatusEntry {
 	/**
 	 * Default constructor. Required by Room for entity instantiation.
 	 */
-	public BroadcastStatusEntry() {
+	public BroadcastStatusEntry(@NonNull String requestUuid, long neighborNodeLocalId) {
 		// Default to false for the boolean flag
 		this.isPendingResponseInProgress = false;
+		this.requestUuid = requestUuid;
+		this.neighborNodeLocalId = neighborNodeLocalId;
 	}
 
 	// --- Getters ---
 
+	@NonNull
 	public String getRequestUuid() {
 		return requestUuid;
 	}
 
-	public Long getNeighborNodeLocalId() {
+	public long getNeighborNodeLocalId() {
 		return neighborNodeLocalId;
 	}
 
@@ -75,11 +79,11 @@ public class BroadcastStatusEntry {
 
 	// --- Setters ---
 
-	public void setRequestUuid(String requestUuid) {
+	public void setRequestUuid(@NonNull String requestUuid) {
 		this.requestUuid = requestUuid;
 	}
 
-	public void setNeighborNodeLocalId(Long neighborNodeLocalId) {
+	public void setNeighborNodeLocalId(long neighborNodeLocalId) {
 		this.neighborNodeLocalId = neighborNodeLocalId;
 	}
 

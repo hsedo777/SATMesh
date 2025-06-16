@@ -45,6 +45,7 @@ public class RouteUsage {
 	 *   will be the UUID of this newly received demand. This ensures that each distinct demand
 	 *   maintains its own usage tracking for a given route.
 	 */
+	@NonNull
 	@PrimaryKey
 	@ColumnInfo(name = "usage_request_uuid")
 	private String usageRequestUuid;

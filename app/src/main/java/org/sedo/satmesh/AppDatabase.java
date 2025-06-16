@@ -17,9 +17,13 @@ import org.sedo.satmesh.model.NodeDao;
 import org.sedo.satmesh.model.SignalKeyExchangeState;
 import org.sedo.satmesh.model.SignalKeyExchangeStateDao;
 import org.sedo.satmesh.model.rt.BroadcastStatusEntry;
+import org.sedo.satmesh.model.rt.BroadcastStatusEntryDao;
 import org.sedo.satmesh.model.rt.RouteEntry;
+import org.sedo.satmesh.model.rt.RouteEntryDao;
 import org.sedo.satmesh.model.rt.RouteRequestEntry;
+import org.sedo.satmesh.model.rt.RouteRequestEntryDao;
 import org.sedo.satmesh.model.rt.RouteUsage;
+import org.sedo.satmesh.model.rt.RouteUsageDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyEntity;
 import org.sedo.satmesh.signal.model.SignalPreKeyDao;
@@ -45,6 +49,10 @@ public abstract class AppDatabase extends RoomDatabase {
 	public abstract SignalSignedPreKeyDao signedPreKeyDao();
 	public abstract SignalIdentityKeyDao identityKeyDao();
 	public abstract SignalKeyExchangeStateDao signalKeyExchangeStateDao();
+	public abstract RouteEntryDao routeEntryDao();
+	public abstract RouteUsageDao routeUsageDao();
+	public abstract RouteRequestEntryDao routeRequestEntryDao();
+	public abstract BroadcastStatusEntryDao broadcastStatusEntryDao();
 
 	private static volatile AppDatabase INSTANCE;
 

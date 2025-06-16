@@ -17,6 +17,7 @@ import java.util.Objects;
 public class RouteRequestEntry {
 
 	// The unique identifier of the route request (UUID of the RouteRequestMessage).
+	@NonNull
 	@PrimaryKey
 	@ColumnInfo(name = "request_uuid")
 	private String requestUuid;
@@ -30,14 +31,13 @@ public class RouteRequestEntry {
 	@ColumnInfo(name = "previous_hop_local_id")
 	private Long previousHopLocalId;
 
-	/**
-	 * Default constructor. Room requires a public no-argument constructor.
-	 */
-	public RouteRequestEntry() {
+	public RouteRequestEntry(@NonNull String requestUuid) {
+		this.requestUuid = requestUuid;
 	}
 
 	// --- Getters ---
 
+	@NonNull
 	public String getRequestUuid() {
 		return requestUuid;
 	}
@@ -52,7 +52,7 @@ public class RouteRequestEntry {
 
 	// --- Setters ---
 
-	public void setRequestUuid(String requestUuid) {
+	public void setRequestUuid(@NonNull String requestUuid) {
 		this.requestUuid = requestUuid;
 	}
 

@@ -16,6 +16,7 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.model.NodeDao;
 import org.sedo.satmesh.model.SignalKeyExchangeState;
 import org.sedo.satmesh.model.SignalKeyExchangeStateDao;
+import org.sedo.satmesh.model.rt.RouteEntry;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyEntity;
 import org.sedo.satmesh.signal.model.SignalPreKeyDao;
@@ -29,7 +30,7 @@ import org.sedo.satmesh.utils.AndroidKeyManager;
 @Database(entities = {Node.class, Message.class, MessageFts.class,
 		SignalSessionEntity.class, SignalPreKeyEntity.class,
 		SignalSignedPreKeyEntity.class, SignalIdentityKeyEntity.class,
-		SignalKeyExchangeState.class,},
+		SignalKeyExchangeState.class, RouteEntry.class},
 		version = 2)
 public abstract class AppDatabase extends RoomDatabase {
 

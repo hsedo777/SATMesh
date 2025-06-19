@@ -1,11 +1,16 @@
 package org.sedo.satmesh.ui.adapter;
 
+import android.content.res.Resources;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
@@ -27,7 +32,7 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 		this.hostNodeId = hostNodeId;
 	}
 
-	private boolean isSentByMe(Message message){
+	private boolean isSentByMe(Message message) {
 		return message != null && hostNodeId.equals(message.getSenderNodeId());
 	}
 
@@ -56,25 +61,62 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 	public static abstract class MessageViewHolder extends RecyclerView.ViewHolder {
 		protected final TextView messageText;
 		protected final TextView timestampText;
+		protected final ImageView messageStatus;
+		protected final LinearLayout messageContainer;
 
 		public MessageViewHolder(@NonNull View itemView) {
 			super(itemView);
 			messageText = itemView.findViewById(R.id.message_text);
 			timestampText = itemView.findViewById(R.id.message_time);
+			messageStatus = itemView.findViewById(R.id.message_status);
+			messageContainer = itemView.findViewById(R.id.message_container);
 		}
 
-		public void bind(Message message) {
+		public void bind(@NonNull Message message) {
 			messageText.setText(message.getContent());
+			int screenWidth = Resources.getSystem().getDisplayMetrics().widthPixels;
+			messageText.setMaxWidth((int) (0.75d * screenWidth));
 			timestampText.setText(Utils.formatTimestamp(itemView.getContext(), message.getTimestamp()));
 		}
 	}
 
 	public static class SentMessageViewHolder extends MessageViewHolder {
-
 		public SentMessageViewHolder(@NonNull View itemView) {
 			super(itemView);
 		}
-		// We will add additional behaviors
+
+		public void bind(@NonNull Message message) {
+			super.bind(message);
+			@DrawableRes int drawable;
+			switch (message.getStatus()) {
+				case Message.MESSAGE_STATUS_DELIVERED:
+					drawable = R.drawable.ic_message_status_delivered;
+					break;
+				case Message.MESSAGE_STATUS_PENDING:
+					drawable = R.drawable.ic_message_status_pending;
+					break;
+				case Message.MESSAGE_STATUS_READ:
+					drawable = R.drawable.ic_message_status_read;
+					break;
+				case Message.MESSAGE_STATUS_FAILED:
+					drawable = R.drawable.ic_message_status_failed;
+					break;
+				case Message.MESSAGE_STATUS_ROUTING:
+					drawable = R.drawable.ic_message_status_routing;
+					break;
+				case Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE:
+					drawable = R.drawable.ic_message_status_key_exchange;
+					break;
+				default:
+					drawable = -1;
+			}
+			if (drawable != -1) {
+				messageStatus.setImageDrawable(ContextCompat.getDrawable(itemView.getContext(), drawable));
+				messageStatus.setVisibility(View.VISIBLE);
+			} else {
+				messageStatus.setVisibility(View.GONE);
+			}
+		}
 	}
 
 	public static class ReceivedMessageViewHolder extends MessageViewHolder {
@@ -82,7 +124,11 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 		public ReceivedMessageViewHolder(@NonNull View itemView) {
 			super(itemView);
 		}
-		// We will add additional specialized behaviors
+
+		public void bind(@NonNull Message message) {
+			super.bind(message);
+			messageStatus.setVisibility(View.GONE);
+		}
 	}
 
 	public static class MessageDiffCallback extends DiffUtil.ItemCallback<Message> {

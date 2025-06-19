@@ -30,6 +30,7 @@ import org.sedo.satmesh.ui.ChatFragment;
 import org.sedo.satmesh.ui.ChatListFragment;
 import org.sedo.satmesh.ui.DiscussionListener;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
+import org.sedo.satmesh.ui.NearbyDiscoveryListener;
 import org.sedo.satmesh.ui.WelcomeFragment;
 import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
 import org.sedo.satmesh.utils.Constants;
@@ -37,7 +38,7 @@ import org.sedo.satmesh.utils.Constants;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener {
+public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener, NearbyDiscoveryListener {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -280,6 +281,12 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		});
 	}
 
+	// implementation of NearbyDiscoveryListener
+	public void moveToDiscoveryView(boolean removeLast, boolean addToBackStack){
+		String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
+		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, removeLast, addToBackStack);
+	}
+
 	/**
 	 * Show the fragment to display after configuration or node loading.
 	 */
@@ -296,8 +303,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 				navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, false, false);
 			} else {
 				// There is no message, redirect user on discovery fragment
-				String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
-				navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), false), Constants.TAG_DISCOVERY_FRAGMENT, true, false);
+				moveToDiscoveryView(true, false);
 			}
 		});
 	}

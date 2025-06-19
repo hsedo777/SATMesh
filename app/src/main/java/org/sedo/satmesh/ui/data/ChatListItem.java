@@ -82,11 +82,12 @@ public class ChatListItem {
 		return remoteNode.getId().equals(that.remoteNode.getId()) &&
 				unreadCount == that.unreadCount &&
 				lastMessage.equals(that.lastMessage) &&
+				nodeState == that.nodeState &&
 				remoteNode.equals(that.remoteNode);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(remoteNode, lastMessage, unreadCount);
+		return Objects.hash(remoteNode, lastMessage, nodeState, unreadCount);
 	}
 }

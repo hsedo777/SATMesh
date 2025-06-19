@@ -24,7 +24,6 @@ public class ChatListViewModel extends AndroidViewModel {
 	private final static String TAG = "ChatListViewModel";
 	// Repositories instances created or obtained within the ViewModel
 	private final MessageRepository messageRepository;
-	private final NodeTransientStateRepository nodeTransientStateRepository;
 
 	// MutableLiveData to hold the hostNodeId, which will trigger data loading
 	private final MutableLiveData<Long> hostNodeIdLiveData = new MutableLiveData<>();
@@ -36,13 +35,13 @@ public class ChatListViewModel extends AndroidViewModel {
 	private LiveData<List<ChatListItem>> currentChatListItemsSource;
 
 	// LiveData for node transient states from the nodeTransientStateRepository (which is a Map)
-	private LiveData<Map<String, NodeTransientState>> currentNodeTransientStatesSource;
+	private final LiveData<Map<String, NodeTransientState>> currentNodeTransientStatesSource;
 
 	public ChatListViewModel(@NonNull Application application) {
 		super(application);
 
 		this.messageRepository = new MessageRepository(application);
-		this.nodeTransientStateRepository = NodeTransientStateRepository.getInstance();
+		currentNodeTransientStatesSource = NodeTransientStateRepository.getInstance().getTransientNodeStates();
 
 		// Setup the MediatorLiveData to combine and enrich the data
 		chatListItems.addSource(hostNodeIdLiveData, id -> {
@@ -56,21 +55,17 @@ public class ChatListViewModel extends AndroidViewModel {
 				currentChatListItemsSource = messageRepository.getChatListItems(id);
 				chatListItems.addSource(currentChatListItemsSource, chatItems -> {
 					Log.d(TAG, "Loading items ends at: " + System.currentTimeMillis());
-					combineLatestData(chatItems, currentNodeTransientStatesSource != null ? currentNodeTransientStatesSource.getValue() : null);
+					combineLatestData(chatItems, currentNodeTransientStatesSource.getValue());
 				});
-
-				// Initialize NodeTransientStates source only once
-				if (currentNodeTransientStatesSource == null) {
-					currentNodeTransientStatesSource = nodeTransientStateRepository.getTransientNodeStates();
-					chatListItems.addSource(currentNodeTransientStatesSource, nodeStatesMap ->
-							combineLatestData(currentChatListItemsSource != null ? currentChatListItemsSource.getValue() : null, nodeStatesMap)
-					);
-				}
 			} else {
 				// If hostNodeId becomes null, clear the chat list
 				chatListItems.setValue(null);
 			}
 		});
+		// Initialize NodeTransientStates source only once
+		chatListItems.addSource(currentNodeTransientStatesSource, nodeStatesMap ->
+				combineLatestData(currentChatListItemsSource != null ? currentChatListItemsSource.getValue() : null, nodeStatesMap)
+		);
 	}
 
 	public LiveData<List<ChatListItem>> getChatListItems() {
@@ -87,7 +82,7 @@ public class ChatListViewModel extends AndroidViewModel {
 	 *
 	 * @param id The ID of the current host node.
 	 */
-	public void setHostNodeIdLiveData(Long id) {
+	public void setHostNodeIdLiveData(@NonNull Long id) {
 		// Only update if the ID is different or being set from null to a value
 		if (!Objects.equals(id, hostNodeIdLiveData.getValue())) {
 			hostNodeIdLiveData.setValue(id);

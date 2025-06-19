@@ -68,11 +68,13 @@ public class RouteUsage {
 	/**
 	 * Default constructor. Required by Room for entity instantiation.
 	 */
-	public RouteUsage() {
+	public RouteUsage(@NonNull String usageRequestUuid) {
+		this.usageRequestUuid = usageRequestUuid;
 	}
 
 	// --- Getters ---
 
+	@NonNull
 	public String getUsageRequestUuid() {
 		return usageRequestUuid;
 	}
@@ -87,7 +89,7 @@ public class RouteUsage {
 
 	// --- Setters ---
 
-	public void setUsageRequestUuid(String usageRequestUuid) {
+	public void setUsageRequestUuid(@NonNull String usageRequestUuid) {
 		this.usageRequestUuid = usageRequestUuid;
 	}
 

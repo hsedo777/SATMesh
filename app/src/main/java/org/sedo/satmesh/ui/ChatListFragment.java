@@ -24,7 +24,8 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 
 	private FragmentChatListBinding binding;
 	private ChatListAdapter chatListAdapter;
-	private DiscussionListener listener;
+	private DiscussionListener discussionListener;
+	private NearbyDiscoveryListener nearbyDiscoveryListener;
 
 	/**
 	 * Creates a new instance of ChatListFragment with the specified host node ID.
@@ -85,17 +86,23 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 			// Handle case where hostNodeId is null, stop the fragment
 			Log.e(TAG, "Unable to get ID of the host node!");
 			requireActivity().getOnBackPressedDispatcher().onBackPressed();
+			return;
 		}
 
 
 		chatListViewModel.getChatListItems().observe(getViewLifecycleOwner(), chatListItems -> {
 			// Update the RecyclerView whenever the LiveData changes
+			chatListAdapter.submitList(chatListItems);
 			if (chatListItems != null) {
-				chatListAdapter.submitList(chatListItems);
 				Log.d(TAG, "Chat list items updated. Count: " + chatListItems.size());
 			} else {
-				chatListAdapter.submitList(null); // Clear the list if data becomes null
+				// Clear the list if data becomes null
 				Log.d(TAG, "Chat list items became null, clearing list.");
+			}
+		});
+		binding.fabNodeDiscovery.setOnClickListener(view1 -> {
+			if (nearbyDiscoveryListener != null){
+				nearbyDiscoveryListener.moveToDiscoveryView(false, true);
 			}
 		});
 	}
@@ -104,7 +111,10 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
 		if (context instanceof DiscussionListener) {
-			listener = (DiscussionListener) context;
+			discussionListener = (DiscussionListener) context;
+			if (context instanceof NearbyDiscoveryListener){
+				nearbyDiscoveryListener = (NearbyDiscoveryListener) context;
+			}
 		} else {
 			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener'");
 		}
@@ -113,15 +123,16 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	@Override
 	public void onDetach() {
 		super.onDetach();
-		listener = null;
+		discussionListener = null;
+		nearbyDiscoveryListener = null;
 	}
 
 	// --- REQUIREMENT 5: Implement OnItemClickListener ---
 	@Override
 	public void onItemClick(@NonNull ChatListItem item) {
 		Log.d(TAG, "Clicked on chat item: " + item.remoteNode.getDisplayName());
-		if (listener != null){
-			listener.discussWith(item.remoteNode);
+		if (discussionListener != null){
+			discussionListener.discussWith(item.remoteNode);
 		}
 	}
 }

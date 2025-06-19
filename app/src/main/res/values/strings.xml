@@ -70,6 +70,8 @@
 	<string name="menu_known_nodes">Known Nodes</string>
 	<string name="menu_help_feedback">Help &amp; Feedback</string>
 	<string name="menu_about">About</string>
+
+	<string name="message_status">Message status</string>
 	<!--
 	<string name=""></string>
 	-->

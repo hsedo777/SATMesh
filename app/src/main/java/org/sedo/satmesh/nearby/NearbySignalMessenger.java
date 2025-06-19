@@ -292,26 +292,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param recipientAddressName The Signal Protocol address name of the recipient.
 	 * @param callback             Callback for success or failure of the Nearby Connections send operation.
 	 */
-	private void sendNearbyMessageInternal(@NonNull NearbyMessage nearbyMessage,
+	protected void sendNearbyMessageInternal(@NonNull NearbyMessage nearbyMessage,
 	                                       @NonNull String recipientAddressName,
 	                                       @NonNull BiConsumer<Payload, Boolean> callback) {
-		final String endpointId = nearbyManager.getLinkedEndpointId(recipientAddressName);
-		if (endpointId == null) {
-			Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");
-			callback.accept(null, false); // Notify failure
-			//messengerCallbacks.forEach(cb -> cb.onSendMessageFailed(recipientAddressName, "No active secured connection."));
-			return;
-		}
-
-		try {
-			byte[] messageBytes = nearbyMessage.toByteArray();
-			nearbyManager.sendNearbyMessage(endpointId, messageBytes, callback);
-			Log.d(TAG, "NearbyMessage (type: " + (nearbyMessage.getExchange() ? "KEY_EXCHANGE" : "ENCRYPTED_DATA") + ") sent to " + recipientAddressName);
-		} catch (Exception e) {
-			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-			callback.accept(null, false); // Notify failure
-			//messengerCallbacks.forEach(cb -> cb.onSendMessageFailed(recipientAddressName, "Serialization or send error: " + e.getMessage()));
-		}
+		nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, callback);
 	}
 
 	/**
@@ -824,7 +808,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					// Update node's display name and potentially other info in DB
 					Node nodeToUpdate = nodeRepository.findNodeSync(senderAddressName);
 					if (nodeToUpdate != null) {
-						nodeToUpdate.setDisplayName(personalInfo.getDisplayName());
+						nodeToUpdate.setPersonalInfo(personalInfo);
 						nodeToUpdate.setLastSeen(System.currentTimeMillis()); // Update last seen as well
 						nodeRepository.update(nodeToUpdate);
 						Log.d(TAG, "Received and updated PersonalInfo for " + senderAddressName + ": " + personalInfo.getDisplayName());

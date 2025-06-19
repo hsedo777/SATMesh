@@ -5,6 +5,16 @@
 	<color name="colorError">#B00000</color>
 	<color name="colorOnError">#FFFFFF</color>
 
+	<color name="primaryColor">#F8F3F3</color>
+	<color name="colorOnPrimary">@color/black</color>
+	<color name="colorOnPrimaryHint">#332F2F</color>
+	<color name="secondaryColor">#4E8CA3</color>
+	<color name="colorOnSecondary">@color/white</color>
+
+	<!-- Message exchange -->
+	<color name="messageSentBackground">#574F5C</color>
+	<color name="messageSentText">@color/white</color>
+
 	<color name="colorPrimary">#4E8CA3</color>
 	<color name="colorPrimarySlightlyDarker">#478299</color>
 	<color name="colorPrimaryDark">#40788C</color>
@@ -28,11 +38,14 @@
 	<!-- Button text, links… -->
 	<color name="colorAccentText">#4E8CA3</color>
 	<color name="buttonDisabledBackground">#AAAAAA</color>
+	<color name="buttonDisabledText">@color/black</color>
 
 	<color name="gradientStart">@color/colorPrimary</color>
 	<color name="gradientEnd">@color/colorSurface</color>
-	<color name="cardBackground">#EFF5F5</color>
-	<color name="cardText">@color/colorOnSurface</color>
+	<color name="cardBackgroundColor">#EFF5F5</color>
+	<color name="cardBackgroundColor2">#FFECE6F0</color>
+	<color name="cardText">@color/colorOnPrimary</color>
+	<color name="cardText2">@color/black</color>
 
 	<color name="colorOutline">#79747E</color>
 

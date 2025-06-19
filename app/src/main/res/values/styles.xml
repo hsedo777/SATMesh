@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 	<!-- res/values/styles.xml -->
-	<style name="Widget.SATMesh.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-		<item name="android:textColorHint">@color/colorSurface</item>
-		<item name="hintTextColor">@color/colorSurface</item>
-		<item name="counterTextColor">@color/colorSurface</item>
-		<item name="boxStrokeColor">@color/colorPrimarySlightlyDarker</item>
+	<style name="Widget.SATMesh.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+		<item name="android:textColorHint">@color/colorOnPrimary</item>
+		<item name="hintTextColor">@color/colorOnPrimaryHint</item>
+		<item name="counterTextColor">@color/colorOnPrimary</item>
+		<item name="boxStrokeColor">@color/secondaryColor</item>
 		<item name="boxStrokeWidth">1dp</item>
 		<item name="boxCornerRadiusTopStart">8dp</item>
 		<item name="boxCornerRadiusTopEnd">8dp</item>
@@ -13,23 +13,25 @@
 		<item name="boxCornerRadiusBottomEnd">8dp</item>
 	</style>
 
-	<style name="Widget.SATMesh.TextInputEditText" parent="Widget.MaterialComponents.TextInputEditText.OutlinedBox">
-		<item name="android:textColor">@color/colorSurface</item>
-		<item name="android:background">@color/colorPrimarySlightlyDarker</item>
+	<style name="Widget.SATMesh.TextInputEditText" parent="Widget.Material3.TextInputEditText.OutlinedBox">
+		<item name="android:textColor">@color/colorOnPrimary</item>
 		<item name="android:paddingTop">16dp</item>
 		<item name="android:paddingBottom">16dp</item>
 		<item name="android:paddingStart">12dp</item>
 		<item name="android:paddingEnd">12dp</item>
 	</style>
 
-	<style name="Widget.SATMesh.Button" parent="Widget.MaterialComponents.Button">
+	<style name="Widget.SATMesh.TextInputEditText.Home" parent="Widget.SATMesh.TextInputEditText">
+	</style>
+
+	<style name="Widget.SATMesh.Button" parent="Widget.Material3.Button">
 		<item name="backgroundTint">@color/button_background_tint</item>
 		<item name="android:textColor">@color/button_text_color</item>
-		<item name="cornerRadius">8dp</item>
+		<item name="cornerRadius">32dp</item>
 		<item name="elevation">4dp</item>
 	</style>
 
-	<style name="Widget.SATMesh.TextInput" parent="Widget.MaterialComponents.TextInputLayout.FilledBox.Dense">
+	<style name="Widget.SATMesh.TextInput" parent="Widget.Material3.TextInputLayout.FilledBox.Dense">
 		<item name="android:textColorHint">@color/textHint</item>
 		<item name="boxStrokeColor">@color/accent</item>
 		<item name="boxBackgroundColor">@color/colorPrimaryDark</item>
@@ -44,20 +46,20 @@
 		<item name="hintTextAppearance">@style/Widget.SATMesh.TextHint</item>
 	</style>
 
-	<style name="Widget.SATMesh.TextHint" parent="TextAppearance.MaterialComponents.Caption">
+	<style name="Widget.SATMesh.TextHint" parent="TextAppearance.Material3.BodySmall">
 		<item name="android:textColor">@color/textHint</item>
 	</style>
 
 
 	<!-- Style for BottomNavigationView -->
-	<style name="Widget.SATMesh.BottomNavigation" parent="Widget.MaterialComponents.BottomNavigationView">
+	<style name="Widget.SATMesh.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
 		<item name="android:background">@color/colorBackground</item>
 		<item name="itemIconTint">@color/bottom_nav_icon_color</item>
 		<item name="itemTextColor">@color/bottom_nav_icon_color</item>
 	</style>
 
 	<!-- Style for ActionBar (Toolbar) -->
-	<style name="Widget.SATMesh.ActionBar" parent="Widget.MaterialComponents.Toolbar">
+	<style name="Widget.SATMesh.ActionBar" parent="Widget.Material3.Toolbar">
 		<item name="android:background">@color/colorBackground</item>
 		<item name="android:titleTextColor">@color/textPrimary</item>
 		<item name="android:subtitleTextColor">@color/textSecondary</item>

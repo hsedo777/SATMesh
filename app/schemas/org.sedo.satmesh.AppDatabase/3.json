@@ -1,0 +1,586 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "2f51b16afc4bb1f05e282e22b5ef02c7",
+    "entities": [
+      {
+        "tableName": "node",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `displayName` TEXT, `addressName` TEXT, `trusted` INTEGER NOT NULL, `lastSeen` INTEGER, `connected` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "addressName",
+            "columnName": "addressName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "trusted",
+            "columnName": "trusted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSeen",
+            "columnName": "lastSeen",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "connected",
+            "columnName": "connected",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_node_addressName",
+            "unique": true,
+            "columnNames": [
+              "addressName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_node_addressName` ON `${TABLE_NAME}` (`addressName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "message",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `payloadId` INTEGER, `content` TEXT, `timestamp` INTEGER NOT NULL, `status` INTEGER NOT NULL, `type` INTEGER NOT NULL, `senderNodeId` INTEGER, `recipientNodeId` INTEGER, FOREIGN KEY(`senderNodeId`) REFERENCES `node`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`recipientNodeId`) REFERENCES `node`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "payloadId",
+            "columnName": "payloadId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderNodeId",
+            "columnName": "senderNodeId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recipientNodeId",
+            "columnName": "recipientNodeId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_message_payloadId",
+            "unique": true,
+            "columnNames": [
+              "payloadId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_message_payloadId` ON `${TABLE_NAME}` (`payloadId`)"
+          },
+          {
+            "name": "index_message_senderNodeId",
+            "unique": false,
+            "columnNames": [
+              "senderNodeId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_message_senderNodeId` ON `${TABLE_NAME}` (`senderNodeId`)"
+          },
+          {
+            "name": "index_message_recipientNodeId",
+            "unique": false,
+            "columnNames": [
+              "recipientNodeId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_message_recipientNodeId` ON `${TABLE_NAME}` (`recipientNodeId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "node",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "senderNodeId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "node",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "recipientNodeId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "message_fts",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`content` TEXT, `senderNodeId` INTEGER, `recipientNodeId` INTEGER, content=`message`)",
+        "fields": [
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "senderNodeId",
+            "columnName": "senderNodeId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recipientNodeId",
+            "columnName": "recipientNodeId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "rowid"
+          ]
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "message",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": [
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_message_fts_BEFORE_UPDATE BEFORE UPDATE ON `message` BEGIN DELETE FROM `message_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_message_fts_BEFORE_DELETE BEFORE DELETE ON `message` BEGIN DELETE FROM `message_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_message_fts_AFTER_UPDATE AFTER UPDATE ON `message` BEGIN INSERT INTO `message_fts`(`docid`, `content`, `senderNodeId`, `recipientNodeId`) VALUES (NEW.`rowid`, NEW.`content`, NEW.`senderNodeId`, NEW.`recipientNodeId`); END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_message_fts_AFTER_INSERT AFTER INSERT ON `message` BEGIN INSERT INTO `message_fts`(`docid`, `content`, `senderNodeId`, `recipientNodeId`) VALUES (NEW.`rowid`, NEW.`content`, NEW.`senderNodeId`, NEW.`recipientNodeId`); END"
+        ]
+      },
+      {
+        "tableName": "signal_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`address` TEXT NOT NULL, `record` BLOB, PRIMARY KEY(`address`))",
+        "fields": [
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "record",
+            "columnName": "record",
+            "affinity": "BLOB"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "address"
+          ]
+        }
+      },
+      {
+        "tableName": "signal_prekeys",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`keyId` INTEGER NOT NULL, `record` BLOB, `used` INTEGER NOT NULL, PRIMARY KEY(`keyId`))",
+        "fields": [
+          {
+            "fieldPath": "keyId",
+            "columnName": "keyId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "record",
+            "columnName": "record",
+            "affinity": "BLOB"
+          },
+          {
+            "fieldPath": "used",
+            "columnName": "used",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "keyId"
+          ]
+        }
+      },
+      {
+        "tableName": "signal_signed_prekeys",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`keyId` INTEGER NOT NULL, `record` BLOB, PRIMARY KEY(`keyId`))",
+        "fields": [
+          {
+            "fieldPath": "keyId",
+            "columnName": "keyId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "record",
+            "columnName": "record",
+            "affinity": "BLOB"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "keyId"
+          ]
+        }
+      },
+      {
+        "tableName": "signal_identity_keys",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`address` TEXT NOT NULL, `identityKey` BLOB, PRIMARY KEY(`address`))",
+        "fields": [
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identityKey",
+            "columnName": "identityKey",
+            "affinity": "BLOB"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "address"
+          ]
+        }
+      },
+      {
+        "tableName": "signal_key_exchange_states",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `remote_address` TEXT NOT NULL, `last_our_sent_attempt` INTEGER, `last_their_received_attempt` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "remoteAddress",
+            "columnName": "remote_address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastOurSentAttempt",
+            "columnName": "last_our_sent_attempt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastTheirReceivedAttempt",
+            "columnName": "last_their_received_attempt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_signal_key_exchange_states_remote_address",
+            "unique": true,
+            "columnNames": [
+              "remote_address"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_signal_key_exchange_states_remote_address` ON `${TABLE_NAME}` (`remote_address`)"
+          }
+        ]
+      },
+      {
+        "tableName": "route_entry",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `discovery_uuid` TEXT, `destination_node_local_id` INTEGER, `next_hop_local_id` INTEGER, `previous_hop_local_id` INTEGER, `hop_count` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "discoveryUuid",
+            "columnName": "discovery_uuid",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "destinationNodeLocalId",
+            "columnName": "destination_node_local_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "nextHopLocalId",
+            "columnName": "next_hop_local_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "previousHopLocalId",
+            "columnName": "previous_hop_local_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hopCount",
+            "columnName": "hop_count",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_route_entry_discovery_uuid",
+            "unique": true,
+            "columnNames": [
+              "discovery_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_route_entry_discovery_uuid` ON `${TABLE_NAME}` (`discovery_uuid`)"
+          },
+          {
+            "name": "index_route_entry_destination_node_local_id",
+            "unique": false,
+            "columnNames": [
+              "destination_node_local_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_route_entry_destination_node_local_id` ON `${TABLE_NAME}` (`destination_node_local_id`)"
+          },
+          {
+            "name": "index_route_entry_next_hop_local_id",
+            "unique": false,
+            "columnNames": [
+              "next_hop_local_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_route_entry_next_hop_local_id` ON `${TABLE_NAME}` (`next_hop_local_id`)"
+          },
+          {
+            "name": "index_route_entry_previous_hop_local_id",
+            "unique": false,
+            "columnNames": [
+              "previous_hop_local_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_route_entry_previous_hop_local_id` ON `${TABLE_NAME}` (`previous_hop_local_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "route_request_entry",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`request_uuid` TEXT NOT NULL, `destination_node_local_id` INTEGER, `previous_hop_local_id` INTEGER, PRIMARY KEY(`request_uuid`))",
+        "fields": [
+          {
+            "fieldPath": "requestUuid",
+            "columnName": "request_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "destinationNodeLocalId",
+            "columnName": "destination_node_local_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "previousHopLocalId",
+            "columnName": "previous_hop_local_id",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "request_uuid"
+          ]
+        }
+      },
+      {
+        "tableName": "route_usage",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`usage_request_uuid` TEXT NOT NULL, `route_entry_discovery_uuid` TEXT, `last_used_timestamp` INTEGER, PRIMARY KEY(`usage_request_uuid`), FOREIGN KEY(`route_entry_discovery_uuid`) REFERENCES `route_entry`(`discovery_uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "usageRequestUuid",
+            "columnName": "usage_request_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "routeEntryDiscoveryUuid",
+            "columnName": "route_entry_discovery_uuid",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastUsedTimestamp",
+            "columnName": "last_used_timestamp",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "usage_request_uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_route_usage_route_entry_discovery_uuid",
+            "unique": false,
+            "columnNames": [
+              "route_entry_discovery_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_route_usage_route_entry_discovery_uuid` ON `${TABLE_NAME}` (`route_entry_discovery_uuid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "route_entry",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "route_entry_discovery_uuid"
+            ],
+            "referencedColumns": [
+              "discovery_uuid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "broadcast_status_entry",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`request_uuid` TEXT NOT NULL, `neighbor_node_local_id` INTEGER NOT NULL, `is_pending_response_in_progress` INTEGER NOT NULL, PRIMARY KEY(`request_uuid`, `neighbor_node_local_id`), FOREIGN KEY(`request_uuid`) REFERENCES `route_request_entry`(`request_uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "requestUuid",
+            "columnName": "request_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "neighborNodeLocalId",
+            "columnName": "neighbor_node_local_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPendingResponseInProgress",
+            "columnName": "is_pending_response_in_progress",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "request_uuid",
+            "neighbor_node_local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_broadcast_status_entry_request_uuid",
+            "unique": false,
+            "columnNames": [
+              "request_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_broadcast_status_entry_request_uuid` ON `${TABLE_NAME}` (`request_uuid`)"
+          },
+          {
+            "name": "index_broadcast_status_entry_neighbor_node_local_id",
+            "unique": false,
+            "columnNames": [
+              "neighbor_node_local_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_broadcast_status_entry_neighbor_node_local_id` ON `${TABLE_NAME}` (`neighbor_node_local_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "route_request_entry",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "request_uuid"
+            ],
+            "referencedColumns": [
+              "request_uuid"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2f51b16afc4bb1f05e282e22b5ef02c7')"
+    ]
+  }
+}

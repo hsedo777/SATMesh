@@ -5,11 +5,11 @@
 		<item name="colorPrimary">@color/colorPrimary</item>
 		<item name="colorSecondary">@color/colorPrimaryVariant</item>
 		<item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-		<item name="android:colorBackground">@color/colorPrimary</item>
-		<item name="colorOnBackground">@color/textPrimary</item>
+		<item name="android:colorBackground">@color/primaryColor</item>
+		<item name="colorOnBackground">@color/colorOnPrimary</item>
 
 		<!-- Surfaces (cards, sheets…) -->
-		<item name="colorSurface">@color/colorSurface</item>
+		<item name="colorSurface">@color/colorOnPrimary</item>
 		<item name="colorOnSurface">@color/colorOnSurface</item>
 		<item name="colorOnSurfaceVariant">@color/colorSurfaceLight</item>
 

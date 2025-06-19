@@ -5,8 +5,9 @@
 	android:layout_height="wrap_content"
 	android:layout_marginHorizontal="@dimen/space_sm"
 	android:layout_marginVertical="@dimen/space_sm"
-	android:background="@drawable/discovery_card_background"
-	app:cardElevation="4dp"
+	app:cardBackgroundColor="@color/cardBackgroundColor"
+	app:strokeColor="@color/secondaryColor"
+	app:cardElevation="8dp"
 	android:clickable="true"
 	android:focusable="true">
 

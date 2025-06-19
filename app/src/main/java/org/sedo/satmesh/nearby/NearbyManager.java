@@ -21,6 +21,7 @@ import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
 
+import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
@@ -507,6 +508,33 @@ public class NearbyManager {
 		endpointStates.clear();
 		addressNameToEndpointId.clear();
 		Log.d(TAG, "All Nearby interactions stopped and connections reset.");
+	}
+
+	/**
+	 * This method handles the serialization of the NearbyMessage object and sends it via Nearby Connections.
+	 *
+	 * @param nearbyMessage        The NearbyMessage protobuf object to send.
+	 * @param recipientAddressName The Signal Protocol address name of the recipient.
+	 * @param callback             Callback for success or failure of the Nearby Connections send operation.
+	 */
+	protected void sendNearbyMessageInternal(@NonNull NearbyMessage nearbyMessage,
+	                                         @NonNull String recipientAddressName,
+	                                         @NonNull BiConsumer<Payload, Boolean> callback) {
+		final String endpointId = getLinkedEndpointId(recipientAddressName);
+		if (endpointId == null) {
+			Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");
+			callback.accept(null, false); // Notify failure
+			return;
+		}
+
+		try {
+			byte[] messageBytes = nearbyMessage.toByteArray();
+			sendNearbyMessage(endpointId, messageBytes, callback);
+			Log.d(TAG, "NearbyMessage (type: " + (nearbyMessage.getExchange() ? "KEY_EXCHANGE" : "ENCRYPTED_DATA") + ") sent to " + recipientAddressName);
+		} catch (Exception e) {
+			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
+			callback.accept(null, false); // Notify failure
+		}
 	}
 
 	/**

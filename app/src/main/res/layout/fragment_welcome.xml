@@ -16,7 +16,7 @@
 		android:layout_height="wrap_content"
 		android:text="@string/welcome_title"
 		android:textSize="@dimen/text_size_heading"
-		android:textColor="?attr/colorSurface"
+		android:textColor="@color/colorOnPrimary"
 		android:textStyle="bold"
 		android:textAlignment="center"
 		android:layout_marginTop="@dimen/space_lg"/>
@@ -26,8 +26,7 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:text="@string/welcome_description"
-		android:textAppearance="?attr/textAppearanceBodyMedium"
-		android:textColor="?attr/colorSurface"
+		android:textColor="@color/colorOnPrimary"
 		android:textSize="@dimen/text_size_title"
 		android:textAlignment="center"
 		android:layout_marginTop="@dimen/space_md"/>

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<!-- res/values/styles.xml -->
 	<style name="Widget.SATMesh.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
 		<item name="android:textColorHint">@color/colorOnPrimary</item>
 		<item name="hintTextColor">@color/colorOnPrimaryHint</item>

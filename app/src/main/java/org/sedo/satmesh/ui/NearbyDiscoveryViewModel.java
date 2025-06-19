@@ -154,14 +154,9 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 						 */
 						if (state.connectionState == NodeState.ON_DISCONNECTED) {
 							nodeInList.node.setConnected(false); // Mark as not connected for UI purposes
-							// The NodeStateRepository is responsible for eventually removing this if truly lost.
+							// The `NearbySignalMessenger` is responsible for eventually removing this if truly lost.
 							Log.d(TAG, "Transient: Marking " + addressName + " as temporarily disconnected.");
 						}
-						/*
-						 * For other states like ON_ENDPOINT_FOUND or ON_CONNECTION_INITIATED,
-						 * if the node is already connected (from DB), we typically show it as connected.
-						 * So, no change needed here if already in seenNodes.
-						 */
 					} else {
 						// This node is not in the DB's connected list.
 						// It must be a newly discovered, pending, or failed-to-connect node.

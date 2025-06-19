@@ -116,7 +116,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 				}
 			});
 		}
-		adapter = new NearbyDiscoveryAdapter(requireContext());
+		adapter = new NearbyDiscoveryAdapter();
 		adapter.attachOnNodeClickListener(new OnNodeClickListener() {
 			@Override
 			public void onClick(@NonNull NodeDiscoveryItem item) {

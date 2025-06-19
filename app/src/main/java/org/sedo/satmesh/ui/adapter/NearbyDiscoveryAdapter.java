@@ -2,7 +2,6 @@ package org.sedo.satmesh.ui.adapter;
 
 import static org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.NodeDiscoveryViewHolder;
 
-import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,13 +18,11 @@ import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
 
 public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeDiscoveryViewHolder> {
 
-	private final Context context;
 	private final OnChildClickCallback callback;
 	private OnNodeClickListener clickListener;
 
-	public NearbyDiscoveryAdapter(Context context) {
+	public NearbyDiscoveryAdapter() {
 		super(new NearbyDiscoveryDiffUtil());
-		this.context = context;
 		callback = new OnChildClickCallback() {
 			@Override
 			public void onClick(int position) {
@@ -52,7 +49,7 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 	@NonNull
 	@Override
 	public NodeDiscoveryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-		View view = LayoutInflater.from(context).inflate(R.layout.item_nearby_node, parent, false);
+		View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_nearby_node, parent, false);
 		return new NodeDiscoveryViewHolder(view, callback);
 	}
 

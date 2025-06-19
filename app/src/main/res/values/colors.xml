@@ -11,9 +11,29 @@
 	<color name="secondaryColor">#4E8CA3</color>
 	<color name="colorOnSecondary">@color/white</color>
 
+	<!-- Button text, links… -->
+	<color name="buttonDisabledBackground">#AAAAAA</color>
+	<color name="buttonDisabledText">@color/black</color>
+
 	<!-- Message exchange -->
 	<color name="messageSentBackground">#574F5C</color>
 	<color name="messageSentText">@color/white</color>
+
+	<color name="gradientStart">@color/secondaryColor</color>
+	<color name="gradientEnd">@color/white</color>
+	<color name="cardBackgroundColor">#EFF5F5</color>
+	<color name="cardBackgroundColor2">#FFECE6F0</color>
+	<color name="cardText">@color/colorOnPrimary</color>
+	<color name="cardText2">@color/black</color>
+
+	<!-- Connection states -->
+	<color name="node_state_found">#FBFAF8</color>
+	<color name="node_state_connecting">#FF9800</color>
+	<color name="node_state_connected">#367839</color>
+	<color name="node_state_lost">#E5AB4644</color>
+	<color name="node_state_disconnected">#040404</color>
+	<color name="node_state_failed">#FF0202</color>
+	<color name="node_state_unknown">#FFAAAAAA</color>
 
 	<color name="colorPrimary">#4E8CA3</color>
 	<color name="colorPrimarySlightlyDarker">#478299</color>
@@ -23,10 +43,8 @@
 	<color name="textPrimary">#1F3338</color>
 	<color name="textSecondary">#4B666E</color>
 	<color name="textLight">#AAAAAA</color>
-
 	<color name="textHint">#B3FFFFFF</color>
 	<color name="accent">#80D8FF</color>
-
 	<!-- Surfaces and cards -->
 	<color name="colorSurface">#FFFFFF</color>
 	<color name="colorSurfaceContainerHigh">#F3EDF7</color>
@@ -35,26 +53,9 @@
 	<color name="colorOnSurfaceVariant">#49454F</color>
 	<color name="surfaceMedium">#04BFB6</color>
 
-	<!-- Button text, links… -->
 	<color name="colorAccentText">#4E8CA3</color>
-	<color name="buttonDisabledBackground">#AAAAAA</color>
-	<color name="buttonDisabledText">@color/black</color>
-
-	<color name="gradientStart">@color/colorPrimary</color>
-	<color name="gradientEnd">@color/colorSurface</color>
-	<color name="cardBackgroundColor">#EFF5F5</color>
-	<color name="cardBackgroundColor2">#FFECE6F0</color>
-	<color name="cardText">@color/colorOnPrimary</color>
-	<color name="cardText2">@color/black</color>
 
 	<color name="colorOutline">#79747E</color>
-
-	<color name="node_state_found">#FBFAF8</color>
-	<color name="node_state_connecting">#FF9800</color>
-	<color name="node_state_connected">#367839</color>
-	<color name="node_state_lost">#E5AB4644</color>
-	<color name="node_state_disconnected">#040404</color>
-	<color name="node_state_failed">#FF0202</color>
 
 	<!--
 	<color name="">#</color>

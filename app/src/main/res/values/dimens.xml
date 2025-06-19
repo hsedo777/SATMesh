@@ -22,4 +22,5 @@
 
 	<!-- Corner radius -->
 	<dimen name="corner_radius">12dp</dimen>
+	<dimen name="node_state_indication_radius">12dp</dimen>
 </resources>

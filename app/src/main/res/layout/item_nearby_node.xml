@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
 	android:layout_marginHorizontal="@dimen/space_sm"
@@ -28,12 +29,13 @@
 			android:layout_weight="1"
 			android:textColor="@color/cardText"
 			android:textSize="@dimen/text_size_title"
-			android:textStyle="bold" />
+			android:textStyle="bold"
+			tools:text="Alice"/>
 
 		<View
 			android:id="@+id/status_indicator"
-			android:layout_width="12dp"
-			android:layout_height="12dp"
+			android:layout_width="@dimen/node_state_indication_radius"
+			android:layout_height="@dimen/node_state_indication_radius"
 			android:layout_marginStart="@dimen/space_md"
 			android:background="@drawable/status_indicator" />
 	</LinearLayout>

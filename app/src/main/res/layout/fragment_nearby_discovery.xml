@@ -16,7 +16,7 @@
 		android:layout_marginTop="@dimen/space_xl"
 		android:gravity="center"
 		android:text="@string/nearby_discovery_title"
-		android:textColor="@color/white"
+		android:textColor="@color/colorOnSecondary"
 		android:textSize="28sp"
 		android:textStyle="bold"
 		app:layout_constraintEnd_toEndOf="parent"
@@ -30,8 +30,8 @@
 		android:layout_marginTop="@dimen/space_md"
 		android:gravity="center"
 		android:text="@string/nearby_discovery_description"
-		android:textColor="@color/white"
-		android:textSize="16sp"
+		android:textColor="@color/colorOnSecondary"
+		android:textSize="@dimen/text_size_body"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@id/nearby_title" />
@@ -42,7 +42,7 @@
 		android:layout_height="wrap_content"
 		android:layout_marginTop="@dimen/space_xl"
 		android:indeterminate="true"
-		android:indeterminateTint="@color/white"
+		android:indeterminateTint="@color/colorOnSecondary"
 		android:visibility="gone"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
@@ -56,7 +56,7 @@
 		android:layout_marginTop="@dimen/space_xl"
 		android:gravity="center"
 		android:text="@string/no_nearby_nodes_found"
-		android:textColor="@color/white"
+		android:textColor="@color/colorOnSecondary"
 		android:textSize="18sp"
 		android:visibility="gone"
 		app:layout_constraintEnd_toEndOf="parent"
@@ -66,7 +66,7 @@
 
 	<androidx.recyclerview.widget.RecyclerView
 		android:id="@+id/nearby_nodes_recycler_view"
-		android:layout_width="0dp"
+		android:layout_width="match_parent"
 		android:layout_height="0dp"
 		android:layout_marginTop="@dimen/space_xl"
 		android:clipToPadding="false"
@@ -77,5 +77,6 @@
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@id/empty_state_text"
-		tools:listitem="@layout/item_nearby_node" />
+		tools:listitem="@layout/item_nearby_node"
+		tools:visibility="visible"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

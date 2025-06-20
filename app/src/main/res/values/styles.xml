@@ -42,10 +42,5 @@
 		<item name="boxStrokeWidth">1dp</item>
 		<item name="boxStrokeWidthFocused">2dp</item>
 		<item name="android:padding">4dp</item>
-<!--		<item name="hintTextAppearance">@style/Widget.SATMesh.TextHint</item>-->
-	</style>
-
-	<style name="Widget.SATMesh.TextHint" parent="TextAppearance.Material3.BodySmall">
-		<item name="android:textColor">@color/textHint</item>
 	</style>
 </resources>

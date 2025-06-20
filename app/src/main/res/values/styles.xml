@@ -30,10 +30,10 @@
 		<item name="elevation">4dp</item>
 	</style>
 
-	<style name="Widget.SATMesh.TextInput" parent="Widget.Material3.TextInputLayout.FilledBox.Dense">
-		<item name="android:textColorHint">@color/textHint</item>
-		<item name="boxStrokeColor">@color/accent</item>
-		<item name="boxBackgroundColor">@color/colorPrimaryDark</item>
+	<style name="Widget.SATMesh.TextInputLayout.Message" parent="Widget.Material3.TextInputLayout.FilledBox.Dense">
+		<item name="android:textColorHint">@color/colorOnSecondary</item>
+		<item name="boxStrokeColor">@color/colorOnSecondary</item>
+		<item name="boxBackgroundColor">@color/secondaryColor</item>
 		<item name="boxBackgroundMode">filled</item>
 		<item name="boxCornerRadiusTopStart">12dp</item>
 		<item name="boxCornerRadiusTopEnd">12dp</item>
@@ -42,26 +42,10 @@
 		<item name="boxStrokeWidth">1dp</item>
 		<item name="boxStrokeWidthFocused">2dp</item>
 		<item name="android:padding">4dp</item>
-		<item name="hintTextAppearance">@style/Widget.SATMesh.TextHint</item>
+<!--		<item name="hintTextAppearance">@style/Widget.SATMesh.TextHint</item>-->
 	</style>
 
 	<style name="Widget.SATMesh.TextHint" parent="TextAppearance.Material3.BodySmall">
 		<item name="android:textColor">@color/textHint</item>
 	</style>
-
-
-	<!-- Style for BottomNavigationView -->
-	<style name="Widget.SATMesh.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
-		<item name="android:background">@color/colorBackground</item>
-		<item name="itemIconTint">@color/bottom_nav_icon_color</item>
-		<item name="itemTextColor">@color/bottom_nav_icon_color</item>
-	</style>
-
-	<!-- Style for ActionBar (Toolbar) -->
-	<style name="Widget.SATMesh.ActionBar" parent="Widget.Material3.Toolbar">
-		<item name="android:background">@color/colorBackground</item>
-		<item name="android:titleTextColor">@color/textPrimary</item>
-		<item name="android:subtitleTextColor">@color/textSecondary</item>
-	</style>
-
 </resources>

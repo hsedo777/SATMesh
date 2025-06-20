@@ -38,7 +38,7 @@
 	<string name="status_waiting_to_send_our_keys">En attente d\'envoi de nos clés au nœud distant.</string>
 	<string name="status_waiting_for_their_keys">En attente des clés du nœud distant…</string>
 	<string name="status_negotiating_secure_session_with_issue">Négociation de la session sécurisée (problème détecté)…</string>
-	<string name="status_not_connected_nearby">Non connecté à %s via Nearby.</string>
+	<string name="status_not_connected_nearby">Non connecté</string>
 	<string name="error_connection_state_unknown">État de la connexion inconnu.</string>
 
 	<string name="error_secure_session_not_active">Session sécurisée non active. Impossible d\'envoyer le message.</string>

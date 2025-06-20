@@ -11,24 +11,25 @@
 		android:id="@+id/chat_toolbar"
 		android:layout_width="0dp"
 		android:layout_height="?attr/actionBarSize"
-		android:background="@color/colorPrimary"
-		android:titleTextColor="@color/white"
+		app:title="@string/app_name"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
+		android:background="@color/secondaryColor"
+		app:titleTextColor="@color/colorOnSecondary"
+		app:subtitleTextColor="@color/colorOnSecondary"
 		app:menu="@menu/chat_menu"
-		app:navigationIcon="@drawable/ic_arrow_back"
-		app:titleTextAppearance="@style/TextAppearance.Widget.AppCompat.Toolbar.Title" />
+		android:elevation="@dimen/space_xs"
+		app:navigationIcon="@drawable/ic_arrow_back"/>
 
 	<!-- Connectivity indicator (over toolbar content) -->
 	<View
 		android:id="@+id/connection_indicator"
-		android:layout_width="@dimen/space_md"
-		android:layout_height="@dimen/space_md"
-		app:layout_constraintCircleRadius="@dimen/space_md"
+		android:layout_width="@dimen/node_state_indication_radius"
+		android:layout_height="@dimen/node_state_indication_radius"
 		android:layout_marginEnd="40dp"
+		android:elevation="@dimen/space_md"
 		android:background="@drawable/status_indicator"
-		android:shape="oval"
 		app:layout_constraintBottom_toBottomOf="@id/chat_toolbar"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintTop_toTopOf="@id/chat_toolbar" />
@@ -69,9 +70,10 @@
 			android:id="@+id/message_input_frame">
 
 			<com.google.android.material.textfield.TextInputLayout
-				style="@style/Widget.SATMesh.TextInput"
+				style="@style/Widget.SATMesh.TextInputLayout.Message"
 				android:layout_width="match_parent"
-				android:layout_height="wrap_content">
+				android:layout_height="wrap_content"
+				app:hintEnabled="false">
 
 				<com.google.android.material.textfield.TextInputEditText
 					android:id="@+id/message_edit_text"
@@ -87,9 +89,8 @@
 					android:paddingStart="12dp"
 					android:paddingVertical="10dp"
 					android:paddingEnd="48dp"
-					android:textColor="@color/white"
-					android:textColorHint="@color/textHint"
-					android:textCursorDrawable="@drawable/white_cursor" />
+					android:textColor="@color/colorOnSecondary"
+					android:textColorHint="@color/colorOnSecondary" />
 			</com.google.android.material.textfield.TextInputLayout>
 
 			<ImageButton
@@ -101,7 +102,7 @@
 				android:background="@drawable/send_button_background"
 				android:contentDescription="@string/send_message_description"
 				android:src="@drawable/ic_send"
-				app:tint="@color/surfaceMedium"
+				app:tint="@color/secondaryColor"
 				android:clickable="true"
 				android:focusable="true"/>
 		</FrameLayout>

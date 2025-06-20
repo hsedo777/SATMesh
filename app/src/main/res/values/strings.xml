@@ -37,7 +37,7 @@
 	<string name="status_waiting_to_send_our_keys">Waiting to send our keys to the remote node.</string>
 	<string name="status_waiting_for_their_keys">Waiting for remote node\'s keys…</string>
 	<string name="status_negotiating_secure_session_with_issue">Negotiating secure session (issue detected)…</string>
-	<string name="status_not_connected_nearby">Not connected to %s via Nearby.</string>
+	<string name="status_not_connected_nearby">Not connected</string>
 	<string name="error_connection_state_unknown">Connection state unknown.</string>
 
 	<string name="error_secure_session_not_active">Secure session not active. Cannot send message.</string>

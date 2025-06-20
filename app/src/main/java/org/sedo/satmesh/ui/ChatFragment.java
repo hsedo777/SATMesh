@@ -1,5 +1,6 @@
 package org.sedo.satmesh.ui;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -33,6 +34,8 @@ public class ChatFragment extends Fragment {
 
 	private static final String ARG_HOST_PREFIX = "host_node_";
 	private static final String ARG_REMOTE_PREFIX = "remote_node_";
+
+	private ChatListAccessor chatListAccessor;
 
 	private ChatViewModel viewModel;
 	private ChatAdapter adapter;
@@ -105,7 +108,11 @@ public class ChatFragment extends Fragment {
 		}
 
 		Toolbar toolbar = binding.chatToolbar;
-		toolbar.setNavigationOnClickListener(v -> requireActivity().getOnBackPressedDispatcher().onBackPressed());
+		toolbar.setNavigationOnClickListener(v -> {
+			if (chatListAccessor != null) {
+				chatListAccessor.moveToChatList(true, true);
+			}
+		});
 
 		// IMPROVED: Toolbar click listener for potential manual re-initiation or info display
 		toolbar.setOnClickListener(v -> {
@@ -122,9 +129,12 @@ public class ChatFragment extends Fragment {
 				}
 			} else {
 				// If connection is active/secure, maybe show a "secured" toast or details
-				Toast.makeText(getContext(), R.string.status_secure_session_active, Toast.LENGTH_SHORT).show();
+				Toast.makeText(getContext(), R.string.status_secure_session_active, Toast.LENGTH_LONG).show();
 			}
 		});
+		if (toolbar.getOverflowIcon() != null) {
+			toolbar.getOverflowIcon().setTint(ContextCompat.getColor(requireContext(), R.color.colorOnSecondary));
+		}
 
 
 		adapter = new ChatAdapter(hostNode.getId());
@@ -163,7 +173,7 @@ public class ChatFragment extends Fragment {
 		// Observers of `ViewModel`'s `LiveData`s
 		viewModel.getConversation().observe(getViewLifecycleOwner(), messages -> {
 			adapter.submitList(messages);
-			if (!messages.isEmpty()) {
+			if (messages != null && !messages.isEmpty()) {
 				// Scroll to bottom only if it's not already at the bottom to avoid jumpiness
 				// Or always scroll if it's a new message
 				binding.chatRecyclerView.scrollToPosition(messages.size() - 1);
@@ -172,7 +182,8 @@ public class ChatFragment extends Fragment {
 
 		viewModel.getUiMessage().observe(getViewLifecycleOwner(), message -> {
 			if (message != null && !message.isEmpty()) {
-				Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+				Log.d(Constants.TAG_CHAT_FRAGMENT, message);
+				Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
 			}
 		});
 
@@ -191,25 +202,27 @@ public class ChatFragment extends Fragment {
 		// Current status (connected/disconnected) - determines visibility of indicator
 		viewModel.getConnectionActive().observe(getViewLifecycleOwner(), isActive -> {
 			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Active: " + isActive);
-			/* Show indicator only if NOT active/secure
-			 * binding.connectionIndicator.setVisibility(isActive ? View.GONE : View.VISIBLE);
-			 * binding.messageEditText.setEnabled(isActive); binding.sendButton.setEnabled(isActive);
-			 */
 			String message = viewModel.getUiMessage().getValue();
-			if (Boolean.FALSE.equals(isActive) && message != null && !message.isEmpty()){
+			if (Boolean.FALSE.equals(isActive) && message != null && !message.isEmpty()) {
 				binding.chatToolbar.setSubtitle(message);
+				binding.chatToolbar.setSubtitleTextColor(ContextCompat.getColor(requireContext(), R.color.colorError));
 			}
-			if (Boolean.TRUE.equals(isActive)){
+			if (Boolean.TRUE.equals(isActive)) {
 				binding.chatToolbar.setSubtitle(R.string.status_secure_session_active);
+				binding.chatToolbar.setSubtitleTextColor(ContextCompat.getColor(requireContext(), R.color.colorOnSecondary));
 			}
 		});
 
 		// Detailed status (color indicator)
 		viewModel.getConnectionDetailedStatus().observe(getViewLifecycleOwner(), status -> {
-			if (status == null) return;
+			if (status == null) {
+				binding.connectionIndicator.setVisibility(View.GONE);
+				return;
+			}
 			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Detailed Status: " + status);
 			// Use ContextCompat.getColor for consistent color loading
-			binding.connectionIndicator.setBackgroundColor(ContextCompat.getColor(requireContext(), status.getColorResId()));
+			binding.connectionIndicator.getBackground().setTint(ContextCompat.getColor(requireContext(), status.getColorResId()));
+			binding.connectionIndicator.setVisibility(View.VISIBLE);
 			// To be added: Update status text next to the toolbar title if you add a TextView for it.
 			// Example: binding.connectionIndicator.setTooltipText(status.getDisplayString());
 		});
@@ -236,6 +249,16 @@ public class ChatFragment extends Fragment {
 				return false;
 			}
 		}, getViewLifecycleOwner());
+	}
+
+	@Override
+	public void onAttach(@NonNull Context context) {
+		super.onAttach(context);
+		if (context instanceof ChatListAccessor) {
+			chatListAccessor = (ChatListAccessor) context;
+		} else {
+			throw new RuntimeException("User of fragment ChatFragment must implement interface `ChatListAccessor`");
+		}
 	}
 
 	@Override

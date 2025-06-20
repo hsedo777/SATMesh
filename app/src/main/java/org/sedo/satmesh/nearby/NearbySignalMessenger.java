@@ -293,8 +293,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param callback             Callback for success or failure of the Nearby Connections send operation.
 	 */
 	protected void sendNearbyMessageInternal(@NonNull NearbyMessage nearbyMessage,
-	                                       @NonNull String recipientAddressName,
-	                                       @NonNull BiConsumer<Payload, Boolean> callback) {
+	                                         @NonNull String recipientAddressName,
+	                                         @NonNull BiConsumer<Payload, Boolean> callback) {
 		nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, callback);
 	}
 
@@ -641,7 +641,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param preKeyBundleData  The serialized PreKeyBundle.
 	 * @param payloadId         The Nearby Payload ID.
 	 */
-	private void handleReceivedKeyExchange(@NonNull String endpointId, @NonNull String senderAddressName, @NonNull byte[] preKeyBundleData, long payloadId) {
+	private void handleReceivedKeyExchange(@NonNull String endpointId, @NonNull String
+			senderAddressName, @NonNull byte[] preKeyBundleData, long payloadId) {
 		// This runs on the executor thread
 		boolean requireResponse = false;
 		try {
@@ -714,7 +715,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param cipherData        The raw encrypted bytes of the CiphertextMessage (which contains NearbyMessageBody).
 	 * @param payloadId         The Nearby Payload ID.
 	 */
-	private void handleReceivedEncryptedMessage(@NonNull String endpointId, @NonNull String senderAddressName, @NonNull byte[] cipherData, long payloadId) {
+	private void handleReceivedEncryptedMessage(@NonNull String endpointId, @NonNull String
+			senderAddressName, @NonNull byte[] cipherData, long payloadId) {
 		// This runs on the executor thread
 		try {
 			Log.d(TAG, "Received Encrypted Message from: " + senderAddressName + " (EndpointId: " + endpointId + "), Payload ID: " + payloadId + ", Size: " + cipherData.length);
@@ -745,10 +747,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			Message message;
 			switch (decryptedMessageBody.getMessageType()) {
 				case ENCRYPTED_MESSAGE:
-					TextMessage textMessage = TextMessage.parseFrom(decryptedMessageBody.getEncryptedData())
-							.toBuilder()
-							.setPayloadId(payloadId) // Set the payload ID here
-							.build();
+					TextMessage textMessage = TextMessage.parseFrom(decryptedMessageBody.getEncryptedData());
 					Node senderNode = nodeRepository.findNodeSync(senderAddressName);
 					if (senderNode == null) {
 						Log.e(TAG, "Failed to identify, in DB, the sender node at address " + senderAddress + " msg.payloadId=" + payloadId);
@@ -758,6 +757,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Log.d(TAG, "Received and persisted TextMessage from " + senderAddressName + ": " + textMessage.getContent());
 					// Persist the received text message
 					message = new Message();
+					if (textMessage.getPayloadId() != 0L){
+						// We are in case or retransmission
+						payloadId = textMessage.getPayloadId();
+					}
 					message.setPayloadId(payloadId);
 					message.setStatus(Message.MESSAGE_STATUS_PENDING);
 					message.setSenderNodeId(senderNode.getId());
@@ -765,9 +768,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					message.setType(Message.MESSAGE_TYPE_TEXT);
 					message.setContent(textMessage.getContent());
 					message.setTimestamp(textMessage.getTimestamp());
+					final long finalPayloadId = payloadId;
 					messageRepository.insertMessage(message, success -> {
 						if (success) {
-							sendMessageAck(payloadId, senderAddressName, true, newSuccess -> {
+							sendMessageAck(finalPayloadId, senderAddressName, true, newSuccess -> {
 								if (newSuccess) {
 									message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
 									messageRepository.updateMessage(message);
@@ -775,7 +779,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 							});
 						}
 					});
-					//messengerCallbacks.forEach(cb -> cb.onTextMessageReceived(textMessage, senderAddressName));
 					break;
 				case MESSAGE_DELIVERED_ACK:
 					MessageAck deliveredAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());

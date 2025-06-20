@@ -27,6 +27,7 @@ import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.service.SATMeshCommunicationService;
 import org.sedo.satmesh.ui.ChatFragment;
+import org.sedo.satmesh.ui.ChatListAccessor;
 import org.sedo.satmesh.ui.ChatListFragment;
 import org.sedo.satmesh.ui.DiscussionListener;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
@@ -38,7 +39,7 @@ import org.sedo.satmesh.utils.Constants;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener, NearbyDiscoveryListener {
+public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener, NearbyDiscoveryListener, ChatListAccessor {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -282,9 +283,15 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	// implementation of NearbyDiscoveryListener
-	public void moveToDiscoveryView(boolean removeLast, boolean addToBackStack){
+	public void moveToDiscoveryView(boolean removeLast, boolean addToBackStack) {
 		String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, removeLast, addToBackStack);
+	}
+
+	// Implementation of `ChatListAccessor`
+	public void moveToChatList(boolean removeLast, boolean addToBackStack) {
+		Long hostNodeId = getDefaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
+		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast, addToBackStack);
 	}
 
 	/**
@@ -298,9 +305,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			if (count > 0L) {
 				// There is at least one message, navigate to ChatListFragment
 				Log.i(TAG, "Ready to display chat list");
-				Long hostNodeId = getDefaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
-				// ChatListFragment.newInstance(), Constants.TAG_CHAT_LIST_FRAGMENT
-				navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, false, false);
+				moveToChatList(false, false);
 			} else {
 				// There is no message, redirect user on discovery fragment
 				moveToDiscoveryView(true, false);

@@ -10,6 +10,7 @@
 	<color name="colorOnPrimaryHint">#332F2F</color>
 	<color name="secondaryColor">#4E8CA3</color>
 	<color name="colorOnSecondary">@color/white</color>
+	<color name="colorOnSecondaryHint">#999C9D</color>
 
 	<!-- Button text, links… -->
 	<color name="buttonDisabledBackground">#AAAAAA</color>

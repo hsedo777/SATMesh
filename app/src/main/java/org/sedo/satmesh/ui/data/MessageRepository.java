@@ -82,23 +82,24 @@ public class MessageRepository {
 	}
 
 	/**
-	 * Retrieves pending or failed messages that are to be delivered to a given recipient.
+	 * Retrieves messages from a specific sender and in a specific statues.
 	 * This method is synchronous and should be called from a background thread.
+	 * @see MessageDao#getMessagesInStatusesFromSenderSync(Long, List)
 	 */
-	public List<Message> getPendingMessagesForRecipientSync(Long recipientNodeId) {
-		return messageDao.getPendingMessagesForRecipientSync(recipientNodeId);
+	public List<Message> getMessagesInStatusesFromSenderSync(Long senderNodeId, List<Integer> statues) {
+		return messageDao.getMessagesInStatusesFromSenderSync(senderNodeId, statues);
 	}
 
 	/**
-	 * Retrieves a list of messages with a specific status for a given recipient node ID.
+	 * Retrieves a list of messages with a specific statues for a given recipient node ID.
 	 * This method performs a synchronous database query and should be called from a background thread.
 	 *
 	 * @param recipientNodeId The ID of the recipient node.
-	 * @param status The status of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @param statues The statues of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
 	 * @return A list of messages matching the criteria. Returns an empty list if no messages are found or on error.
 	 */
-	public List<Message> getMessagesWithStatusSync(Long recipientNodeId, int status) {
-		return messageDao.getMessagesWithStatusSync(recipientNodeId, status);
+	public List<Message> getMessagesInStatusesForRecipientSync(Long recipientNodeId, List<Integer> statues) {
+		return messageDao.getMessagesInStatusesForRecipientSync(recipientNodeId, statues);
 	}
 
 	/**

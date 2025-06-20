@@ -2,20 +2,15 @@
 	<!-- Base application theme. -->
 	<style name="Base.Theme.SATMesh" parent="Theme.Material3.DayNight.NoActionBar">
 		<!-- Customize your light theme here. -->
-		<item name="colorPrimary">@color/colorPrimary</item>
-		<item name="colorSecondary">@color/colorPrimaryVariant</item>
-		<item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+		<item name="colorPrimary">@color/primaryColor</item>
+		<item name="colorOnPrimary">@color/colorOnPrimary</item>
+		<item name="colorSecondary">@color/secondaryColor</item>
 		<item name="android:colorBackground">@color/primaryColor</item>
 		<item name="colorOnBackground">@color/colorOnPrimary</item>
 
 		<!-- Surfaces (cards, sheets…) -->
-		<item name="colorSurface">@color/colorOnPrimary</item>
-		<item name="colorOnSurface">@color/colorOnSurface</item>
-		<item name="colorOnSurfaceVariant">@color/colorSurfaceLight</item>
-
-		<!-- Bottom navigation & Action Bar -->
-		<item name="bottomNavigationStyle">@style/Widget.SATMesh.BottomNavigation</item>
-		<item name="actionBarStyle">@style/Widget.SATMesh.ActionBar</item>
+		<item name="colorSurface">@color/secondaryColor</item>
+		<item name="colorOnSurface">@color/colorOnSecondary</item>
 	</style>
 
 	<style name="Theme.SATMesh" parent="Base.Theme.SATMesh" />

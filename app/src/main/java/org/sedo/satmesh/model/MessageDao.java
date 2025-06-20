@@ -70,26 +70,25 @@ public interface MessageDao {
 	LiveData<List<Message>> getConversationMessages(Long nodeId1, Long nodeId2);
 
 	/**
-	 * Retrieves all messages currently in a pending or routing status for a specific recipient.
-	 * This is useful for retrying message delivery.
-	 * @param recipientNodeId The ID of the recipient Node for which to retrieve pending messages.
-	 * @return A list of pending or routing Message objects.
+	 * Retrieves all messages currently in a specific statuses from a specific sender.
+	 * This is useful for retrying message delivery sending ack.
+	 * @param senderNodeId The ID of the sender Node for which to retrieve messages.
+	 * @param statuses The statuses of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @return A list of messages matching the criteria.
 	 */
-	@Query("SELECT * FROM message WHERE recipientNodeId = :recipientNodeId AND (status = " +
-			Message.MESSAGE_STATUS_PENDING + " OR status = " + Message.MESSAGE_STATUS_FAILED + ") " +
-			"ORDER BY timestamp ASC")
-	List<Message> getPendingMessagesForRecipientSync(Long recipientNodeId);
+	@Query("SELECT * FROM message WHERE senderNodeId = :senderNodeId AND status IN (:statuses) ORDER BY timestamp ASC")
+	List<Message> getMessagesInStatusesFromSenderSync(Long senderNodeId, List<Integer> statuses);
 
 	/**
-	 * Retrieves a list of messages with a specific status for a given recipient node ID.
+	 * Retrieves a list of messages with a specific statuses for a given recipient node ID.
 	 * This method is synchronous (blocking) and should be called from a background thread.
 	 *
 	 * @param recipientNodeId The ID of the recipient node.
-	 * @param status The status of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @param statuses The statuses of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
 	 * @return A list of messages matching the criteria.
 	 */
-	@Query("SELECT * FROM message WHERE recipientNodeId = :recipientNodeId AND status = :status ORDER BY timestamp ASC")
-	List<Message> getMessagesWithStatusSync(Long recipientNodeId, int status);
+	@Query("SELECT * FROM message WHERE recipientNodeId = :recipientNodeId AND status IN (:statuses) ORDER BY timestamp ASC")
+	List<Message> getMessagesInStatusesForRecipientSync(Long recipientNodeId, List<Integer> statuses);
 
 	/**
 	 * Deletes a specific message by its primary key ID.

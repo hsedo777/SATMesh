@@ -13,7 +13,6 @@ import androidx.lifecycle.MutableLiveData;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
-import org.sedo.satmesh.model.SignalKeyExchangeState;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.proto.PersonalInfo;
@@ -23,10 +22,13 @@ import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
-import org.sedo.satmesh.ui.data.SignalKeyExchangeStateRepository;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -37,7 +39,6 @@ public class ChatViewModel extends AndroidViewModel {
 	private final NodeRepository nodeRepository;
 	private final NearbyManager nearbyManager;
 	private final NearbySignalMessenger nearbySignalMessenger;
-	private final SignalKeyExchangeStateRepository signalKeyExchangeStateRepository;
 
 	private final MediatorLiveData<List<Message>> conversation = new MediatorLiveData<>();
 	private final MutableLiveData<String> uiMessage = new MutableLiveData<>();
@@ -48,13 +49,9 @@ public class ChatViewModel extends AndroidViewModel {
 	private final MutableLiveData<Boolean> connectionActive = new MutableLiveData<>();
 	private final MutableLiveData<NodeState> connectionDetailedStatus = new MutableLiveData<>();
 
-	private final MediatorLiveData<SignalKeyExchangeState> remoteKeyExchangeState = new MediatorLiveData<>();
-	private final MediatorLiveData<Void> transientStatesMediator = new MediatorLiveData<>();
-	private final LiveData<Map<String, NodeTransientState>> transientStatesLiveData;
+	private final NodeTransientStateRepository transientStateRepository;
 	// MediatorLiveData to trigger message resend logic
-	private final MediatorLiveData<Boolean> canAttemptResend = new MediatorLiveData<>();
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
-	private LiveData<SignalKeyExchangeState> currentKeyExchangeStateSource; // Source from repository
 	// Flag to prevent multiple resend attempts per session activation
 	private boolean hasAttemptedResendForCurrentSession = false;
 	private LiveData<Node> currentRemoteNodeSource;
@@ -63,20 +60,18 @@ public class ChatViewModel extends AndroidViewModel {
 		super(application);
 		this.messageRepository = new MessageRepository(application);
 		this.nodeRepository = new NodeRepository(application);
-		this.signalKeyExchangeStateRepository = new SignalKeyExchangeStateRepository(application);
 
 		nearbyManager = NearbyManager.getInstance();
 		nearbySignalMessenger = NearbySignalMessenger.getInstance(); // Pass application here
-		transientStatesLiveData = NodeTransientStateRepository.getInstance().getTransientNodeStates();
+		transientStateRepository = NodeTransientStateRepository.getInstance();
 	}
 
 	/**
 	 * Evaluates conditions for attempting to resend messages and triggers the resend function.
 	 * This method is called by the sources of `canAttemptResend` MediatorLiveData.
 	 */
-	private void evaluateAndTriggerResend() {
+	private void evaluateAndTriggerResend(Boolean isActive) {
 		executor.execute(() -> {
-			Boolean isActive = connectionActive.getValue();
 			Node remoteNode = remoteNodeLiveData.getValue();
 
 			// Check if remote node is set, connection is active/secure, and we haven't attempted resend for this session yet
@@ -113,16 +108,15 @@ public class ChatViewModel extends AndroidViewModel {
 			String remoteAddress = currentRemoteNode.getAddressName();
 
 			// 1. Get Transient State
-			NodeTransientState remoteTransientState = (statesMap != null) ?
-					statesMap.get(remoteAddress) :
-					transientStatesLiveData.getValue() != null ? transientStatesLiveData.getValue().get(remoteAddress) : null;
-
-			/*
-			 * 2. Get Persistent Key Exchange State (synchronously for immediate update, but it's LiveData in repo)
-			 * We will observe remoteKeyExchangeState separately if more complex UI logic is needed.
-			 * For this immediate update, we use the last known value of remoteKeyExchangeState.
-			 */
-			SignalKeyExchangeState keyExchangeState = remoteKeyExchangeState.getValue();
+			Map<String, NodeTransientState> safeMap;
+			if (statesMap != null) {
+				safeMap = statesMap;
+			} else if (transientStateRepository.getTransientNodeStates().getValue() != null) {
+				safeMap = transientStateRepository.getTransientNodeStates().getValue();
+			} else {
+				safeMap = new HashMap<>();
+			}
+			NodeTransientState remoteTransientState = safeMap.get(remoteAddress);
 
 			boolean active = false;
 			NodeState detailedStatus; // Default to disconnected
@@ -146,34 +140,18 @@ public class ChatViewModel extends AndroidViewModel {
 						active = true;
 						uiMessageText = getApplication().getString(R.string.status_secure_session_active);
 					} else {
-						// Nearby is connected, but Signal session is not yet fully active (transient state)
-
-						boolean ourBundleSent = keyExchangeState != null &&
-								keyExchangeState.getLastOurSentAttempt() != null &&
-								keyExchangeState.getLastOurSentAttempt() > 0L;
-
-						boolean theirBundleReceived = keyExchangeState != null &&
-								keyExchangeState.getLastTheirReceivedAttempt() != null &&
-								keyExchangeState.getLastTheirReceivedAttempt() > 0L;
-
-						if (!ourBundleSent) {
-							uiMessageText = getApplication().getString(R.string.status_waiting_to_send_our_keys);
-						} else if (!theirBundleReceived) {
-							uiMessageText = getApplication().getString(R.string.status_waiting_for_their_keys);
-						} else {
-							/*
-							 * If both bundles sent/received persistence-wise, but transient says no session
-							 * This might indicate an internal Signal protocol error, or a delay.
-							 */
-							uiMessageText = getApplication().getString(R.string.status_negotiating_secure_session_with_issue);
-						}
+						/*
+						 * Nearby is connected, but Signal session is not yet fully active (transient state)
+						 * This might indicate an internal Signal protocol error, or a delay.
+						 */
+						uiMessageText = getApplication().getString(R.string.status_negotiating_secure_session_with_issue);
 					}
 				} else {
 					/*
 					 * Nearby connection is NOT active (disconnected, connecting, failed, etc.)
 					 * UI message and detailed status already reflect this from the initial check.
 					 */
-					uiMessageText = getApplication().getString(R.string.status_not_connected_nearby, remoteAddress);
+					uiMessageText = getApplication().getString(R.string.status_not_connected_nearby);
 				}
 			} else {
 				// No transient state found (should not happen if `setConversationNodes` was called).
@@ -187,12 +165,9 @@ public class ChatViewModel extends AndroidViewModel {
 			}
 
 			connectionActive.postValue(active);
-			if (detailedStatus != null)
-				connectionDetailedStatus.postValue(detailedStatus);
+			connectionDetailedStatus.postValue(detailedStatus);
 			Log.d(TAG, "Connection status updated for " + remoteAddress +
-					": Active=" + active + ", Detailed=" + detailedStatus +
-					", OurBundleSent=" + (keyExchangeState != null ? keyExchangeState.getLastOurSentAttempt() : "N/A") +
-					", TheirBundleReceived=" + (keyExchangeState != null ? keyExchangeState.getLastTheirReceivedAttempt() : "N/A"));
+					": Active=" + active + ", Detailed=" + detailedStatus);
 		});
 	}
 
@@ -200,14 +175,11 @@ public class ChatViewModel extends AndroidViewModel {
 		if (currentRemoteNodeSource != null) {
 			remoteNodeLiveData.removeSource(currentRemoteNodeSource);
 		}
-		if (currentKeyExchangeStateSource != null) {
-			remoteKeyExchangeState.removeSource(currentKeyExchangeStateSource);
-		}
-		// Remove sources for canAttemptResend
-		canAttemptResend.removeSource(connectionActive);
+		// Remove sources for connection active
+		conversation.removeSource(connectionActive);
 
 		// Use the explicit observer instance for removal
-		transientStatesMediator.removeSource(transientStatesLiveData);
+		conversation.removeSource(transientStateRepository.getTransientNodeStates());
 	}
 
 	@Override
@@ -239,32 +211,8 @@ public class ChatViewModel extends AndroidViewModel {
 	 * @param remoteNode The remote node for the conversation.
 	 */
 	public void setConversationNodes(@NonNull Node hostNode, @NonNull Node remoteNode) {
-		hostNodeLiveData.postValue(hostNode);
-
 		// Remove previous remote node and key exchange state sources if they exist
 		clearSource();
-
-		// Setup new remote node source from NodeRepository
-		LiveData<Node> newRemoteNodeSource = nodeRepository.findLiveNode(remoteNode.getId());
-		currentRemoteNodeSource = newRemoteNodeSource;
-		/*
-		 * The MediatorLiveData will observe this source and set its value.
-		 * We use addSource with a lambda that calls setValue to ensure it's propagated.
-		 */
-		remoteNodeLiveData.addSource(newRemoteNodeSource, remoteNodeLiveData::setValue);
-		transientStatesMediator.addSource(transientStatesLiveData, this::updateConnectionStatus);
-
-		// Setup new SignalKeyExchangeState source from its repository
-		LiveData<SignalKeyExchangeState> newKeyExchangeStateSource = signalKeyExchangeStateRepository.getByRemoteAddressLiveData(remoteNode.getAddressName());
-		currentKeyExchangeStateSource = newKeyExchangeStateSource;
-		/*
-		 * Observe this source and update the remoteKeyExchangeState MediatorLiveData
-		 * We also use this callback to trigger updateConnectionStatus when key exchange state changes.
-		 */
-		remoteKeyExchangeState.addSource(newKeyExchangeStateSource, newState -> {
-			remoteKeyExchangeState.setValue(newState);
-			updateConnectionStatus(null); // Trigger status update when persistent key exchange state changes
-		});
 
 		// Remove old conversation source if any
 		Node oldHostNode = hostNodeLiveData.getValue();
@@ -281,17 +229,25 @@ public class ChatViewModel extends AndroidViewModel {
 		// Add new conversation source
 		conversation.addSource(messageRepository.getConversationMessages(hostNode.getId(), remoteNode.getId()),
 				conversation::setValue);
+		hostNodeLiveData.setValue(hostNode);
+		remoteNodeLiveData.setValue(remoteNode); // Sets to start handling connection status first
+		conversation.addSource(transientStateRepository.getTransientNodeStates(), this::updateConnectionStatus);
 
 		// Reset the resend flag for the new conversation session
 		hasAttemptedResendForCurrentSession = false;
 		// Setup the resend trigger
 		// Observe the overall connection active status
-		canAttemptResend.addSource(connectionActive, isActive -> {
-			// Ensure the value is accessible
-			connectionActive.setValue(isActive);
-			// Only trigger if connection is active and remoteNode is set
-			evaluateAndTriggerResend();
-		});
+		// Only trigger if connection is active and remoteNode is set
+		conversation.addSource(connectionActive, this::evaluateAndTriggerResend);
+
+		// Setup new remote node source from NodeRepository
+		LiveData<Node> newRemoteNodeSource = nodeRepository.findLiveNode(remoteNode.getId());
+		currentRemoteNodeSource = newRemoteNodeSource;
+		/*
+		 * The MediatorLiveData will observe this source and set its value.
+		 * We use addSource with a lambda that calls setValue to ensure it's propagated.
+		 */
+		remoteNodeLiveData.addSource(newRemoteNodeSource, remoteNodeLiveData::setValue);
 
 		executor.execute(() -> {
 			String endpointId = nearbyManager.getLinkedEndpointId(remoteNode.getAddressName());
@@ -347,7 +303,7 @@ public class ChatViewModel extends AndroidViewModel {
 			return;
 		}
 
-		executor.execute(() ->{
+		executor.execute(() -> {
 			Message message = new Message();
 			message.setContent(content);
 			message.setTimestamp(System.currentTimeMillis());
@@ -366,7 +322,7 @@ public class ChatViewModel extends AndroidViewModel {
 				if (success) {
 					TextMessage text = TextMessage.newBuilder()
 							.setContent(message.getContent())
-							.setPayloadId(0L) // Payload ID will be set by NearbyManager on send
+							.setPayloadId(0L) // Payload ID will be set by NearbySignalManager on send
 							.setTimestamp(message.getTimestamp())
 							.build();
 					nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text, message.getId());
@@ -380,7 +336,8 @@ public class ChatViewModel extends AndroidViewModel {
 	}
 
 	/**
-	 * Attempts to resend messages that previously failed to send to the current remote node.
+	 * Attempts to resend messages that previously failed to send to the current
+	 * remote node and tries to send delivery ack for messages the previous attempt failed.
 	 * This method is triggered when a secure session is established.
 	 */
 	private void attemptResendFailedMessages() {
@@ -391,11 +348,12 @@ public class ChatViewModel extends AndroidViewModel {
 		}
 
 		executor.execute(() -> {
-			// Retrieve messages with MESSAGE_STATUS_FAILED for the current remote node
-			List<Message> failedMessages = messageRepository.getMessagesWithStatusSync(
+			// Retrieve messages with MESSAGE_STATUS_FAILED or MESSAGE_STATUS_PENDING for the current remote node
+			List<Message> failedMessages = messageRepository.getMessagesInStatusesForRecipientSync(
 					currentRemoteNode.getId(),
-					Message.MESSAGE_STATUS_FAILED
-			);
+					Arrays.asList(Message.MESSAGE_STATUS_FAILED,
+							Message.MESSAGE_STATUS_PENDING /* Occurs when the send failure mapping failed*/
+					));
 
 			if (failedMessages != null && !failedMessages.isEmpty()) {
 				Log.d(TAG, "Found " + failedMessages.size() + " failed messages to resend for " + currentRemoteNode.getDisplayName());
@@ -406,7 +364,7 @@ public class ChatViewModel extends AndroidViewModel {
 
 					TextMessage text = TextMessage.newBuilder()
 							.setContent(message.getContent())
-							.setPayloadId(0L)
+							.setPayloadId(Objects.requireNonNullElse(message.getPayloadId(), 0L))
 							.setTimestamp(message.getTimestamp())
 							.build();
 
@@ -416,6 +374,19 @@ public class ChatViewModel extends AndroidViewModel {
 				uiMessage.postValue(getApplication().getString(R.string.resending_failed_messages));
 			} else {
 				Log.d(TAG, "No failed messages found to resend for " + currentRemoteNode.getDisplayName());
+			}
+
+			// Retrieve message for which sending message delivery ack failed
+			List<Message> missingAck = messageRepository.getMessagesInStatusesFromSenderSync(currentRemoteNode.getId(), Collections.singletonList(Message.MESSAGE_STATUS_PENDING));
+			if (missingAck != null && !missingAck.isEmpty()) {
+				for (Message message : missingAck) {
+					nearbySignalMessenger.sendMessageAck(message.getPayloadId(), currentRemoteNode.getAddressName(), true, success -> {
+						if (success) {
+							message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
+							messageRepository.updateMessage(message);
+						}
+					});
+				}
 			}
 		});
 	}

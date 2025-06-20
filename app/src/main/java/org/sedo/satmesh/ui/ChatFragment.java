@@ -21,9 +21,11 @@ import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatBinding;
+import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.ChatAdapter;
 import org.sedo.satmesh.utils.Constants;
@@ -140,6 +142,19 @@ public class ChatFragment extends Fragment {
 		adapter = new ChatAdapter(hostNode.getId());
 		binding.chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 		binding.chatRecyclerView.setAdapter(adapter);
+
+		binding.chatRecyclerView.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
+			@Override
+			public void onChildViewAttachedToWindow(@NonNull View view) {
+			int position = binding.chatRecyclerView.getChildAdapterPosition(view);
+				viewModel.markAsRead(adapter.getItem(position));
+			}
+
+			@Override
+			public void onChildViewDetachedFromWindow(@NonNull View view) {
+				// pass
+			}
+		});
 
 		binding.sendButton.setOnClickListener(v -> {
 			String text = Objects.requireNonNull(binding.messageEditText.getText()).toString().trim();

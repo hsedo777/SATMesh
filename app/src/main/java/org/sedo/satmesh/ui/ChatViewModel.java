@@ -336,6 +336,54 @@ public class ChatViewModel extends AndroidViewModel {
 	}
 
 	/**
+	 * Marks, if possible, the specified message as read. To be marked as read,
+	 * here is the set of conditions required :
+	 *  - the message is sent by remote node
+	 *  - the message is not already in state read
+	 *  - we successfully sent the message read ack to the remote node
+	 * This method is asynchronous.
+	 */
+	public void markAsRead(@Nullable Message message){
+		if (message == null || message.getId() == null){
+			Log.d(TAG, "Getting null as message to mark read.");
+			return;
+		}
+		if (!Boolean.TRUE.equals(connectionActive.getValue())){
+			// Log.d(TAG, "We can't sent message ack out of secured connection."); -- will appear too much
+			return;
+		}
+		Node remoteNode = remoteNodeLiveData.getValue();
+		if (remoteNode == null || remoteNode.getId() == null || remoteNode.getAddressName() == null){
+			Log.e(TAG, "Unable to find the remote node from LiveData : the message can't be marked read.");
+			return;
+		}
+		if (!remoteNode.getId().equals(message.getSenderNodeId())){
+			// This will appear more times, so I didn't log it.
+			return;
+		}
+		if (message.getStatus() == Message.MESSAGE_STATUS_READ){
+			// This will appear more times, that is why I do not log it.
+			return;
+		}
+		if (message.getPayloadId() == null || message.getPayloadId() == 0L){
+			Log.d(TAG, "There is no payload ID bound to this message.");
+			return;
+		}
+		executor.execute(() -> {
+			if (!nearbySignalMessenger.hasSession(remoteNode.getAddressName())){
+				Log.d(TAG, "Messages can't be marked read without secured session.");
+				return;
+			}
+			nearbySignalMessenger.sendMessageAck(message.getPayloadId(), remoteNode.getAddressName(), false, success -> {
+				if (success){
+					message.setStatus(Message.MESSAGE_STATUS_READ);
+					messageRepository.updateMessage(message);
+				}
+			});
+		});
+	}
+
+	/**
 	 * Attempts to resend messages that previously failed to send to the current
 	 * remote node and tries to send delivery ack for messages the previous attempt failed.
 	 * This method is triggered when a secure session is established.

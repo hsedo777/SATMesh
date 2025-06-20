@@ -32,6 +32,11 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 		this.hostNodeId = hostNodeId;
 	}
 
+	@Override
+	public Message getItem(int position) {
+		return super.getItem(position);
+	}
+
 	private boolean isSentByMe(Message message) {
 		return message != null && hostNodeId.equals(message.getSenderNodeId());
 	}

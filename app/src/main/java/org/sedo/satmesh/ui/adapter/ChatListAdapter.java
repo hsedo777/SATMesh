@@ -113,7 +113,7 @@ public class ChatListAdapter extends ListAdapter<ChatListItem, ChatListAdapter.C
 			lastMessageTimestamp.setText(Utils.formatTimestamp(itemView.getContext(), item.lastMessage.getTimestamp()));
 			// Update connectivity status icon based on nodeState
 			if (item.nodeState != null) {
-				connectivityStatus.setBackgroundColor(ContextCompat.getColor(itemView.getContext(), item.nodeState.getColorResId()));
+				connectivityStatus.getBackground().setTint(ContextCompat.getColor(itemView.getContext(), item.nodeState.getColorResId()));
 				connectivityStatus.setVisibility(View.VISIBLE);
 			} else {
 				connectivityStatus.setVisibility(View.GONE);

@@ -4,6 +4,8 @@
 	<color name="white">#FFFFFFFF</color>
 	<color name="colorError">#B00000</color>
 	<color name="colorOnError">#FFFFFF</color>
+	<color name="colorAlert">#900000</color>
+	<color name="colorOnAlert">@color/colorOnError</color>
 
 	<color name="primaryColor">#F8F3F3</color>
 	<color name="colorOnPrimary">@color/black</color>
@@ -26,6 +28,8 @@
 	<color name="cardBackgroundColor2">#FFECE6F0</color>
 	<color name="cardText">@color/colorOnPrimary</color>
 	<color name="cardText2">@color/black</color>
+
+	<color name="colorOutline">#79747E</color>
 
 	<!-- Connection states -->
 	<color name="node_state_found">#FBFAF8</color>
@@ -53,11 +57,7 @@
 	<color name="colorOnSurface">#1F3338</color>
 	<color name="colorOnSurfaceVariant">#49454F</color>
 	<color name="surfaceMedium">#04BFB6</color>
-
 	<color name="colorAccentText">#4E8CA3</color>
-
-	<color name="colorOutline">#79747E</color>
-
 	<!--
 	<color name="">#</color>
 	-->

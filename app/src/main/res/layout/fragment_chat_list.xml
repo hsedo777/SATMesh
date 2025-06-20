@@ -6,24 +6,19 @@
 	android:layout_height="match_parent"
 	tools:context=".ui.ChatListFragment">
 
-	<com.google.android.material.appbar.AppBarLayout
+	<com.google.android.material.appbar.MaterialToolbar
 		android:id="@+id/chatListAppBar"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
+		android:layout_width="0dp"
+		android:layout_height="?attr/actionBarSize"
+		app:title="@string/app_name"
+		android:background="@color/secondaryColor"
+		app:titleTextColor="@color/colorOnSecondary"
+		app:subtitleTextColor="@color/colorOnSecondary"
+		android:elevation="@dimen/space_xs"
+		app:menu="@menu/chat_list_menu"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="parent">
-
-		<androidx.appcompat.widget.Toolbar
-			android:id="@+id/chatListToolbar"
-			android:layout_width="match_parent"
-			android:layout_height="?attr/actionBarSize"
-			android:background="?attr/colorPrimary"
-			android:theme="?attr/actionBarTheme"
-			app:menu="@menu/chat_list_menu"
-			app:title="@string/app_name"
-			app:titleTextColor="?attr/colorOnPrimary" />
-	</com.google.android.material.appbar.AppBarLayout>
+		app:layout_constraintTop_toTopOf="parent"/>
 
 	<androidx.recyclerview.widget.RecyclerView
 		android:id="@+id/conversationsRecyclerView"
@@ -33,11 +28,11 @@
 		android:paddingTop="4dp"
 		android:paddingBottom="4dp"
 		app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+		tools:listitem="@layout/item_conversation"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@id/chatListAppBar"
-		tools:listitem="@layout/item_conversation" />
+		app:layout_constraintTop_toBottomOf="@id/chatListAppBar" />
 
 	<TextView
 		android:id="@+id/emptyStateTextView"
@@ -59,11 +54,11 @@
 		android:id="@+id/fabNodeDiscovery"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:layout_margin="16dp"
+		android:layout_margin="@dimen/space_md"
 		android:contentDescription="@string/new_chat_fab_content_description"
 		android:src="@drawable/ic_add_chat"
-		app:backgroundTint="?attr/colorPrimary"
+		app:backgroundTint="@color/secondaryColor"
+		app:tint="@color/colorOnSecondary"
 		app:layout_constraintBottom_toBottomOf="parent"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:tint="?attr/colorOnPrimary" />
+		app:layout_constraintEnd_toEndOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

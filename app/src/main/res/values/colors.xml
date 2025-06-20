@@ -8,6 +8,7 @@
 	<color name="colorOnAlert">@color/colorOnError</color>
 
 	<color name="primaryColor">#F8F3F3</color>
+	<color name="primaryColorDark">#ADA5A5</color>
 	<color name="colorOnPrimary">@color/black</color>
 	<color name="colorOnPrimaryHint">#332F2F</color>
 	<color name="secondaryColor">#4E8CA3</color>

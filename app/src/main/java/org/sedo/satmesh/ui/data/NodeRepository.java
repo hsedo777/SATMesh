@@ -30,7 +30,7 @@ public class NodeRepository {
 	}
 
 	/**
-	 *  Process insertion operation and give control to operate after operation finalized.
+	 * Process insertion operation and give control to operate after operation finalized.
 	 * This help to consume asynchronous operation await.
 	 */
 	public void insert(@NonNull Node node, @Nullable Consumer<Boolean> callback) {
@@ -70,5 +70,38 @@ public class NodeRepository {
 
 	public void setAllNodesDisconnected() {
 		executor.execute(dao::setAllNodesDisconnected);
+	}
+
+	/**
+	 * Finds a node by its address name. If not found, attempts to create it.
+	 * The result is returned via a callback. This method runs operations on the executor.
+	 *
+	 * @param addressName The address name of the node to find or create.
+	 * @param callback    The callback to be invoked with the Node or an error message.
+	 */
+	public void findOrCreateNodeAsync(@NonNull String addressName, @NonNull NodeCallback callback) {
+		executor.execute(() -> {
+			Node node = findNodeSync(addressName);
+
+			if (node != null) {
+				callback.onNodeReady(node);
+			} else {
+				Node newNode = new Node();
+				newNode.setAddressName(addressName);
+				insert(newNode, success -> {
+					if (success) {
+						callback.onNodeReady(newNode);
+					} else {
+						callback.onError("Failed to insert new node: " + addressName);
+					}
+				});
+			}
+		});
+	}
+
+	public interface NodeCallback {
+		void onNodeReady(@NonNull Node node);
+
+		void onError(@NonNull String errorMessage);
 	}
 }

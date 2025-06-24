@@ -8,6 +8,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.google.android.gms.nearby.connection.Payload;
 import com.google.protobuf.ByteString;
 
 import org.sedo.satmesh.AppDatabase;
@@ -26,12 +27,14 @@ import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.NodeRepository;
+import org.sedo.satmesh.ui.data.NodeRepository.NodeCallback;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class NearbyRouteManager {
@@ -272,43 +275,213 @@ public class NearbyRouteManager {
 	}
 
 	/**
-	 * Handles an incoming RouteRequestMessage.
-	 * This method is called by NearbySignalMessenger after decrypting a ROUTE_DISCOVERY_REQ.
+	 * Helper method to send a RouteResponseMessage.
+	 * This method runs on caller thread.
 	 *
-	 * @param endpointId        The Nearby endpoint ID from which the message was received.
+	 * @param recipientAddressName The SignalProtocolAddress.name of the recipient.
+	 * @param messageBody          The RouteResponseMessage to send.
+	 * @param sendingCallback      A callback to be invoked with the Payload and a boolean indicating
+	 *                             success (true) or failure (false) of the underlying Nearby message send.
+	 */
+	private void sendRouteResponseMessage(
+			@NonNull String recipientAddressName,
+			@NonNull RouteResponseMessage messageBody, @NonNull BiConsumer<Payload, Boolean> sendingCallback) {
+		try {
+			Log.d(TAG, "Sending RouteResponseMessage to " + recipientAddressName + " for UUID: " + messageBody.getRequestUuid() + " with status: " + messageBody.getStatus());
+			NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
+					.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_RESP)
+					.setEncryptedData(messageBody.toByteString())
+					.build();
+
+			// Encrypt message
+			SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
+			CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, nearbyMessageBody.toByteArray());
+
+			// Encapsulate the message
+			NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
+					.setExchange(false)
+					.setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
+
+			nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, sendingCallback);
+		} catch (Exception e) {
+			Log.e(TAG, "Error building or sending RouteResponseMessage to " + recipientAddressName + ": " + e.getMessage(), e);
+			sendingCallback.accept(null, false);
+		}
+	}
+
+	/**
+	 * Handles an incoming RouteRequestMessage.
+	 * This method is called by NearbySignalMessenger after decrypting a {@code ROUTE_DISCOVERY_REQ}.
+	 *
 	 * @param senderAddressName The SignalProtocolAddress.name of the sender node.
 	 * @param routeRequest      The parsed RouteRequestMessage Protobuf object.
-	 * @param payloadId         The Nearby Payload ID.
+	 * @param localHostAddress  The SignalProtocolAddress.name of the local host Node.
 	 */
 	public void handleIncomingRouteRequest(
-			@NonNull String endpointId,
 			@NonNull String senderAddressName,
 			@NonNull RouteRequestMessage routeRequest,
-			long payloadId) {
+			@NonNull String localHostAddress) {
 		executor.execute(() -> {
 			Log.d(TAG, "Handling incoming RouteRequestMessage from " + senderAddressName +
 					" for UUID: " + routeRequest.getUuid() +
 					", Destination: " + routeRequest.getDestinationNodeId() +
-					", Remaining Hops: " + routeRequest.getRemainingHops() +
-					", Payload ID: " + payloadId);
+					", Remaining Hops: " + routeRequest.getRemainingHops());
 
-			// TODO: Implement the detailed logic for RouteRequestMessage handling:
-			// 1. Resolve senderAddressName to senderNodeId (local ID).
-			// 2. Check if UUID exists in RouteRequestEntry (prevent loops/redundant processing).
-			//    - If exists, send "REQUEST_ALREADY_IN_PROGRESS" response.
-			// 3. Check TTL and remaining_hops.
-			//    - If expired/zero, send "TTL_EXPIRED" or "MAX_HOPS_REACHED" response.
-			// 4. If valid and new:
-			//    - Check if current node is the destination.
-			//      - If yes, send "ROUTE_FOUND" response (backtracking).
-			//      - If no,
-			//        - Handle case of no other neighbors (send NO_ROUTE_FOUND).
-			//        - Store RouteRequestEntry
-			//        - decrement hops, and forward the request to other neighbors
-			//        (excluding sender and already-broadcasted ones).
-			//        - Update BroadcastStatusEntry for the relayed requests.
+			// Implement the detailed logic for RouteRequestMessage handling:
+			// This method processes an incoming route request, acting as either an intermediate node or the final destination.
+			// 1. Resolve sender's address name to a local Node ID, creating the node if it's new.
+			// 2. Check if the RouteRequest UUID already exists in RouteRequestEntry.
+			//    - If found, it's a duplicate; send a "REQUEST_ALREADY_IN_PROGRESS" response to the sender.
+			// 3. Determine if the current node is the intended destination for the route request.
+			//    - If yes, a route has been found! Send a "ROUTE_FOUND" response to the sender (previous hop).
+			// 4. If the current node is not the destination (it's an intermediate node):
+			//    - Check the message's TTL (Time-To-Live) and remaining_hops.
+			//      - If expired or zero hops, send "TTL_EXPIRED" or "MAX_HOPS_REACHED" response to the sender.
+			//    - If valid for relaying:
+			//      - Store the incoming RouteRequestEntry to remember the previous hop for the response path.
+			//      - Decrement the remaining_hops count.
+			//      - Forward (broadcast) the updated RouteRequestMessage to all other connected neighbors,
+			//        excluding the node from which this request was received.
+			//      - If no other neighbors are available for relay, send a "NO_ROUTE_FOUND" response back to the sender.
 
-			Log.d(TAG, "RouteRequestMessage processing stub completed for " + routeRequest.getUuid());
+			// 1. Resolve sender's address name to a local Node ID, creating the node if it's new.
+			nodeRepository.findOrCreateNodeAsync(senderAddressName, new NodeCallback() {
+				@Override
+				public void onNodeReady(@NonNull Node senderNode) {
+					long senderNodeLocalId = senderNode.getId();
+					String resolvedSenderAddressName = senderNode.getAddressName();
+					Log.d(TAG, "Resolved sender " + resolvedSenderAddressName + " to local ID: " + senderNodeLocalId + ". Continuing RouteRequest processing for UUID: " + routeRequest.getUuid());
+
+					// 2. Check if UUID exists in RouteRequestEntry (prevent loops/redundant processing).
+					RouteRequestEntry existingRequest = routeRequestEntryDao.getRequestByUuid(routeRequest.getUuid());
+
+					if (existingRequest != null) {
+						Log.d(TAG, "RouteRequest with UUID " + routeRequest.getUuid() + " already in progress. Sending REQUEST_ALREADY_IN_PROGRESS response.");
+						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+								.setRequestUuid(routeRequest.getUuid())
+								.setStatus(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS)
+								.build();
+
+						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
+							if (success) {
+								Log.d(TAG, "Sent REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							} else {
+								Log.e(TAG, "Failed to send REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							}
+						});
+						return; // Stop processing, request is redundant.
+					}
+
+					// 3. Check if current node is the destination.
+					if (localHostAddress.equals(routeRequest.getDestinationNodeId())) {
+						Log.d(TAG, "Current node is the destination for RouteRequest " + routeRequest.getUuid() + ". Sending ROUTE_FOUND response.");
+
+						// Send ROUTE_FOUND response back to the previous hop (sender of this request)
+						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+								.setRequestUuid(routeRequest.getUuid())
+								.setStatus(RouteResponseMessage.Status.ROUTE_FOUND)
+								.build();
+						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
+							if (success) {
+								Log.d(TAG, "Sent ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							} else {
+								Log.e(TAG, "Failed to send ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							}
+						});
+						return; // Stop processing, route found.
+					}
+
+					// If not the destination, proceed to check TTL and remaining hops for relaying.
+					// 4. Check TTL and remaining_hops.
+					long currentTime = System.currentTimeMillis();
+					if (routeRequest.getMaxTtl() < currentTime) {
+						Log.d(TAG, "RouteRequest " + routeRequest.getUuid() + " has expired (TTL reached). Sending TTL_EXPIRED response.");
+						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+								.setRequestUuid(routeRequest.getUuid())
+								.setStatus(RouteResponseMessage.Status.TTL_EXPIRED)
+								.build();
+						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
+							if (success) {
+								Log.d(TAG, "Sent TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							} else {
+								Log.e(TAG, "Failed to send TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							}
+						});
+						return; // Stop processing.
+					}
+
+					if (routeRequest.getRemainingHops() <= 0) {
+						Log.d(TAG, "RouteRequest " + routeRequest.getUuid() + " has reached max hops. Sending MAX_HOPS_REACHED response.");
+						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+								.setRequestUuid(routeRequest.getUuid())
+								.setStatus(RouteResponseMessage.Status.MAX_HOPS_REACHED)
+								.build();
+						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
+							if (success) {
+								Log.d(TAG, "Sent MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							} else {
+								Log.e(TAG, "Failed to send MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+							}
+						});
+						return; // Stop processing.
+					}
+
+					// --- If we reach here, this is an intermediate node and the request is valid for relaying ---
+
+					// 5. Store the incoming RouteRequestEntry
+					RouteRequestEntry newRequestEntry = new RouteRequestEntry(routeRequest.getUuid());
+					// Ensure destination exists
+					nodeRepository.findOrCreateNodeAsync(routeRequest.getDestinationNodeId(), new NodeCallback() {
+						@Override
+						public void onNodeReady(@NonNull Node destination) {
+							newRequestEntry.setDestinationNodeLocalId(destination.getId());
+							newRequestEntry.setPreviousHopLocalId(senderNodeLocalId); // The node that sent us this request
+							routeRequestEntryDao.insert(newRequestEntry);
+							Log.d(TAG, "RouteRequestEntry stored for relaying: UUID=" + routeRequest.getUuid() + ", PrevHop=" + resolvedSenderAddressName);
+
+							// 6. Decrement hops and relay the request to other neighbors
+							int newRemainingHops = routeRequest.getRemainingHops() - 1;
+							RouteRequestMessage relayedRouteRequest = RouteRequestMessage.newBuilder()
+									.setUuid(routeRequest.getUuid())
+									.setDestinationNodeId(routeRequest.getDestinationNodeId())
+									.setRemainingHops(newRemainingHops)
+									.setMaxTtl(routeRequest.getMaxTtl())
+									.build();
+
+							// Broadcast the request to all neighbors, excluding the sender of this request
+							int sentToNeighborsCount = broadcastRouteRequestToNeighbors(relayedRouteRequest, resolvedSenderAddressName);
+
+							if (sentToNeighborsCount == 0) {
+								Log.w(TAG, "Route request " + routeRequest.getUuid() + " received, but no other neighbors to relay to. Sending NO_ROUTE_FOUND response back.");
+								// If no other neighbors to relay to, this branch of discovery ends here.
+								RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+										.setRequestUuid(routeRequest.getUuid())
+										.setStatus(RouteResponseMessage.Status.NO_ROUTE_FOUND)
+										.build();
+								sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
+									if (success) {
+										Log.d(TAG, "Sent NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " (no relays) to " + resolvedSenderAddressName);
+									} else {
+										Log.e(TAG, "Failed to send NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+									}
+								});
+							} else {
+								Log.d(TAG, "Route request " + routeRequest.getUuid() + " relayed to " + sentToNeighborsCount + " neighbors. New hops: " + newRemainingHops);
+							}
+						}
+
+						@Override
+						public void onError(@NonNull String errorMessage) {
+							Log.e(TAG, "Failed to resole the destination Node on the intermediate node of address=" + localHostAddress + ". Error: " + errorMessage);
+						}
+					});
+				}
+
+				@Override
+				public void onError(@NonNull String errorMessage) {
+					Log.e(TAG, "Failed to resolve or create sender node " + senderAddressName + ": " + errorMessage + ". Aborting RouteRequest processing.");
+				}
+			});
 		});
 	}
 
@@ -349,42 +522,6 @@ public class NearbyRouteManager {
 			//      - If current node is original source and no route found, notify user.
 
 			Log.d(TAG, "RouteResponseMessage processing stub completed for " + routeResponse.getRequestUuid());
-		});
-	}
-
-	/**
-	 * Helper method to send a RouteResponseMessage.
-	 * This method would be called internally by NearbyRouteManager.
-	 *
-	 * @param recipientAddressName The SignalProtocolAddress.name of the recipient.
-	 * @param messageBody          The RouteResponseMessage to send.
-	 */
-	private void sendRouteResponseMessage(
-			@NonNull String recipientAddressName,
-			@NonNull RouteResponseMessage messageBody) {
-		executor.execute(() -> {
-			try {
-				Log.d(TAG, "Sending RouteResponseMessage to " + recipientAddressName + " for UUID: " + messageBody.getRequestUuid() + " with status: " + messageBody.getStatus());
-				NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
-						.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_RESP)
-						.setEncryptedData(messageBody.toByteString())
-						.build();
-
-				// NearbyManager handles encryption and payload sending
-//				nearbyManager.sendEncryptedMessage(recipientAddressName, nearbyMessageBody, new NearbyManager.PayloadSentCallback() {
-//					@Override
-//					public void onPayloadSent(long payloadId, boolean success) {
-//						if (success) {
-//							Log.d(TAG, "RouteResponseMessage payload " + payloadId + " sent successfully to " + recipientAddressName);
-//						} else {
-//							Log.e(TAG, "Failed to send RouteResponseMessage payload " + payloadId + " to " + recipientAddressName);
-//							// TODO: Handle failed send, e.g., if the link broke.
-//						}
-//					}
-//				});
-			} catch (Exception e) {
-				Log.e(TAG, "Error building or sending RouteResponseMessage to " + recipientAddressName + ": " + e.getMessage(), e);
-			}
 		});
 	}
 }

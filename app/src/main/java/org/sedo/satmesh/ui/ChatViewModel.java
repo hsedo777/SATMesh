@@ -256,7 +256,7 @@ public class ChatViewModel extends AndroidViewModel {
 				 * Initiate key exchange if necessary. This method is now smart enough
 				 * to check for existing sessions and debounce.
 				 */
-				nearbySignalMessenger.handleInitialKeyExchange(endpointId, remoteNode.getAddressName());
+				nearbySignalMessenger.handleInitialKeyExchange(remoteNode.getAddressName());
 
 				// Send PersonalInfo if display name is unknown/empty
 				if (remoteNode.getDisplayName() == null || remoteNode.getDisplayName().isEmpty()) {

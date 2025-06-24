@@ -25,6 +25,8 @@ import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.PersonalInfo;
 import org.sedo.satmesh.proto.PreKeyBundleExchange;
+import org.sedo.satmesh.proto.RouteRequestMessage;
+import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.proto.TextMessage;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.MessageRepository;
@@ -62,6 +64,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 	private final SignalManager signalManager;
 	private final NearbyManager nearbyManager;
+	private final NearbyRouteManager nearbyRouteManager;
 	private final Node hostNode; // Represents our own device
 	private final MessageRepository messageRepository;
 	private final NodeRepository nodeRepository;
@@ -84,6 +87,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		nodeRepository = new NodeRepository(context);
 		keyExchangeStateRepository = new SignalKeyExchangeStateRepository(context);
 		this.executor = Executors.newSingleThreadExecutor(); // Single thread for ordered message processing
+		this.nearbyRouteManager = new NearbyRouteManager(nearbyManager, signalManager, context, executor);
 		Log.d(TAG, "NearbySignalMessenger instance created with dependencies.");
 
 		// Register this instance as a listener with NearbyManager
@@ -807,9 +811,14 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					// TODO: Notify UI via NodeStateRepository to show/hide typing indicator if needed
 					break;
 				case ROUTE_DISCOVERY_REQ:
+					Log.d(TAG, "Received ROUTE_DISCOVERY_REQ from " + senderAddressName);
+					RouteRequestMessage routeRequestMessage = RouteRequestMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+					nearbyRouteManager.handleIncomingRouteRequest(senderAddressName, routeRequestMessage, hostNode.getAddressName());
+					break;
 				case ROUTE_DISCOVERY_RESP:
-					Log.d(TAG, "Received ROUTE_DISCOVERY (to be implemented) from " + senderAddressName);
-					// This involve processing routing data and potentially updating a routing table in DB
+					Log.d(TAG, "Received ROUTE_DISCOVERY_RESP from " + senderAddressName);
+					RouteResponseMessage routeResponseMessage = RouteResponseMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+					nearbyRouteManager.handleIncomingRouteResponse(senderAddressName, routeResponseMessage);
 					break;
 				case UNKNOWN:
 				default:

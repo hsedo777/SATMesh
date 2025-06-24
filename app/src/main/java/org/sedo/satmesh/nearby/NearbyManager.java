@@ -554,7 +554,7 @@ public class NearbyManager {
 	 *                   indicating success (true) or failure (false) of the send operation.
 	 *                   The {@link Payload} argument will be null if the `data` was null or if the send operation failed before payload creation.
 	 */
-	public void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable BiConsumer<Payload, Boolean> callback) {
+	private void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable BiConsumer<Payload, Boolean> callback) {
 		if (data.length == 0) {
 			Log.e(TAG, "Attempted to send null or empty data to " + endpointId);
 			if (callback != null) callback.accept(null, false);
@@ -590,6 +590,7 @@ public class NearbyManager {
 	 */
 	public void onRouteFound(@NonNull String destinationAddressName, @NonNull RouteEntry routeEntry) {
 		Log.d(TAG,  destinationAddressName + " " + routeEntry);
+		NodeTransientStateRepository.getInstance().updateTransientNodeState(destinationAddressName, NodeState.ON_CONNECTED);
 	}
 
 	/**
@@ -605,6 +606,7 @@ public class NearbyManager {
 	 */
 	public void onRouteNotFound(@NonNull String requestUuid, @NonNull String destinationAddressName, @NonNull RouteResponseMessage.Status finalStatus) {
 		Log.d(TAG, requestUuid + " " + destinationAddressName + " " + finalStatus);
+		NodeTransientStateRepository.getInstance().updateTransientNodeState(destinationAddressName, NodeState.ON_DISCONNECTED);
 	}
 
 	/**

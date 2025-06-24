@@ -26,6 +26,8 @@ import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
+import org.sedo.satmesh.proto.RoutedMessage;
+import org.sedo.satmesh.proto.RoutedMessageBody;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeRepository.NodeCallback;
@@ -743,6 +745,123 @@ public class NearbyRouteManager {
 					Log.e(TAG, "Failed to resolve or create sender node " + senderAddressName + ": " + errorMessage + ". Aborting RouteResponseMessage processing.");
 				}
 			});
+		});
+	}
+
+	// Routed messages exchange methods
+
+	/**
+	 * Helper method to send a RoutedMessage encapsulated in an OUTER NearbyMessageBody.
+	 * This method runs on caller thread (which is usually the executor thread for other methods in this class).
+	 */
+	private void sendRoutedMessageToNextHop(
+			@NonNull String nextHopAddressName,
+			@NonNull NearbyMessageBody outerNearbyMessageBody // The NearbyMessageBody with type ROUTED_MESSAGE
+	) {
+		try {
+			Log.d(TAG, "Sending RoutedMessage (outer) to next hop: " + nextHopAddressName);
+
+			// Encrypt the OUTER NearbyMessageBody for the next hop (hop-by-hop encryption)
+			SignalProtocolAddress nextHopAddress = getAddress(nextHopAddressName);
+			CiphertextMessage ciphertextMessage = signalManager.encryptMessage(nextHopAddress, outerNearbyMessageBody.toByteArray());
+
+			// Encapsulate into the final NearbyMessage
+			NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
+					.setExchange(false)
+					.setBody(ByteString.copyFrom(ciphertextMessage.serialize()))
+					.build();
+
+			// Use NearbyManager to send the raw payload bytes
+			nearbyManager.sendNearbyMessageInternal(nearbyMessage, nextHopAddressName, (payload, success) -> {
+				if (success) {
+					Log.d(TAG, "RoutedMessage payload " + payload.getId() + " sent successfully to " + nextHopAddressName);
+				} else {
+					Log.e(TAG, "Failed to send RoutedMessage payload " + payload.getId() + " to " + nextHopAddressName);
+				}
+			});
+		} catch (Exception e) {
+			Log.e(TAG, "Error building or sending RoutedMessage to " + nextHopAddressName + ": " + e.getMessage(), e);
+		}
+	}
+
+	public void sendMessageThroughRoute(
+			@NonNull String finalDestinationAddressName,
+			@NonNull String originalSenderAddressName,
+			@NonNull NearbyMessageBody internalNearbyMessageBody // The actual message, UNENCRYPTED
+	) {
+		executor.execute(() -> {
+			Log.d(TAG, "Attempting to send message to " + finalDestinationAddressName + " from " + originalSenderAddressName);
+
+			// 1. Resolve finalDestinationAddressName to local ID
+			Node finalDestinationNode = nodeRepository.findNodeSync(finalDestinationAddressName);
+			if (finalDestinationNode == null) {
+				Log.e(TAG, "Final destination node " + finalDestinationAddressName + " not found in local repository. Cannot send message.");
+				return;
+			}
+
+			// 2. Find an active route to the final destination
+			RouteWithUsageTimestamp entryW = routeEntryDao.getMostRecentOpenedRouteByDestinationSync(finalDestinationNode.getId());
+			if (entryW == null) {
+				Log.e(TAG, "No active route found for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+				return;
+			}
+			RouteUsage routeUsage = routeUsageDao.getMostRecentRouteUsageForDestinationSync(finalDestinationNode.getId());
+			if (routeUsage == null) {
+				Log.e(TAG, "Impossible to find the RouteUsage for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+				return;
+			}
+			RouteEntry activeRoute = entryW.getRouteEntry();
+
+			// 3. Resolve the next hop node for this route
+			Node nextHopNode = nodeRepository.findNodeSync(activeRoute.getNextHopLocalId());
+			if (nextHopNode == null) {
+				Log.e(TAG, "Next hop node for route " + activeRoute.getDiscoveryUuid() + " not found. Route might be stale/invalid.");
+				routeEntryDao.delete(activeRoute); // Invalidate the bad route
+				return;
+			}
+			String nextHopAddressName = nextHopNode.getAddressName();
+
+			// 4. Create the end-to-end encrypted RoutedMessageBody
+			// This part is encrypted for the final destination
+			RoutedMessageBody routedMessageBody = RoutedMessageBody.newBuilder()
+					.setOriginalSenderNodeId(originalSenderAddressName)
+					.setInternalMessageBody(internalNearbyMessageBody)
+					.build();
+
+			CiphertextMessage encryptedRoutedMessageBody;
+			try {
+				// Encrypt RoutedMessageBody with final destination's public key (E2E encryption)
+				SignalProtocolAddress finalDestinationAddress = getAddress(finalDestinationAddressName);
+				encryptedRoutedMessageBody = signalManager.encryptMessage(finalDestinationAddress, routedMessageBody.toByteArray());
+			} catch (Exception e) {
+				Log.e(TAG, "Failed to E2E encrypt RoutedMessageBody for " + finalDestinationAddressName + ": " + e.getMessage(), e);
+				return;
+			}
+
+			// 5. Create the hop-by-hop RoutedMessage
+			// This contains routing info + the E2E encrypted payload
+			RoutedMessage routedMessage = RoutedMessage.newBuilder()
+					.setFinalDestinationNodeId(finalDestinationAddressName)
+					.setRouteUuid(activeRoute.getDiscoveryUuid())
+					.setRouteUsageUuid(routeUsage.getUsageRequestUuid())
+					.setEncryptedRoutedMessageBody(ByteString.copyFrom(encryptedRoutedMessageBody.serialize()))
+					.build();
+
+			// 6. Encapsulate RoutedMessage into an OUTER NearbyMessageBody of type ROUTED_MESSAGE
+			NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
+					.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
+					.setEncryptedData(routedMessage.toByteString())
+					.build();
+
+			// 7. Send the OUTER NearbyMessageBody to the next hop
+			// This part will be encrypted hop-by-hop by NearbySignalMessenger
+			sendRoutedMessageToNextHop(nextHopAddressName, outerNearbyMessageBody);
+
+			Log.d(TAG, "Message for " + finalDestinationAddressName + " sent via route " + activeRoute.getDiscoveryUuid() + " to next hop " + nextHopAddressName);
+
+			// 8. Update RouteUsage timestamp for the used route
+			routeUsage.setLastUsedTimestamp(System.currentTimeMillis());
+			routeUsageDao.update(routeUsage);
 		});
 	}
 }

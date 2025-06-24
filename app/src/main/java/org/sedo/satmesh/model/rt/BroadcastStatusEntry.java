@@ -37,13 +37,13 @@ public class BroadcastStatusEntry {
 	// This is part of the composite primary key and links to RouteRequestEntry.
 	@NonNull
 	@ColumnInfo(name = "request_uuid")
-	private String requestUuid;
+	private final String requestUuid;
 
 	// The local identifier (Long) of the immediate neighbor node to which the
 	// RouteRequestMessage was broadcasted.
 	// This is also part of the composite primary key.
 	@ColumnInfo(name = "neighbor_node_local_id")
-	private long neighborNodeLocalId;
+	private final long neighborNodeLocalId;
 
 	// A boolean flag indicating if this specific broadcast to this neighbor
 	// has resulted in a "REQUEST_ALREADY_IN_PROGRESS" response from that neighbor.
@@ -75,16 +75,6 @@ public class BroadcastStatusEntry {
 
 	public boolean isPendingResponseInProgress() {
 		return isPendingResponseInProgress;
-	}
-
-	// --- Setters ---
-
-	public void setRequestUuid(@NonNull String requestUuid) {
-		this.requestUuid = requestUuid;
-	}
-
-	public void setNeighborNodeLocalId(long neighborNodeLocalId) {
-		this.neighborNodeLocalId = neighborNodeLocalId;
 	}
 
 	public void setPendingResponseInProgress(boolean pendingResponseInProgress) {

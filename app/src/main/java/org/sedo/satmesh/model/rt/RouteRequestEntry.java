@@ -20,7 +20,7 @@ public class RouteRequestEntry {
 	@NonNull
 	@PrimaryKey
 	@ColumnInfo(name = "request_uuid")
-	private String requestUuid;
+	private final String requestUuid;
 
 	// The local identifier (Long) of the destination node for this request.
 	@ColumnInfo(name = "destination_node_local_id")
@@ -51,10 +51,6 @@ public class RouteRequestEntry {
 	}
 
 	// --- Setters ---
-
-	public void setRequestUuid(@NonNull String requestUuid) {
-		this.requestUuid = requestUuid;
-	}
 
 	public void setDestinationNodeLocalId(Long destinationNodeLocalId) {
 		this.destinationNodeLocalId = destinationNodeLocalId;

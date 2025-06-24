@@ -25,7 +25,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatBinding;
-import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.ChatAdapter;
 import org.sedo.satmesh.utils.Constants;

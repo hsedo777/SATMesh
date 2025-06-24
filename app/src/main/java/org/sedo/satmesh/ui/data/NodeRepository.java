@@ -3,6 +3,7 @@ package org.sedo.satmesh.ui.data;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 
 import org.sedo.satmesh.AppDatabase;
@@ -11,6 +12,7 @@ import org.sedo.satmesh.model.NodeDao;
 
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 public class NodeRepository {
 
@@ -25,6 +27,25 @@ public class NodeRepository {
 
 	public void insert(@NonNull Node node) {
 		executor.execute(() -> node.setId(dao.insert(node)));
+	}
+
+	/**
+	 *  Process insertion operation and give control to operate after operation finalized.
+	 * This help to consume asynchronous operation await.
+	 */
+	public void insert(@NonNull Node node, @Nullable Consumer<Boolean> callback) {
+		executor.execute(() -> {
+			try {
+				node.setId(dao.insert(node));
+				if (callback != null) {
+					callback.accept(true);
+				}
+			} catch (Exception e) {
+				if (callback != null) {
+					callback.accept(false);
+				}
+			}
+		});
 	}
 
 	public void update(@NonNull Node node) {
@@ -43,11 +64,11 @@ public class NodeRepository {
 		return dao.getNodeByAddressName(addressName);
 	}
 
-	public LiveData<List<Node>> getConnectedNode(){
+	public LiveData<List<Node>> getConnectedNode() {
 		return dao.getConnectedNode();
 	}
 
-	public void setAllNodesDisconnected(){
+	public void setAllNodesDisconnected() {
 		executor.execute(dao::setAllNodesDisconnected);
 	}
 }

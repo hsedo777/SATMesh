@@ -303,6 +303,11 @@ public class NearbyManager {
 				.collect(Collectors.toList());
 	}
 
+	@NonNull
+	protected List<String> getConnectedEndpointsAddressNames(){
+		return getAllAddressNameOf(STATUS_CONNECTED);
+	}
+
 	/**
 	 * Gets the linked endpoint ID to the specified node address name.
 	 * This relies on the `addressNameToEndpointId` map which is populated
@@ -500,7 +505,7 @@ public class NearbyManager {
 		stopDiscovery();
 		stopAdvertising();
 		// Disconnect from all active connections
-		for (String endpoint : getAllAddressNameOf(STATUS_CONNECTED)) {
+		for (String endpoint : getConnectedEndpointsAddressNames()) {
 			// Iterate on copy to avoid ConcurrentModificationException
 			connectionsClient.disconnectFromEndpoint(endpoint);
 		}

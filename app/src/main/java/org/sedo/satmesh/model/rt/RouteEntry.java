@@ -2,6 +2,7 @@ package org.sedo.satmesh.model.rt; // Package added as requested
 
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
+import androidx.room.Embedded;
 import androidx.room.Entity;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
@@ -112,13 +113,16 @@ public class RouteEntry {
 
 	/**
 	 * Checks if the route path is "opened" or fully established,
-	 * meaning both the next and previous hops are defined.
+	 * meaning the next hop is defined. Note that the next hop is defined at time of handling
+	 * a positive route request response. And the previous hop is always known at the route
+	 * entry creation. Its value is {@code null} if the creator is the initiator of the route
+	 * request, and a non-null value else.
 	 * This indicates that the discovery process for this segment of the route is complete.
 	 *
-	 * @return true if both nextHopLocalId and previousHopLocalId are not null, false otherwise.
+	 * @return true if nextHopLocalId is not null, false otherwise.
 	 */
 	public boolean isOpened() {
-		return nextHopLocalId != null && previousHopLocalId != null;
+		return nextHopLocalId != null;
 	}
 
 	@Override
@@ -145,5 +149,53 @@ public class RouteEntry {
 				", previousHopLocalId=" + previousHopLocalId +
 				", hopCount=" + hopCount +
 				'}';
+	}
+
+	/**
+	 * Wrapper for {@link RouteEntry} and a date of usage (often the date of last usage).
+	 *
+	 * @author hovozounkou
+	 */
+	public static class RouteWithUsageTimestamp {
+		@Embedded
+		public RouteEntry routeEntry;
+		public long last_used_timestamp;
+
+		public RouteWithUsageTimestamp(@NonNull RouteEntry routeEntry, long last_used_timestamp) {
+			this.routeEntry = routeEntry;
+			this.last_used_timestamp = last_used_timestamp;
+		}
+
+		// Getter methods
+		public RouteEntry getRouteEntry() {
+			return routeEntry;
+		}
+
+		public long getLastUsedTimestamp() {
+			return last_used_timestamp;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			RouteWithUsageTimestamp that = (RouteWithUsageTimestamp) o;
+			return last_used_timestamp == that.last_used_timestamp &&
+					Objects.equals(routeEntry, that.routeEntry);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(routeEntry, last_used_timestamp);
+		}
+
+		@NonNull
+		@Override
+		public String toString() {
+			return "RouteWithUsageTimestamp{" +
+					"routeEntry=" + routeEntry +
+					", last_used_timestamp=" + last_used_timestamp +
+					'}';
+		}
 	}
 }

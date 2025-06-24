@@ -48,7 +48,7 @@ public class RouteUsage {
 	@NonNull
 	@PrimaryKey
 	@ColumnInfo(name = "usage_request_uuid")
-	private String usageRequestUuid;
+	private final String usageRequestUuid;
 
 	/*
 	 * The UUID of the specific RouteEntry (specifically, its 'discovery_uuid' attribute)
@@ -59,9 +59,11 @@ public class RouteUsage {
 	@ColumnInfo(name = "route_entry_discovery_uuid")
 	private String routeEntryDiscoveryUuid;
 
-	// The timestamp (e.g., System.currentTimeMillis()) when this RouteEntry was last actively
-	// used specifically by the application request or session identified by 'usageRequestUuid'.
-	// This timestamp is critical for implementing the 12-hour inactivity expiration logic.
+	/*
+	 * The timestamp (e.g., System.currentTimeMillis()) when this RouteEntry was last actively
+	 * used specifically by the application request or session identified by 'usageRequestUuid'.
+	 * This timestamp is critical for implementing the 12-hour inactivity expiration logic.
+	*/
 	@ColumnInfo(name = "last_used_timestamp")
 	private Long lastUsedTimestamp;
 
@@ -88,10 +90,6 @@ public class RouteUsage {
 	}
 
 	// --- Setters ---
-
-	public void setUsageRequestUuid(@NonNull String usageRequestUuid) {
-		this.usageRequestUuid = usageRequestUuid;
-	}
 
 	public void setRouteEntryDiscoveryUuid(String routeEntryDiscoveryUuid) {
 		this.routeEntryDiscoveryUuid = routeEntryDiscoveryUuid;

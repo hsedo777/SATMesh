@@ -56,14 +56,15 @@ message NearbyMessageBody {
     PERSONAL_INFO = 5;
     ROUTE_DISCOVERY_RESP = 6;
     TYPING_INDICATOR = 7;
+    ROUTED_MESSAGE = 8;
   }
   MessageType message_type = 1;
   /*
   * Raw bytes of CiphertextMessage (SignalMessage) : in {PersonalInfo, TextMessage,
-  * MessageAck, TypingIndicatorMessage}
-  * There is one exception : if the sender and the recipient are neighbor then this
-  * attribute will contain just the raw byte of the message. But for relay message,
-  * the packet is subject automatically to encryption
+  * MessageAck, TypingIndicator, RoutedMessage}
+  * 
+  * If message_type is ROUTED_MESSAGE, this field will contain the raw bytes
+  * of a serialized `RoutedMessage` (which is itself encrypted hop-by-hop).
   */
   bytes encrypted_data = 3;
 }
@@ -120,3 +121,33 @@ message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
    */
   optional int32 hop_count = 3;
 }
+
+// The end-to-end encrypted payload that only the final destination can decrypt.
+// This message encapsulates the original NearbyMessageBody and the original sender's ID.
+message RoutedMessageBody {
+  // The SignalProtocolAddress.name of the original sender node.
+  string original_sender_node_id = 1;
+
+  // The actual serialized bytes of NearbyMessageBody (e.g., ENCRYPTED_MESSAGE, TYPING_INDICATOR)
+  // that the original sender intended for the final destination.
+  bytes internal_nearby_message_body = 2;
+}
+
+
+// For encapsulating a message that is being routed hop-by-hop.
+// This message will be contained within the 'encrypted_data' of an OUTER NearbyMessageBody
+// whose message_type is ROUTED_MESSAGE.
+message RoutedMessage {
+  // The SignalProtocolAddress.name of the ultimate destination node.
+  string final_destination_node_id = 1;
+
+  // The UUID of the RouteEntry used to forward this message.
+  string route_uuid = 2;
+
+  // The UUID of the RouteUsage entry associated with this specific use of the route.
+  string route_usage_uuid = 3;
+
+  // The serialized and end-to-end encrypted `RoutedMessageBody`.
+  bytes encrypted_routed_message_body = 4;
+}
+

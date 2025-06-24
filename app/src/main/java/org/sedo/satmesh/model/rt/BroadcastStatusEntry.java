@@ -33,23 +33,28 @@ import java.util.Objects;
 		})
 public class BroadcastStatusEntry {
 
-	// The unique identifier of the route request to which this broadcast status belongs.
-	// This is part of the composite primary key and links to RouteRequestEntry.
+	/*
+	 * The unique identifier of the route request to which this broadcast status belongs.
+	 * This is part of the composite primary key and links to RouteRequestEntry.
+	 */
 	@NonNull
 	@ColumnInfo(name = "request_uuid")
 	private final String requestUuid;
 
-	// The local identifier (Long) of the immediate neighbor node to which the
-	// RouteRequestMessage was broadcasted.
-	// This is also part of the composite primary key.
+	/*
+	 * The local identifier (Long) of the immediate neighbor node to which the RouteRequestMessage
+	 * was broadcasted. This is also part of the composite primary key.
+	 */
 	@ColumnInfo(name = "neighbor_node_local_id")
 	private final long neighborNodeLocalId;
 
-	// A boolean flag indicating if this specific broadcast to this neighbor
-	// has resulted in a "REQUEST_ALREADY_IN_PROGRESS" response from that neighbor.
-	// True if such a response was received; false otherwise (meaning pending, or
-	// a negative response that would typically lead to deletion of this entry).
-	@ColumnInfo(name = "is_pending_response_in_progress") // Explicit column name
+	/*
+	 * A boolean flag indicating if this specific broadcast to this neighbor
+	 * has resulted in a "REQUEST_ALREADY_IN_PROGRESS" response from that neighbor.
+	 * True if such a response was received; false otherwise (meaning pending, or
+	 * a negative response that would typically lead to deletion of this entry).
+	 */
+	@ColumnInfo(name = "is_pending_response_in_progress")
 	private boolean isPendingResponseInProgress;
 
 	/**

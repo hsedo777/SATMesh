@@ -20,6 +20,7 @@ import org.sedo.satmesh.model.rt.RouteEntry.RouteWithUsageTimestamp;
 import org.sedo.satmesh.model.rt.RouteEntryDao;
 import org.sedo.satmesh.model.rt.RouteRequestEntry;
 import org.sedo.satmesh.model.rt.RouteRequestEntryDao;
+import org.sedo.satmesh.model.rt.RouteUsage;
 import org.sedo.satmesh.model.rt.RouteUsageDao;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
@@ -380,6 +381,7 @@ public class NearbyRouteManager {
 						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
 								.setRequestUuid(routeRequest.getUuid())
 								.setStatus(RouteResponseMessage.Status.ROUTE_FOUND)
+								.setHopCount(0)
 								.build();
 						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
 							if (success) {
@@ -488,40 +490,259 @@ public class NearbyRouteManager {
 	/**
 	 * Handles an incoming RouteResponseMessage.
 	 * This method is called by NearbySignalMessenger after decrypting a ROUTE_DISCOVERY_RESP.
+	 * This method runs on the executor thread.
 	 *
-	 * @param endpointId        The Nearby endpoint ID from which the message was received.
 	 * @param senderAddressName The SignalProtocolAddress.name of the sender node (previous hop on the return path).
 	 * @param routeResponse     The parsed RouteResponseMessage Protobuf object.
-	 * @param payloadId         The Nearby Payload ID.
 	 */
 	public void handleIncomingRouteResponse(
-			@NonNull String endpointId,
 			@NonNull String senderAddressName,
-			@NonNull RouteResponseMessage routeResponse,
-			long payloadId) {
+			@NonNull RouteResponseMessage routeResponse) {
 		executor.execute(() -> {
 			Log.d(TAG, "Handling incoming RouteResponseMessage from " + senderAddressName +
 					" for Request UUID: " + routeResponse.getRequestUuid() +
-					", Status: " + routeResponse.getStatus() +
-					", Payload ID: " + payloadId);
+					", Status: " + routeResponse.getStatus());
 
-			// TODO: Implement the detailed logic for RouteResponseMessage handling:
-			// 1. Resolve senderAddressName to senderNodeId (local ID).
-			// 2. Retrieve corresponding RouteRequestEntry using request_uuid.
-			// 3. Update BroadcastStatusEntry for the specific sender.
-			// 4. Based on status:
-			//    - If ROUTE_FOUND:
-			//      - Store/update RouteEntry and RouteUsage.
-			//      - Cancel parallel requests for this UUID/destination.
-			//      - Relay response to previous_hop (from RouteRequestEntry).
-			//      - If current node is the original source, signal route establishment.
-			//    - If negative status (NO_ROUTE_FOUND, TTL_EXPIRED, etc.):
-			//      - Remove BroadcastStatusEntry for this specific neighbor.
-			//      - Check if other broadcasts for this UUID are still pending.
-			//      - If no other pending broadcasts for this request_uuid, relay failure to previous_hop.
-			//      - If current node is original source and no route found, notify user.
+			// handleIncomingRouteResponse Algorithm:
 
-			Log.d(TAG, "RouteResponseMessage processing stub completed for " + routeResponse.getRequestUuid());
+			// 1. Extract UUID from the request, senderNode (the node that sent the response), and status.
+			// 2. Search for the corresponding RouteRequestEntry for the UUID.
+			//    a. If no RouteRequestEntry is found (error, late response, or request already processed and deleted),
+			//       log the event and ignore the response. Return.
+			//    b. Retrieve N_previous_hop_of_the_request from the RouteRequestEntry. (This will be null if
+			//       N_current is the original source node that initiated the request).
+			//    c. Retrieve N_destination_of_the_the_request from the RouteRequestEntry.
+			// 3. Identify the BroadcastStatusEntry for the UUID and senderNode.
+			//    a. If not found (unexpected behavior, a response should not arrive without a prior broadcast),
+			//       log the error and stop processing this unexpected response. Return.
+
+			// 4. If status == ROUTE_FOUND:
+			//    a. Delete the RouteRequestEntry corresponding to the UUID from DB.
+			//    b. Create a RouteEntry (at the N_current node):
+			//       i. Destination of this RouteEntry = N_destination_of_the_request (the final destination of the original request).
+			//       ii. Next_hop of this RouteEntry = N_sender of this response (the node that just sent us the ROUTE_FOUND).
+			//       iii. Hop count = message_response_route.hop_count (the total hops from the original source).
+			//       iv. Save the RouteEntry in the database.
+			//    c. Mark the RouteEntry as "opened" and update the usage timestamp by recording a RouteUsage based on the request's UUID.
+			//    d. Delete all pending BroadcastStatusEntry for this UUID.
+			//    e. If N_previous_hop_of_the_request is NULL (meaning N_current is the original source node):
+			//       i. The route is established. Use a dedicated method `NearbyManager.onRouteFound` which will be
+			//          responsible for necessary processing.
+			//    f. Else (N_current is an intermediate node):
+			//       i. Forward the message_response_route (with ROUTE_FOUND status) to N_previous_hop_of_the_request after increment the hop_count
+
+			// 5. If status == REQUEST_ALREADY_IN_PROGRESS:
+			//    a. Update the BroadcastStatusEntry for the UUID and N_sender: set isPendingResponseInProgress = true.
+			//    b. Check if there are other BroadcastStatusEntry entries for this UUID with (isPendingResponseInProgress == false),
+			//       i.e., not yet processed.
+			//    c. If no BroadcastStatusEntry with (isPendingResponseInProgress == false) is found for this UUID
+			//       (meaning all BroadcastStatusEntry entries have just been processed for this request_uuid):
+			//       i. Delete any remaining BroadcastStatusEntry entries.
+			//       ii. Delete the RouteRequestEntry.
+			//       iii. If N_previous_hop_of_the_request is NULL (N_current is the original source node):
+			//          1. Undesirable behavior: given that the source is the sole holder of the request,
+			//             it's not normal for an immediate neighbor to respond this way.
+			//          2. It looks like a UUID collision. Log the error.
+			//          3. Notify the upper layer via `NearbyManager.onRouteNotFound`. Return.
+			//       iv. Else (N_current is an intermediate node):
+			//          1. Forward the original message_response_route (with REQUEST_ALREADY_IN_PROGRESS status)
+			//             to N_previous_hop_of_the_request.
+			//    d. Else (there are still other pending responses), do nothing and wait for them. Return.
+
+			// 6. If status is a failure (NO_ROUTE_FOUND, TTL_EXPIRED, MAX_HOPS_REACHED):
+			//    a. Delete the BroadcastStatusEntry for the UUID and N_sender. (This branch is a definitive failure).
+			//    b. Check if there is still at least one BroadcastStatusEntry for this UUID that is not yet processed
+			//       (i.e., isPendingResponseInProgress == false).
+			//    i. If no unprocessed BroadcastStatusEntry is found for this UUID:
+			//       1. Delete the RouteRequestEntry.
+			//       2. Check if there is a BroadcastStatusEntry in the state isPendingResponseInProgress == true:
+			//          a. If found, execute `sequence(REQUEST_ALREADY_IN_PROGRESS)`.
+			//          b. Else, execute `sequence(the_same_received_status)`.
+
+			//       sequence(response_status) {
+			//          i. Delete all remaining occurrences of BroadcastStatusEntry.
+			//          ii. If N_previous_hop_of_the_request is NULL (N_current is the original source node):
+			//             1. Notify the upper layer that the route could not be found: `NearbyManager.onRouteNotFound`.
+			//          iii. Else (N_current is an intermediate node):
+			//             1. Forward the original message_response_route (with `response_status`)
+			//                to N_previous_hop_of_the_request.
+			//       }
+			//    ii. Else (there are remaining responses), wait for them. Return.
+
+			String requestUuid = routeResponse.getRequestUuid();
+			RouteResponseMessage.Status responseStatus = routeResponse.getStatus();
+
+			// 1.
+			nodeRepository.findOrCreateNodeAsync(senderAddressName, new NodeCallback() {
+				@Override
+				public void onNodeReady(@NonNull Node senderNode) {
+					long senderNodeLocalId = senderNode.getId();
+					String resolvedSenderAddressName = senderNode.getAddressName();
+
+					// 2.
+					RouteRequestEntry routeRequestEntry = routeRequestEntryDao.getRequestByUuid(requestUuid);
+					if (routeRequestEntry == null) {
+						Log.w(TAG, "RouteResponseMessage with UUID " + requestUuid + " received, but no corresponding RouteRequestEntry found. Ignoring response.");
+						return;
+					}
+
+					long destinationNodeLocalId = routeRequestEntry.getDestinationNodeLocalId();
+					Long previousHopLocalId = routeRequestEntry.getPreviousHopLocalId(); // Null if current node is original source
+
+					// Get destination node address name for logging and callbacks
+					Node destinationNode = nodeRepository.findNodeSync(destinationNodeLocalId);
+					if (destinationNode == null) {
+						// Undesired behavior, the node must be set at route request entry mapping
+						Log.e(TAG, "Undesired behavior, the node must be set at route request entry mapping");
+						return;
+					}
+					String destinationNodeAddressName = destinationNode.getAddressName();
+
+					// 3.
+					BroadcastStatusEntry broadcastStatus = broadcastStatusEntryDao.getBroadcastStatusEntrySync(requestUuid, senderNodeLocalId);
+					if (broadcastStatus == null) {
+						Log.e(TAG, "RouteResponseMessage for UUID " + requestUuid + " from " + resolvedSenderAddressName + " received, but no corresponding BroadcastStatusEntry found. This is unexpected. Ignoring response.");
+						return;
+					}
+
+					// Helper to determine if current node is the original source
+					boolean isOriginalSource = (previousHopLocalId == null);
+					Node previousHopNode = previousHopLocalId != null ? nodeRepository.findNodeSync(previousHopLocalId) : null;
+
+					// --- Internal helper function for common error/completion sequences ---
+					// This function simplifies the logic for handling various failure scenarios
+					// where a response needs to be forwarded or the source needs to be notified.
+					Consumer<RouteResponseMessage.Status> handleCompletionSequence = (finalStatus) -> {
+						broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid);
+						Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid);
+
+						routeRequestEntryDao.deleteByRequestUuid(requestUuid);
+						Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid);
+
+						if (isOriginalSource) {
+							// Notify the higher layer that the route could not be found.
+							nearbyManager.onRouteNotFound(requestUuid, destinationNodeAddressName, finalStatus);
+							Log.d(TAG, "Notified NearbyManager.onRouteNotFound for UUID " + requestUuid + " with status: " + finalStatus);
+						} else {
+							if (previousHopNode == null) {
+								Log.e(TAG, "Failed to retrieve previous hop node " + previousHopLocalId + " for forwarding response for UUID " + requestUuid);
+								return;
+							}
+							RouteResponseMessage responseToForward = RouteResponseMessage.newBuilder()
+									.setRequestUuid(requestUuid)
+									.setStatus(finalStatus)
+									.build();
+							sendRouteResponseMessage(previousHopNode.getAddressName(), responseToForward, (p, s) -> {
+								if (s) {
+									Log.d(TAG, "Forwarded response with status " + finalStatus + " for UUID " + requestUuid + " to previous hop " + previousHopNode.getAddressName());
+								} else {
+									Log.e(TAG, "Failed to forward response with status " + finalStatus + " for UUID " + requestUuid + " to previous hop " + previousHopNode.getAddressName());
+								}
+							});
+						}
+					};
+
+					// 4. If status == ROUTE_FOUND:
+					if (responseStatus == RouteResponseMessage.Status.ROUTE_FOUND) {
+						routeRequestEntryDao.deleteByRequestUuid(requestUuid);
+						Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid + " (ROUTE_FOUND)");
+
+						// 4.b.
+						RouteEntry newRouteEntry = new RouteEntry();
+						newRouteEntry.setDiscoveryUuid(requestUuid);
+						newRouteEntry.setDestinationNodeLocalId(destinationNodeLocalId);
+						newRouteEntry.setNextHopLocalId(senderNodeLocalId);
+						newRouteEntry.setHopCount(routeResponse.getHopCount());
+						newRouteEntry.setPreviousHopLocalId(previousHopLocalId);
+						routeEntryDao.insert(newRouteEntry);
+						Log.d(TAG, "RouteEntry created for UUID: " + requestUuid + " with destination " + destinationNodeAddressName + ", next hop " + resolvedSenderAddressName);
+
+						// 4.c.
+						RouteUsage routeUsage = new RouteUsage(requestUuid);
+						routeUsage.setRouteEntryDiscoveryUuid(requestUuid); // Same as request ID at route discovery
+						routeUsage.setLastUsedTimestamp(System.currentTimeMillis());
+						routeUsageDao.insert(routeUsage);
+						Log.d(TAG, "RouteUsage recorded for UUID: " + requestUuid);
+
+						// 4.d.
+						broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid);
+						Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid + " (ROUTE_FOUND)");
+
+						// 4.e.
+						if (isOriginalSource) {
+							// The route is established. Use a dedicated method NearbyManager.onRouteFound
+							nearbyManager.onRouteFound(destinationNodeAddressName, newRouteEntry);
+							Log.d(TAG, "Notified NearbyManager.onRouteFound for UUID " + requestUuid + " to " + destinationNodeAddressName);
+						} else {
+							// 4.f.
+							if (previousHopNode == null) {
+								Log.e(TAG, "Failed to retrieve previous hop node " + previousHopLocalId + " for forwarding ROUTE_FOUND response for UUID " + requestUuid);
+								return;
+							}
+							sendRouteResponseMessage(previousHopNode.getAddressName(), routeResponse, (p, s) -> {
+								if (s) {
+									Log.d(TAG, "Forwarded ROUTE_FOUND response for UUID " + requestUuid + " to previous hop " + previousHopNode.getAddressName());
+								} else {
+									Log.e(TAG, "Failed to forward ROUTE_FOUND response for UUID " + requestUuid + " to previous hop " + previousHopNode.getAddressName());
+								}
+							});
+						}
+					} else if (responseStatus == RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS) {
+						// 5.
+						// 5.a.
+						broadcastStatus.setPendingResponseInProgress(true); // Mark as processed for this neighbor
+						broadcastStatusEntryDao.update(broadcastStatus);
+						Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " updated to isPendingResponseInProgress=true.");
+
+						// 5.b.
+						boolean isBroadcastRemaining = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, false);
+
+						// 5.c.
+						if (!isBroadcastRemaining) {
+							// All broadcasts have been processed
+
+							if (isOriginalSource) {
+								// 5.c.i.
+								Log.e(TAG, "Unexpected REQUEST_ALREADY_IN_PROGRESS response for UUID " + requestUuid + " at original source. Potential UUID collision.");
+							}
+							handleCompletionSequence.accept(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS);
+						} else {
+							// 5.d.
+							Log.d(TAG, "Still pending broadcasts for UUID " + requestUuid + ". Waiting for more responses.");
+						}
+					} else {
+						// 6. Status in (NO_ROUTE_FOUND, TTL_EXPIRED, MAX_HOPS_REACHED)
+						// 6.a
+						broadcastStatusEntryDao.delete(requestUuid, broadcastStatus.getNeighborNodeLocalId());
+						Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " deleted (failure).");
+
+						// 6.b.
+						boolean isBroadcastRemaining = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, false);
+
+						// 6.b.i.
+						if (!isBroadcastRemaining) {
+							// All branches have responded.
+							boolean isRequestInProgress = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, true);
+
+							if (isRequestInProgress) {
+								Log.d(TAG, "All branches processed for UUID " + requestUuid + ". Found REQUEST_ALREADY_IN_PROGRESS branches. Executing completion with REQUEST_ALREADY_IN_PROGRESS.");
+								handleCompletionSequence.accept(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS);
+							} else {
+								Log.d(TAG, "All branches processed for UUID " + requestUuid + ". No REQUEST_ALREADY_IN_PROGRESS branches. Executing completion with received status: " + responseStatus);
+								handleCompletionSequence.accept(responseStatus);
+							}
+						} else {
+							// 6.b.ii.
+							Log.d(TAG, "Still pending broadcasts for UUID " + requestUuid + ". Waiting for more responses.");
+						}
+					}
+				}
+
+				@Override
+				public void onError(@NonNull String errorMessage) {
+					Log.e(TAG, "Failed to resolve or create sender node " + senderAddressName + ": " + errorMessage + ". Aborting RouteResponseMessage processing.");
+				}
+			});
 		});
 	}
 }

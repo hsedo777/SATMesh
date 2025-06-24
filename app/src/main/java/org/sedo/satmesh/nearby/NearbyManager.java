@@ -21,7 +21,9 @@ import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
 
+import org.sedo.satmesh.model.rt.RouteEntry;
 import org.sedo.satmesh.proto.NearbyMessage;
+import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
@@ -304,7 +306,7 @@ public class NearbyManager {
 	}
 
 	@NonNull
-	protected List<String> getConnectedEndpointsAddressNames(){
+	protected List<String> getConnectedEndpointsAddressNames() {
 		return getAllAddressNameOf(STATUS_CONNECTED);
 	}
 
@@ -574,6 +576,35 @@ public class NearbyManager {
 						callback.accept(payload, false);
 					}
 				});
+	}
+
+	/**
+	 * Callback method invoked by NearbyRouteManager when a route to a requested destination
+	 * has been successfully found and established.
+	 * This method is intended to notify higher-level application components that a path
+	 * is now available for communication with the specified destination.
+	 *
+	 * @param destinationAddressName The SignalProtocolAddress.name of the destination node for which the route was found.
+	 * @param routeEntry             The RouteEntry object representing the newly established route,
+	 *                               containing details like the next hop and total hop count.
+	 */
+	public void onRouteFound(@NonNull String destinationAddressName, @NonNull RouteEntry routeEntry) {
+		Log.d(TAG,  destinationAddressName + " " + routeEntry);
+	}
+
+	/**
+	 * Callback method invoked by NearbyRouteManager when a route discovery attempt
+	 * to a requested destination has failed or completed without finding a route.
+	 * This method notifies higher-level application components about the failure,
+	 * providing the reason for the route not being found.
+	 *
+	 * @param requestUuid            The unique identifier of the route discovery request that failed.
+	 * @param destinationAddressName The SignalProtocolAddress.name of the destination node for which the route discovery failed.
+	 * @param finalStatus            The final status indicating why the route could not be found
+	 *                               (e.g., NO_ROUTE_FOUND, TTL_EXPIRED, REQUEST_ALREADY_IN_PROGRESS).
+	 */
+	public void onRouteNotFound(@NonNull String requestUuid, @NonNull String destinationAddressName, @NonNull RouteResponseMessage.Status finalStatus) {
+		Log.d(TAG, requestUuid + " " + destinationAddressName + " " + finalStatus);
 	}
 
 	/**

@@ -1,13 +1,13 @@
 package org.sedo.satmesh.model.rt;
 
+import static androidx.room.ForeignKey.CASCADE;
+
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
-
-import static androidx.room.ForeignKey.CASCADE; // For onDelete behavior
 
 import java.util.Objects;
 
@@ -17,8 +17,9 @@ import java.util.Objects;
  * in the context of a given request UUID, enabling the 12-hour inactivity logic.
  * Each entry in this table signifies that a specific application request (identified by 'usageRequestUuid')
  * is currently utilizing a particular discovered route (identified by 'routeEntryDiscoveryUuid').
- * @see RouteEntry
+ *
  * @author hovozounkou
+ * @see RouteEntry
  */
 @Entity(tableName = "route_usage",
 		foreignKeys = @ForeignKey(
@@ -63,12 +64,14 @@ public class RouteUsage {
 	 * The timestamp (e.g., System.currentTimeMillis()) when this RouteEntry was last actively
 	 * used specifically by the application request or session identified by 'usageRequestUuid'.
 	 * This timestamp is critical for implementing the 12-hour inactivity expiration logic.
-	*/
+	 */
 	@ColumnInfo(name = "last_used_timestamp")
 	private Long lastUsedTimestamp;
 
 	/**
-	 * Default constructor. Required by Room for entity instantiation.
+	 * Create new {@code RouteUsage} with the usage UUID
+	 *
+	 * @param usageRequestUuid the UUID used to request usage of the route.
 	 */
 	public RouteUsage(@NonNull String usageRequestUuid) {
 		this.usageRequestUuid = usageRequestUuid;
@@ -85,14 +88,14 @@ public class RouteUsage {
 		return routeEntryDiscoveryUuid;
 	}
 
-	public Long getLastUsedTimestamp() {
-		return lastUsedTimestamp;
+	public void setRouteEntryDiscoveryUuid(String routeEntryDiscoveryUuid) {
+		this.routeEntryDiscoveryUuid = routeEntryDiscoveryUuid;
 	}
 
 	// --- Setters ---
 
-	public void setRouteEntryDiscoveryUuid(String routeEntryDiscoveryUuid) {
-		this.routeEntryDiscoveryUuid = routeEntryDiscoveryUuid;
+	public Long getLastUsedTimestamp() {
+		return lastUsedTimestamp;
 	}
 
 	public void setLastUsedTimestamp(Long lastUsedTimestamp) {

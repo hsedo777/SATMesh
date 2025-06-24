@@ -56,6 +56,10 @@ public class NodeRepository {
 		return dao.getNodeById(nodeId);
 	}
 
+	public Node findNodeSync(long nodeId) {
+		return dao.getNodeByIdSync(nodeId);
+	}
+
 	public Node findNodeSync(String addressName) {
 		return dao.getNodeByAddressNameSync(addressName);
 	}

@@ -128,9 +128,8 @@ message RoutedMessageBody {
   // The SignalProtocolAddress.name of the original sender node.
   string original_sender_node_id = 1;
 
-  // The actual serialized bytes of NearbyMessageBody (e.g., ENCRYPTED_MESSAGE, TYPING_INDICATOR)
-  // that the original sender intended for the final destination.
-  bytes internal_nearby_message_body = 2;
+  // The actual NearbyMessageBody (e.g., ENCRYPTED_MESSAGE, TYPING_INDICATOR) that the original sender intended for the final destination.
+  NearbyMessageBody internal_message_body = 2;
 }
 
 

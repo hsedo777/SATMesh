@@ -294,10 +294,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * {@link NearbyMessage}. The {@code exchange} field of the {@link NearbyMessage} is
 	 * set to {@code false}, indicating that it's a standard message and not a key exchange.
 	 *
-	 * @param plainNearbyMessageBody    The {@link NearbyMessageBody} to be encrypted.
-	 *                             It is assumed to be unencrypted at this point.
-	 * @param recipientAddressName The {@code SignalProtocolAddress.name} of the
-	 *                             recipient to whom this encrypted message is intended.
+	 * @param plainNearbyMessageBody The {@link NearbyMessageBody} to be encrypted.
+	 *                               It is assumed to be unencrypted at this point.
+	 * @param recipientAddressName   The {@code SignalProtocolAddress.name} of the
+	 *                               recipient to whom this encrypted message is intended.
 	 * @return A {@link NearbyMessage} containing the encrypted {@link NearbyMessageBody}
 	 * ready to be sent over Nearby Connections.
 	 * @throws Exception If an error occurs during the encryption process, such as issues with
@@ -357,57 +357,58 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	/**
 	 * Handles the initial key exchange with a remote device.
 	 * This is called when a message needs to be sent but no active Signal session exists.
+	 * This method is called from an executor thread.
 	 *
 	 * @param remoteAddressName The SignalProtocolAddress name of the remote device.
 	 */
 	public void handleInitialKeyExchange(@NonNull String remoteAddressName) {
 		// This method is called from an executor thread, so direct calls to `signalManager` are fine.
-		try {
-			SignalKeyExchangeState keyExchangeState;
-			// Check if we have an existing Signal Protocol session for this remoteAddressName.
-			// This means we are already ready to send encrypted messages to them.
-			if (hasSession(remoteAddressName)) {
-				Log.d(TAG, "Session already active with " + remoteAddressName);
-			}
-
-			Log.d(TAG, "handleInitialKeyExchange() from " + hostNode.getAddressName() + " to " + remoteAddressName);
-			// Get the persistent key exchange state for this remote node.
-			keyExchangeState = keyExchangeStateRepository.getByRemoteAddressSync(remoteAddressName);
-
-			// Checks if there is an old sent of the PreKeyBundle to the same remote device
-			if (keyExchangeState != null && keyExchangeState.getLastOurSentAttempt() != null && System.currentTimeMillis() - keyExchangeState.getLastOurSentAttempt() < DEBOUNCE_TIME_MS) {
-				Log.d(TAG, "You have already sent recently your PreKeyBundle to device: " + remoteAddressName);
-				return;
-			}
-			if (keyExchangeState == null) {
-				keyExchangeState = new SignalKeyExchangeState(remoteAddressName);
-			}
-			final SignalKeyExchangeState exchangeState = keyExchangeState;
-			// Prepare packet and sent
-			PreKeyBundle localPreKeyBundle = signalManager.generateOurPreKeyBundle();
-			byte[] serializedPreKeyBundle = signalManager.serializePreKeyBundle(localPreKeyBundle);
-
-			PreKeyBundleExchange preKeyBundleExchange = PreKeyBundleExchange.newBuilder().setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle)).build();
-
-			NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(true) // Indicate it's a key exchange message
-					.setKeyExchangeMessage(preKeyBundleExchange).build();
-
-			nearbyManager.sendNearbyMessageInternal(nearbyMessage, remoteAddressName, (payload, success) -> {
-				if (success) {
-					Log.d(TAG, "Key exchange message sent to: " + remoteAddressName + ". Payload ID: " + payload.getId());
-					//messengerCallbacks.forEach(cb -> cb.onKeyExchangeInitiated(remoteAddressName, payload.getId()));
-					// Update persistent state to reflect that our bundle was effectively 'sent'
-					exchangeState.setLastOurSentAttempt(System.currentTimeMillis());
-					keyExchangeStateRepository.save(exchangeState);
-				} else {
-					Log.e(TAG, "Failed to send key exchange message to " + remoteAddressName);
-					//messengerCallbacks.forEach(cb -> cb.onKeyExchangeFailed(remoteAddressName, "Nearby send failed."));
+		executor.execute(() -> {
+			try {
+				SignalKeyExchangeState keyExchangeState;
+				// Check if we have an existing Signal Protocol session for this remoteAddressName.
+				// This means we are already ready to send encrypted messages to them.
+				if (hasSession(remoteAddressName)) {
+					Log.d(TAG, "Session already active with " + remoteAddressName);
 				}
-			});
-		} catch (Exception e) {
-			Log.e(TAG, "Error initiating key exchange with " + remoteAddressName, e);
-			//messengerCallbacks.forEach(cb -> cb.onKeyExchangeFailed(remoteAddressName, "Generation/Serialization error: " + e.getMessage()));
-		}
+
+				Log.d(TAG, "handleInitialKeyExchange() from " + hostNode.getAddressName() + " to " + remoteAddressName);
+				// Get the persistent key exchange state for this remote node.
+				keyExchangeState = keyExchangeStateRepository.getByRemoteAddressSync(remoteAddressName);
+
+				// Checks if there is an old sent of the PreKeyBundle to the same remote device
+				if (keyExchangeState != null && keyExchangeState.getLastOurSentAttempt() != null
+						&& System.currentTimeMillis() - keyExchangeState.getLastOurSentAttempt() < DEBOUNCE_TIME_MS) {
+					Log.d(TAG, "You have already sent recently your PreKeyBundle to device: " + remoteAddressName);
+					return;
+				}
+				if (keyExchangeState == null) {
+					keyExchangeState = new SignalKeyExchangeState(remoteAddressName);
+				}
+				final SignalKeyExchangeState exchangeState = keyExchangeState;
+				// Prepare packet and sent
+				PreKeyBundle localPreKeyBundle = signalManager.generateOurPreKeyBundle();
+				byte[] serializedPreKeyBundle = signalManager.serializePreKeyBundle(localPreKeyBundle);
+
+				PreKeyBundleExchange preKeyBundleExchange = PreKeyBundleExchange.newBuilder().setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle)).build();
+
+				NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(true) // Indicate it's a key exchange message
+						.setKeyExchangeMessage(preKeyBundleExchange).build();
+
+				nearbyManager.sendNearbyMessageInternal(nearbyMessage, remoteAddressName, (payload, success) -> {
+					if (success) {
+						Log.d(TAG, "Key exchange message sent to: " + remoteAddressName + ". Payload ID: " + payload.getId());
+						// Update persistent state to reflect that our bundle was effectively 'sent'
+						exchangeState.setLastOurSentAttempt(System.currentTimeMillis());
+						keyExchangeStateRepository.save(exchangeState);
+					} else {
+						Log.e(TAG, "Failed to send key exchange message to " + remoteAddressName);
+					}
+				});
+			} catch (Exception e) {
+				Log.e(TAG, "Error initiating key exchange with " + remoteAddressName, e);
+			}
+		});
 	}
 
 	/**
@@ -494,7 +495,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						Log.e(TAG, "Failed to send " + (delivered ? "Delivered" : "Read") + " ACK for payload " + originalPayloadId + " to " + recipientAddressName);
 					}
 					callback.accept(success);
-				}, unused -> {});
+				}, unused -> {
+				});
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error sending ACK for payload " + originalPayloadId + " to " + recipientAddressName, e);

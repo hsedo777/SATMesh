@@ -22,6 +22,7 @@
 	<!-- Message exchange -->
 	<color name="messageSentBackground">#574F5C</color>
 	<color name="messageSentText">@color/white</color>
+	<color name="selectedMessageBackground">#80868E</color>
 
 	<color name="gradientStart">@color/secondaryColor</color>
 	<color name="gradientEnd">@color/white</color>

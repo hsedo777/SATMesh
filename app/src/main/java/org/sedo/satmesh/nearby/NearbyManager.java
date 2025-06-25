@@ -22,6 +22,7 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
 
 import org.sedo.satmesh.model.rt.RouteEntry;
+import org.sedo.satmesh.nearby.NearbyRouteManager.RouteAndUsage;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.RouteResponseMessage;
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class NearbyManager {
@@ -519,6 +521,77 @@ public class NearbyManager {
 	}
 
 	/**
+	 * Sends a {@link NearbyMessageBody} to a specified recipient, attempting to use a direct Nearby Connections
+	 * link if available, or initiating route discovery and forwarding through the mesh network otherwise.
+	 * <p>
+	 * This method first checks for an existing direct connection (represented by an {@code endpointId})
+	 * to the {@code recipientAddressName}.
+	 * <ul>
+	 * <li>If a direct connection exists, the {@code plainMessageBody} is encrypted for the recipient
+	 * (hop-by-hop encryption) and sent directly over Nearby Connections.</li>
+	 * <li>If no direct connection is found, the method attempts to find an existing active route
+	 * to the recipient via {@link NearbyRouteManager}.
+	 * <ul>
+	 * <li>If an active route exists, the {@code plainMessageBody} is immediately sent
+	 * through that route using {@link NearbyRouteManager#sendMessageThroughRoute(String, String, NearbyMessageBody, BiConsumer)}.</li>
+	 * <li>If no active route is found, route discovery is initiated via
+	 * {@link NearbyRouteManager#initiateRouteDiscovery(String, java.util.function.Consumer, java.util.function.Consumer)}.
+	 * Upon successful route discovery, the message will then be sent through the newly found route.</li>
+	 * </ul>
+	 * </li>
+	 * </ul>
+	 * Any errors during direct transmission or route handling will be reported via the {@code transmissionCallback}.
+	 *
+	 * @param plainMessageBody             The unencrypted {@link NearbyMessageBody} containing the application-level
+	 *                                     message to be sent. This will be encrypted either directly (if neighbor)
+	 *                                     or end-to-end (if routed).
+	 * @param recipientAddressName         The {@code SignalProtocolAddress.name} of the final recipient.
+	 * @param transmissionCallback         A {@link BiConsumer} callback that receives the {@link Payload}
+	 *                                     (or {@code null} if direct transmission failed or route not found)
+	 *                                     and a boolean indicating success ({@code true}) or failure ({@code false})
+	 *                                     of the attempt to send the message to the next hop (direct connection or first hop of route).
+	 * @param onDiscoveryInitiatedCallback An optional {@link Consumer} callback that is invoked to
+	 *                                     inform the caller if route discovery was initiated ({@code true})
+	 *                                     or not needed/failed to initiate ({@code false}). This callback
+	 *                                     is only relevant when a route needs to be discovered.
+	 */
+	protected void sendRoutableNearbyMessageInternal(@NonNull NearbyMessageBody plainMessageBody,
+	                                                 @NonNull String recipientAddressName,
+	                                                 @NonNull BiConsumer<Payload, Boolean> transmissionCallback,
+	                                                 @Nullable Consumer<Boolean> onDiscoveryInitiatedCallback) {
+		final String endpointId = getLinkedEndpointId(recipientAddressName);
+		if (endpointId == null) {
+			Log.e(TAG, "There is no direct connection to address '" + recipientAddressName + "', we are going to attempt to find a route.");
+			try {
+				NearbyRouteManager nearbyRouteManager = NearbySignalMessenger.getInstance().getNearbyRouteManager();
+				RouteAndUsage routeAndUsage = nearbyRouteManager.getIfExistRouteAndUsageFor(recipientAddressName);
+				if (routeAndUsage == null || routeAndUsage.routeEntry == null) {
+					Log.d(TAG, "No route found. Init route discovery.");
+					nearbyRouteManager.initiateRouteDiscovery(recipientAddressName,
+							unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback),
+							onDiscoveryInitiatedCallback);
+				} else {
+					// There is a valid active route
+					nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback);
+				}
+			} catch (Exception e) {
+				Log.e(TAG, "Handling route for message transmission failed.", e);
+				transmissionCallback.accept(null, false); // Notify failure
+			}
+			return;
+		}
+
+		try {
+			byte[] messageBytes = NearbySignalMessenger.getInstance().encryptBody(plainMessageBody, recipientAddressName).toByteArray();
+			sendNearbyMessage(endpointId, messageBytes, transmissionCallback);
+			Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
+		} catch (Exception e) {
+			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
+			transmissionCallback.accept(null, false); // Notify failure
+		}
+	}
+
+	/**
 	 * This method handles the serialization of the NearbyMessage object and sends it via Nearby Connections.
 	 *
 	 * @param nearbyMessage        The NearbyMessage protobuf object to send.
@@ -590,8 +663,9 @@ public class NearbyManager {
 	 *                               containing details like the next hop and total hop count.
 	 */
 	public void onRouteFound(@NonNull String destinationAddressName, @NonNull RouteEntry routeEntry) {
-		Log.d(TAG, destinationAddressName + " " + routeEntry);
+		Log.d(TAG, destinationAddressName + ", route=" + routeEntry);
 		NodeTransientStateRepository.getInstance().updateTransientNodeState(destinationAddressName, NodeState.ON_CONNECTED);
+		NearbySignalMessenger.getInstance().onRouteFound(destinationAddressName);
 	}
 
 	/**
@@ -618,13 +692,13 @@ public class NearbyManager {
 	 * from its end-to-end encryption and represents the actual application-level message
 	 * (e.g., chat message, personal info, ACK).
 	 *
-	 * @param originalSenderAddress        The {@code SignalProtocolAddress.name} of the original sender
-	 *                                    who initiated this routed message.
-	 * @param internalNearbyMessageBody   The {@link NearbyMessageBody} containing the actual
-	 *                                    message content and type, as sent by the original sender
-	 *                                    and intended for this final destination. This object is
-	 *                                    already end-to-end decrypted.
-	 * @param payloadId The payload ID of the
+	 * @param originalSenderAddress     The {@code SignalProtocolAddress.name} of the original sender
+	 *                                  who initiated this routed message.
+	 * @param internalNearbyMessageBody The {@link NearbyMessageBody} containing the actual
+	 *                                  message content and type, as sent by the original sender
+	 *                                  and intended for this final destination. This object is
+	 *                                  already end-to-end decrypted.
+	 * @param payloadId                 The payload ID of the
 	 */
 	public void onRoutedMessageReceived(
 			@NonNull String originalSenderAddress,

@@ -788,6 +788,48 @@ public class NearbyRouteManager {
 		}
 	}
 
+	protected RouteAndUsage getIfExistRouteAndUsageFor(@NonNull String remoteAddressName) {
+		// 1. Resolve finalDestinationAddressName to local ID
+		Node finalDestinationNode = nodeRepository.findNodeSync(remoteAddressName);
+		if (finalDestinationNode == null) {
+			Log.e(TAG, "Final destination node " + remoteAddressName + " not found in local repository.");
+			return null;
+		}
+
+		// 2. Find an active route to the final destination
+		RouteWithUsageTimestamp entryW = routeEntryDao.getMostRecentOpenedRouteByDestinationSync(finalDestinationNode.getId());
+		if (entryW == null) {
+			Log.e(TAG, "No active route found for destination " + remoteAddressName + ". Please initiate route discovery.");
+			return null;
+		}
+		if (!entryW.routeEntry.isOpened()) {
+			Log.w(TAG, "Route found but unusable.");
+			return null;
+		}
+		RouteUsage routeUsage = routeUsageDao.getMostRecentRouteUsageForDestinationSync(finalDestinationNode.getId());
+		if (routeUsage == null) {
+			Log.e(TAG, "Impossible to find the RouteUsage for destination " + remoteAddressName + ". Please initiate route discovery.");
+			return null;
+		}
+		long lastUsageTimestamp;
+		if (routeUsage.getLastUsedTimestamp() == null) {
+			// Undesired behavior
+			lastUsageTimestamp = System.currentTimeMillis();
+			routeUsage.setLastUsedTimestamp(lastUsageTimestamp);
+			routeUsageDao.update(routeUsage);
+		} else {
+			lastUsageTimestamp = routeUsage.getLastUsedTimestamp();
+		}
+		long delay = System.currentTimeMillis() - lastUsageTimestamp;
+		if (delay > ROUTE_MAX_INACTIVITY_MILLIS) {
+			Log.w(TAG, "Match expired route. Delete it.");
+			routeUsageDao.deleteUsagesForRouteEntry(entryW.routeEntry.getDiscoveryUuid());
+			routeEntryDao.delete(entryW.routeEntry);
+			return null;
+		}
+		return new RouteAndUsage(entryW.routeEntry, routeUsage);
+	}
+
 	/**
 	 * Initiates the process of sending an application-level message (contained in
 	 * {@code internalNearbyMessageBody}) from the {@code originalSenderAddressName}
@@ -825,30 +867,33 @@ public class NearbyRouteManager {
 			Log.d(TAG, "Attempting to send message to " + finalDestinationAddressName + " from " + originalSenderAddressName);
 
 			// 1. Resolve finalDestinationAddressName to local ID
-			Node finalDestinationNode = nodeRepository.findNodeSync(finalDestinationAddressName);
-			if (finalDestinationNode == null) {
-				Log.e(TAG, "Final destination node " + finalDestinationAddressName + " not found in local repository. Cannot send message.");
-				return;
-			}
-
 			// 2. Find an active route to the final destination
-			RouteWithUsageTimestamp entryW = routeEntryDao.getMostRecentOpenedRouteByDestinationSync(finalDestinationNode.getId());
-			if (entryW == null) {
-				Log.e(TAG, "No active route found for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+			RouteAndUsage routeAndUsage = getIfExistRouteAndUsageFor(finalDestinationAddressName);
+			if (routeAndUsage == null) {
+				Log.e(TAG, "No active pair route-usage found for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+				callback.accept(null, false);
 				return;
 			}
-			RouteUsage routeUsage = routeUsageDao.getMostRecentRouteUsageForDestinationSync(finalDestinationNode.getId());
+			RouteEntry activeRoute = routeAndUsage.routeEntry;
+			RouteUsage routeUsage = routeAndUsage.routeUsage;
+
+			if (activeRoute == null) {
+				Log.e(TAG, "No active route found for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+				callback.accept(null, false);
+				return;
+			}
 			if (routeUsage == null) {
 				Log.e(TAG, "Impossible to find the RouteUsage for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+				callback.accept(null, false);
 				return;
 			}
-			RouteEntry activeRoute = entryW.getRouteEntry();
 
 			// 3. Resolve the next hop node for this route
 			Node nextHopNode = nodeRepository.findNodeSync(activeRoute.getNextHopLocalId());
 			if (nextHopNode == null) {
 				Log.e(TAG, "Next hop node for route " + activeRoute.getDiscoveryUuid() + " not found. Route might be stale/invalid.");
 				routeEntryDao.delete(activeRoute); // Invalidate the bad route
+				callback.accept(null, false);
 				return;
 			}
 			String nextHopAddressName = nextHopNode.getAddressName();
@@ -866,6 +911,7 @@ public class NearbyRouteManager {
 				encryptedRoutedMessageBody = signalManager.encryptMessage(finalDestinationAddress, routedMessageBody.toByteArray());
 			} catch (Exception e) {
 				Log.e(TAG, "Failed to E2E encrypt RoutedMessageBody for " + finalDestinationAddressName + ": " + e.getMessage(), e);
+				callback.accept(null, false);
 				return;
 			}
 
@@ -974,21 +1020,22 @@ public class NearbyRouteManager {
 				Log.d(TAG, "Current node is an intermediate node for RoutedMessage to " + finalDestinationAddressName);
 
 				// a. Find the active route from current node to final destination
-				Node finalDestinationNode = nodeRepository.findNodeSync(finalDestinationAddressName);
-				if (finalDestinationNode == null) {
-					Log.e(TAG, "Final destination node " + finalDestinationAddressName + " not found locally on intermediate node. Cannot forward.");
+				RouteAndUsage routeAndUsage = getIfExistRouteAndUsageFor(finalDestinationAddressName);
+				if (routeAndUsage == null) {
+					Log.e(TAG, "No active pair route-usage found for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
 					return;
 				}
-				RouteWithUsageTimestamp routeWithUsageTimestamp = routeEntryDao.getMostRecentOpenedRouteByDestinationSync(finalDestinationNode.getId());
-				if (routeWithUsageTimestamp == null) {
+				RouteEntry activeRoute = routeAndUsage.routeEntry;
+				RouteUsage routeUsage = routeAndUsage.routeUsage;
+
+				if (activeRoute == null) {
 					Log.e(TAG, "No active route from intermediate node to " + finalDestinationAddressName + ". Cannot forward RoutedMessage.");
 					return;
 				}
-				RouteUsage routeUsage = routeUsageDao.getRouteUsageByRequestUuid(incomingRoutedMessage.getRouteUsageUuid());
 				if (routeUsage == null) {
 					Log.w(TAG, "Unable to locate the route usage for request ID=" + incomingRoutedMessage.getRouteUuid() + " from " + senderAddressName);
+					return;
 				}
-				RouteEntry activeRoute = routeWithUsageTimestamp.getRouteEntry();
 
 				// b. Resolve the next hop
 				Node nextHopNode = nodeRepository.findNodeSync(activeRoute.getNextHopLocalId());
@@ -1018,5 +1065,16 @@ public class NearbyRouteManager {
 				Log.d(TAG, "RoutedMessage for " + finalDestinationAddressName + " forwarded to " + nextHopAddressName);
 			}
 		});
+	}
+
+	// Helper class
+	public static class RouteAndUsage {
+		public RouteEntry routeEntry;
+		public RouteUsage routeUsage;
+
+		public RouteAndUsage(RouteEntry routeEntry, RouteUsage routeUsage) {
+			this.routeEntry = routeEntry;
+			this.routeUsage = routeUsage;
+		}
 	}
 }

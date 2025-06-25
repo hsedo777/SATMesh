@@ -1,6 +1,7 @@
 package org.sedo.satmesh.model.rt;
 
 import androidx.room.Dao;
+import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
@@ -34,23 +35,13 @@ public interface RouteUsageDao {
 	int update(RouteUsage routeUsage);
 
 	/**
-	 * Deletes a specific RouteUsage record by its usage request UUID.
-	 * This is used when an application request that was using a route is completed or cancelled.
+	 * Deletes a specific RouteUsage record
 	 *
-	 * @param usageRequestUuid The UUID of the application request using the route.
+	 * @param routeUsage The route usage to delete
 	 * @return The number of rows deleted.
 	 */
-	@Query("DELETE FROM route_usage WHERE usage_request_uuid = :usageRequestUuid")
-	int deleteByUsageRequestUuid(String usageRequestUuid);
-
-	/**
-	 * Retrieves a RouteUsage record by its unique usage request UUID.
-	 *
-	 * @param usageRequestUuid The UUID of the application request using the route.
-	 * @return The RouteUsage record if found, null otherwise.
-	 */
-	@Query("SELECT * FROM route_usage WHERE usage_request_uuid = :usageRequestUuid")
-	RouteUsage getRouteUsageByRequestUuid(String usageRequestUuid);
+	@Delete
+	int delete(RouteUsage routeUsage);
 
 	/**
 	 * Retrieves the most recently used (opened) route usage entry for a given destination node.
@@ -74,13 +65,11 @@ public interface RouteUsageDao {
 	RouteUsage getMostRecentRouteUsageForDestinationSync(long destinationNodeLocalId);
 
 	/**
-	 * Deletes all RouteUsage records associated with a specific RouteEntry that have not been
-	 * used since a given timestamp. This helps in cleaning up stale usage records.
+	 * Deletes all RouteUsage records associated with a specific RouteEntry.
+	 * This helps in cleaning up stale usage records.
 	 *
 	 * @param routeEntryDiscoveryUuid The discovery UUID of the RouteEntry.
-	 * @param thresholdTimestamp      The timestamp (in milliseconds) before which usage is considered old.
-	 * @return The number of rows deleted.
 	 */
-	@Query("DELETE FROM route_usage WHERE route_entry_discovery_uuid = :routeEntryDiscoveryUuid AND last_used_timestamp < :thresholdTimestamp")
-	int deleteStaleUsagesForRouteEntry(String routeEntryDiscoveryUuid, Long thresholdTimestamp);
+	@Query("DELETE FROM route_usage WHERE route_entry_discovery_uuid = :routeEntryDiscoveryUuid")
+	void deleteUsagesForRouteEntry(String routeEntryDiscoveryUuid);
 }

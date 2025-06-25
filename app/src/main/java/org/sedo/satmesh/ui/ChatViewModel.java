@@ -23,12 +23,9 @@ import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -395,47 +392,7 @@ public class ChatViewModel extends AndroidViewModel {
 			return;
 		}
 
-		executor.execute(() -> {
-			// Retrieve messages with MESSAGE_STATUS_FAILED or MESSAGE_STATUS_PENDING for the current remote node
-			List<Message> failedMessages = messageRepository.getMessagesInStatusesForRecipientSync(
-					currentRemoteNode.getId(),
-					Arrays.asList(Message.MESSAGE_STATUS_FAILED,
-							Message.MESSAGE_STATUS_PENDING /* Occurs when the send failure mapping failed*/
-					));
-
-			if (failedMessages != null && !failedMessages.isEmpty()) {
-				Log.d(TAG, "Found " + failedMessages.size() + " failed messages to resend for " + currentRemoteNode.getDisplayName());
-				for (Message message : failedMessages) {
-					// Before attempting to resend, update its status to PENDING
-					message.setStatus(Message.MESSAGE_STATUS_PENDING);
-					messageRepository.updateMessage(message); // This will update UI if it observes
-
-					TextMessage text = TextMessage.newBuilder()
-							.setContent(message.getContent())
-							.setPayloadId(Objects.requireNonNullElse(message.getPayloadId(), 0L))
-							.setTimestamp(message.getTimestamp())
-							.build();
-
-					// Send the message. nearbySignalMessenger will handle success/failure status update.
-					nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text, message.getId());
-				}
-				uiMessage.postValue(getApplication().getString(R.string.resending_failed_messages));
-			} else {
-				Log.d(TAG, "No failed messages found to resend for " + currentRemoteNode.getDisplayName());
-			}
-
-			// Retrieve message for which sending message delivery ack failed
-			List<Message> missingAck = messageRepository.getMessagesInStatusesFromSenderSync(currentRemoteNode.getId(), Collections.singletonList(Message.MESSAGE_STATUS_PENDING));
-			if (missingAck != null && !missingAck.isEmpty()) {
-				for (Message message : missingAck) {
-					nearbySignalMessenger.sendMessageAck(message.getPayloadId(), currentRemoteNode.getAddressName(), true, success -> {
-						if (success) {
-							message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-							messageRepository.updateMessage(message);
-						}
-					});
-				}
-			}
-		});
+		nearbySignalMessenger.attemptResendFailedMessagesTo(currentRemoteNode);
+		uiMessage.postValue(getApplication().getString(R.string.resending_failed_messages));
 	}
 }

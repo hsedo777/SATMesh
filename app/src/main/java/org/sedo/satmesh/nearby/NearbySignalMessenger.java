@@ -42,6 +42,10 @@ import org.whispersystems.libsignal.protocol.PreKeySignalMessage;
 import org.whispersystems.libsignal.protocol.SignalMessage;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -563,6 +567,57 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	}
 
 	/**
+	 * Attempts to resend messages that previously failed to send to the
+	 * remote node and tries to send delivery ack for messages the previous attempt failed.
+	 * This method should be called when a secure session is established.
+	 *
+	 * @param remoteNode the remote node
+	 */
+	public void attemptResendFailedMessagesTo(@NonNull Node remoteNode) {
+		executor.execute(() -> {
+			// Retrieve messages with MESSAGE_STATUS_FAILED or MESSAGE_STATUS_PENDING for the current remote node
+			List<Message> failedMessages = messageRepository.getMessagesInStatusesForRecipientSync(
+					remoteNode.getId(),
+					Arrays.asList(Message.MESSAGE_STATUS_FAILED,
+							Message.MESSAGE_STATUS_PENDING /* Occurs when the send failure mapping failed*/
+					));
+
+			if (failedMessages != null && !failedMessages.isEmpty()) {
+				Log.d(TAG, "Found " + failedMessages.size() + " failed messages to resend for " + remoteNode.getDisplayName());
+				for (Message message : failedMessages) {
+					// Before attempting to resend, update its status to PENDING
+					message.setStatus(Message.MESSAGE_STATUS_PENDING);
+					messageRepository.updateMessage(message); // This will update UI if it observes
+
+					TextMessage text = TextMessage.newBuilder()
+							.setContent(message.getContent())
+							.setPayloadId(Objects.requireNonNullElse(message.getPayloadId(), 0L))
+							.setTimestamp(message.getTimestamp())
+							.build();
+
+					// Send the message. nearbySignalMessenger will handle success/failure status update.
+					sendEncryptedTextMessage(remoteNode.getAddressName(), text, message.getId());
+				}
+			} else {
+				Log.d(TAG, "No failed messages found to resend for " + remoteNode.getDisplayName());
+			}
+
+			// Retrieve message for which sending message delivery ack failed
+			List<Message> missingAck = messageRepository.getMessagesInStatusesFromSenderSync(remoteNode.getId(), Collections.singletonList(Message.MESSAGE_STATUS_PENDING));
+			if (missingAck != null && !missingAck.isEmpty()) {
+				for (Message message : missingAck) {
+					sendMessageAck(message.getPayloadId(), remoteNode.getAddressName(), true, success -> {
+						if (success) {
+							message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
+							messageRepository.updateMessage(message);
+						}
+					});
+				}
+			}
+		});
+	}
+
+	/**
 	 * Handles any incoming Nearby Payload, parsing it into a NearbyMessage
 	 * and directing it to the correct handler based on its type (key exchange or encrypted message).
 	 *
@@ -741,7 +796,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	}
 
 	// Helper method
-	protected void parseDecryptedMessage(@NonNull NearbyMessageBody decryptedMessageBody, @NonNull String senderAddressName, long payloadId) throws Exception{
+	protected void parseDecryptedMessage(@NonNull NearbyMessageBody decryptedMessageBody, @NonNull String senderAddressName, long payloadId) throws Exception {
 		SignalProtocolAddress senderAddress = getAddress(senderAddressName);
 		Message message;
 		switch (decryptedMessageBody.getMessageType()) {
@@ -850,5 +905,24 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Log.w(TAG, "Received UNKNOWN or unhandled message type: " + decryptedMessageBody.getMessageType() + " from " + senderAddressName);
 				break;
 		}
+	}
+
+	public void onRouteFound(@NonNull String destinationAddressName) {
+		executor.execute(() -> {
+			Log.d(TAG, "Handling route founding to destination: " + destinationAddressName);
+			Node remoteNode = nodeRepository.findNodeSync(destinationAddressName);
+			if (remoteNode == null) {
+				Log.e(TAG, "Unable to locate the remote node at address: " + destinationAddressName);
+				return;
+			}
+			attemptResendFailedMessagesTo(remoteNode);
+		});
+	}
+
+	/**
+	 * Gets a reference of the {@link NearbyRouteManager} bound to this {@code NearbySignalMessenger}
+	 */
+	public NearbyRouteManager getNearbyRouteManager() {
+		return nearbyRouteManager;
 	}
 }

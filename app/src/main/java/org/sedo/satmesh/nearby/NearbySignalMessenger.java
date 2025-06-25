@@ -27,6 +27,7 @@ import org.sedo.satmesh.proto.PersonalInfo;
 import org.sedo.satmesh.proto.PreKeyBundleExchange;
 import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
+import org.sedo.satmesh.proto.RoutedMessage;
 import org.sedo.satmesh.proto.TextMessage;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.MessageRepository;
@@ -723,108 +724,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			// We need to persist the received message if it's a TextMessage.
 			// For ACKs or Info, we update existing entries or just notify.
 
-			Message message;
-			switch (decryptedMessageBody.getMessageType()) {
-				case ENCRYPTED_MESSAGE:
-					TextMessage textMessage = TextMessage.parseFrom(decryptedMessageBody.getEncryptedData());
-					Node senderNode = nodeRepository.findNodeSync(senderAddressName);
-					if (senderNode == null) {
-						Log.e(TAG, "Failed to identify, in DB, the sender node at address " + senderAddress + " msg.payloadId=" + payloadId);
-						return;
-					}
-
-					Log.d(TAG, "Received and persisted TextMessage from " + senderAddressName + ": " + textMessage.getContent());
-					// Persist the received text message
-					message = new Message();
-					if (textMessage.getPayloadId() != 0L) {
-						// We are in case or retransmission
-						payloadId = textMessage.getPayloadId();
-					}
-					message.setPayloadId(payloadId);
-					message.setStatus(Message.MESSAGE_STATUS_PENDING);
-					message.setSenderNodeId(senderNode.getId());
-					message.setRecipientNodeId(hostNode.getId());
-					message.setType(Message.MESSAGE_TYPE_TEXT);
-					message.setContent(textMessage.getContent());
-					message.setTimestamp(textMessage.getTimestamp());
-					final long finalPayloadId = payloadId;
-					messageRepository.insertMessage(message, success -> {
-						if (success) {
-							sendMessageAck(finalPayloadId, senderAddressName, true, newSuccess -> {
-								if (newSuccess) {
-									message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-									messageRepository.updateMessage(message);
-								}
-							});
-						}
-					});
-					break;
-				case MESSAGE_DELIVERED_ACK:
-					MessageAck deliveredAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
-					// Update status of the original message in DB
-					message = messageRepository.getMessageByPayloadId(deliveredAck.getPayloadId());
-					if (message == null) {
-						Log.e(TAG, "Receiving message delivered ack for non-identified payload id=" + deliveredAck.getPayloadId());
-						return;
-					}
-					message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-					messageRepository.updateMessage(message);
-					Log.d(TAG, "Received Delivered ACK for payload " + deliveredAck.getPayloadId() + " from " + senderAddressName);
-					//messengerCallbacks.forEach(cb -> cb.onMessageStatusChanged(deliveredAck.getPayloadId(), true));
-					break;
-				case MESSAGE_READ_ACK:
-					MessageAck readAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
-					// Update status of the original message in DB
-					message = messageRepository.getMessageByPayloadId(readAck.getPayloadId());
-					if (message == null) {
-						Log.e(TAG, "Receiving message read ack for non-identified payload id=" + readAck.getPayloadId());
-						return;
-					}
-					message.setStatus(Message.MESSAGE_STATUS_READ);
-					messageRepository.updateMessage(message);
-					Log.d(TAG, "Received Read ACK for payload " + readAck.getPayloadId() + " from " + senderAddressName);
-					//messengerCallbacks.forEach(cb -> cb.onMessageStatusChanged(readAck.getPayloadId(), false));
-					break;
-				case PERSONAL_INFO:
-					PersonalInfo personalInfo = PersonalInfo.parseFrom(decryptedMessageBody.getEncryptedData());
-					// Update node's display name and potentially other info in DB
-					Node nodeToUpdate = nodeRepository.findNodeSync(senderAddressName);
-					if (nodeToUpdate != null) {
-						nodeToUpdate.setPersonalInfo(personalInfo);
-						nodeToUpdate.setLastSeen(System.currentTimeMillis()); // Update last seen as well
-						nodeRepository.update(nodeToUpdate);
-						Log.d(TAG, "Received and updated PersonalInfo for " + senderAddressName + ": " + personalInfo.getDisplayName());
-						if (personalInfo.getExpectResult()) {
-							Node hostNodeFromDb = nodeRepository.findNodeSync(hostNode.getAddressName());
-							hostNode.setPersonalInfo(hostNodeFromDb.toPersonalInfo(false));
-							sendPersonalInfo(hostNodeFromDb.toPersonalInfo(false), senderAddressName);
-						}
-					} else {
-						// This case might not happen cause exchanging personal info require secured session and the session requires node persistence.
-						Log.d(TAG, "Received PersonalInfo for new node " + senderAddressName + ": " + personalInfo.getDisplayName());
-						return;
-					}
-					break;
-				case TYPING_INDICATOR:
-					// TypingIndicator typingIndicator = TypingIndicator.parseFrom(decryptedMessageBody.getEncryptedData());
-					// Log.d(TAG, "Received TypingIndicator from " + senderAddressName + ": " + typingIndicator.getIsTyping());
-					// TODO: Notify UI via NodeStateRepository to show/hide typing indicator if needed
-					break;
-				case ROUTE_DISCOVERY_REQ:
-					Log.d(TAG, "Received ROUTE_DISCOVERY_REQ from " + senderAddressName);
-					RouteRequestMessage routeRequestMessage = RouteRequestMessage.parseFrom(decryptedMessageBody.getEncryptedData());
-					nearbyRouteManager.handleIncomingRouteRequest(senderAddressName, routeRequestMessage, hostNode.getAddressName());
-					break;
-				case ROUTE_DISCOVERY_RESP:
-					Log.d(TAG, "Received ROUTE_DISCOVERY_RESP from " + senderAddressName);
-					RouteResponseMessage routeResponseMessage = RouteResponseMessage.parseFrom(decryptedMessageBody.getEncryptedData());
-					nearbyRouteManager.handleIncomingRouteResponse(senderAddressName, routeResponseMessage);
-					break;
-				case UNKNOWN:
-				default:
-					Log.w(TAG, "Received UNKNOWN or unhandled message type: " + decryptedMessageBody.getMessageType() + " from " + senderAddressName);
-					break;
-			}
+			parseDecryptedMessage(decryptedMessageBody, senderAddressName, payloadId);
 		} catch (InvalidProtocolBufferException e) {
 			Log.e(TAG, "Failed to parse decrypted message body from " + senderAddressName + ": " + e.getMessage(), e);
 		} catch (NoSessionException e) {
@@ -837,6 +737,118 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			executor.execute(() -> handleInitialKeyExchange(senderAddressName));
 		} catch (Exception e) {
 			Log.e(TAG, "Error processing encrypted message from " + senderAddressName + ": " + e.getMessage(), e);
+		}
+	}
+
+	// Helper method
+	protected void parseDecryptedMessage(@NonNull NearbyMessageBody decryptedMessageBody, @NonNull String senderAddressName, long payloadId) throws Exception{
+		SignalProtocolAddress senderAddress = getAddress(senderAddressName);
+		Message message;
+		switch (decryptedMessageBody.getMessageType()) {
+			case ENCRYPTED_MESSAGE:
+				TextMessage textMessage = TextMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				Node senderNode = nodeRepository.findNodeSync(senderAddressName);
+				if (senderNode == null) {
+					Log.e(TAG, "Failed to identify, in DB, the sender node at address " + senderAddress + " msg.payloadId=" + payloadId);
+					return;
+				}
+
+				Log.d(TAG, "Received and persisted TextMessage from " + senderAddressName + ": " + textMessage.getContent());
+				// Persist the received text message
+				message = new Message();
+				if (textMessage.getPayloadId() != 0L) {
+					// We are in case or retransmission
+					payloadId = textMessage.getPayloadId();
+				}
+				message.setPayloadId(payloadId);
+				message.setStatus(Message.MESSAGE_STATUS_PENDING);
+				message.setSenderNodeId(senderNode.getId());
+				message.setRecipientNodeId(hostNode.getId());
+				message.setType(Message.MESSAGE_TYPE_TEXT);
+				message.setContent(textMessage.getContent());
+				message.setTimestamp(textMessage.getTimestamp());
+				final long finalPayloadId = payloadId;
+				messageRepository.insertMessage(message, success -> {
+					if (success) {
+						sendMessageAck(finalPayloadId, senderAddressName, true, newSuccess -> {
+							if (newSuccess) {
+								message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
+								messageRepository.updateMessage(message);
+							}
+						});
+					}
+				});
+				break;
+			case MESSAGE_DELIVERED_ACK:
+				MessageAck deliveredAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
+				// Update status of the original message in DB
+				message = messageRepository.getMessageByPayloadId(deliveredAck.getPayloadId());
+				if (message == null) {
+					Log.e(TAG, "Receiving message delivered ack for non-identified payload id=" + deliveredAck.getPayloadId());
+					return;
+				}
+				message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
+				messageRepository.updateMessage(message);
+				Log.d(TAG, "Received Delivered ACK for payload " + deliveredAck.getPayloadId() + " from " + senderAddressName);
+				//messengerCallbacks.forEach(cb -> cb.onMessageStatusChanged(deliveredAck.getPayloadId(), true));
+				break;
+			case MESSAGE_READ_ACK:
+				MessageAck readAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
+				// Update status of the original message in DB
+				message = messageRepository.getMessageByPayloadId(readAck.getPayloadId());
+				if (message == null) {
+					Log.e(TAG, "Receiving message read ack for non-identified payload id=" + readAck.getPayloadId());
+					return;
+				}
+				message.setStatus(Message.MESSAGE_STATUS_READ);
+				messageRepository.updateMessage(message);
+				Log.d(TAG, "Received Read ACK for payload " + readAck.getPayloadId() + " from " + senderAddressName);
+				//messengerCallbacks.forEach(cb -> cb.onMessageStatusChanged(readAck.getPayloadId(), false));
+				break;
+			case PERSONAL_INFO:
+				PersonalInfo personalInfo = PersonalInfo.parseFrom(decryptedMessageBody.getEncryptedData());
+				// Update node's display name and potentially other info in DB
+				Node nodeToUpdate = nodeRepository.findNodeSync(senderAddressName);
+				if (nodeToUpdate != null) {
+					nodeToUpdate.setPersonalInfo(personalInfo);
+					nodeToUpdate.setLastSeen(System.currentTimeMillis()); // Update last seen as well
+					nodeRepository.update(nodeToUpdate);
+					Log.d(TAG, "Received and updated PersonalInfo for " + senderAddressName + ": " + personalInfo.getDisplayName());
+					if (personalInfo.getExpectResult()) {
+						Node hostNodeFromDb = nodeRepository.findNodeSync(hostNode.getAddressName());
+						hostNode.setPersonalInfo(hostNodeFromDb.toPersonalInfo(false));
+						sendPersonalInfo(hostNodeFromDb.toPersonalInfo(false), senderAddressName);
+					}
+				} else {
+					// This case might not happen cause exchanging personal info require secured session and the session requires node persistence.
+					Log.d(TAG, "Received PersonalInfo for new node " + senderAddressName + ": " + personalInfo.getDisplayName());
+					return;
+				}
+				break;
+			case TYPING_INDICATOR:
+				// TypingIndicator typingIndicator = TypingIndicator.parseFrom(decryptedMessageBody.getEncryptedData());
+				// Log.d(TAG, "Received TypingIndicator from " + senderAddressName + ": " + typingIndicator.getIsTyping());
+				// TODO: Notify UI via NodeStateRepository to show/hide typing indicator if needed
+				break;
+			case ROUTE_DISCOVERY_REQ:
+				Log.d(TAG, "Received ROUTE_DISCOVERY_REQ from " + senderAddressName);
+				RouteRequestMessage routeRequestMessage = RouteRequestMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				nearbyRouteManager.handleIncomingRouteRequest(senderAddressName, routeRequestMessage, hostNode.getAddressName());
+				break;
+			case ROUTE_DISCOVERY_RESP:
+				Log.d(TAG, "Received ROUTE_DISCOVERY_RESP from " + senderAddressName);
+				RouteResponseMessage routeResponseMessage = RouteResponseMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				nearbyRouteManager.handleIncomingRouteResponse(senderAddressName, routeResponseMessage);
+				break;
+			case ROUTED_MESSAGE:
+				RoutedMessage routedMessage = RoutedMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				nearbyRouteManager.handleIncomingRoutedMessage(senderAddressName, routedMessage, hostNode.getAddressName(), payloadId);
+				break;
+			case UNRECOGNIZED:
+			case UNKNOWN:
+			default:
+				Log.w(TAG, "Received UNKNOWN or unhandled message type: " + decryptedMessageBody.getMessageType() + " from " + senderAddressName);
+				break;
 		}
 	}
 }

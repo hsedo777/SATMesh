@@ -49,7 +49,7 @@ public interface RouteUsageDao {
 	 * @param usageRequestUuid The UUID of the application request using the route.
 	 * @return The RouteUsage record if found, null otherwise.
 	 */
-	@Query("SELECT * FROM route_usage WHERE usage_request_uuid = :usageRequestUuid LIMIT 1")
+	@Query("SELECT * FROM route_usage WHERE usage_request_uuid = :usageRequestUuid")
 	RouteUsage getRouteUsageByRequestUuid(String usageRequestUuid);
 
 	/**

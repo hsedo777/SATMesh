@@ -23,6 +23,7 @@ import com.google.android.gms.nearby.connection.Strategy;
 
 import org.sedo.satmesh.model.rt.RouteEntry;
 import org.sedo.satmesh.proto.NearbyMessage;
+import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
@@ -589,7 +590,7 @@ public class NearbyManager {
 	 *                               containing details like the next hop and total hop count.
 	 */
 	public void onRouteFound(@NonNull String destinationAddressName, @NonNull RouteEntry routeEntry) {
-		Log.d(TAG,  destinationAddressName + " " + routeEntry);
+		Log.d(TAG, destinationAddressName + " " + routeEntry);
 		NodeTransientStateRepository.getInstance().updateTransientNodeState(destinationAddressName, NodeState.ON_CONNECTED);
 	}
 
@@ -607,6 +608,33 @@ public class NearbyManager {
 	public void onRouteNotFound(@NonNull String requestUuid, @NonNull String destinationAddressName, @NonNull RouteResponseMessage.Status finalStatus) {
 		Log.d(TAG, requestUuid + " " + destinationAddressName + " " + finalStatus);
 		NodeTransientStateRepository.getInstance().updateTransientNodeState(destinationAddressName, NodeState.ON_DISCONNECTED);
+	}
+
+	/**
+	 * Callback method invoked by {@link NearbyRouteManager} when a routed message
+	 * successfully reaches its final destination at this node.
+	 * This method provides the original sender's identifier and the content of the message
+	 * intended for this node. The {@code internalNearbyMessageBody} is already decrypted
+	 * from its end-to-end encryption and represents the actual application-level message
+	 * (e.g., chat message, personal info, ACK).
+	 *
+	 * @param originalSenderAddress        The {@code SignalProtocolAddress.name} of the original sender
+	 *                                    who initiated this routed message.
+	 * @param internalNearbyMessageBody   The {@link NearbyMessageBody} containing the actual
+	 *                                    message content and type, as sent by the original sender
+	 *                                    and intended for this final destination. This object is
+	 *                                    already end-to-end decrypted.
+	 * @param payloadId The payload ID of the
+	 */
+	public void onRoutedMessageReceived(
+			@NonNull String originalSenderAddress,
+			@NonNull NearbyMessageBody internalNearbyMessageBody,
+			long payloadId) {
+		try {
+			NearbySignalMessenger.getInstance().parseDecryptedMessage(internalNearbyMessageBody, originalSenderAddress, payloadId);
+		} catch (Exception e) {
+			Log.e(TAG, "Error processing encrypted message from " + originalSenderAddress + ": " + e.getMessage(), e);
+		}
 	}
 
 	/**

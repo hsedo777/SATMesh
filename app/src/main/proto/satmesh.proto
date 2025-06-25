@@ -126,7 +126,7 @@ message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
 // This message encapsulates the original NearbyMessageBody and the original sender's ID.
 message RoutedMessageBody {
   // The SignalProtocolAddress.name of the original sender node.
-  string original_sender_node_id = 1;
+  // string original_sender_node_id = 1;
 
   // The actual NearbyMessageBody (e.g., ENCRYPTED_MESSAGE, TYPING_INDICATOR) that the original sender intended for the final destination.
   NearbyMessageBody internal_message_body = 2;
@@ -148,5 +148,11 @@ message RoutedMessage {
 
   // The serialized and end-to-end encrypted `RoutedMessageBody`.
   bytes encrypted_routed_message_body = 4;
+
+  // The SignalProtocolAddress.name of the original sender node.
+  string original_sender_node_id = 5;
+
+  // The payload ID to use to track the packet. Caller must ensure the value is set once
+  optional int64 payload_id = 6;
 }
 

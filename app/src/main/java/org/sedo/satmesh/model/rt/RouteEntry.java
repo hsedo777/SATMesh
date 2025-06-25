@@ -167,6 +167,7 @@ public class RouteEntry {
 		}
 
 		// Getter methods
+		@NonNull
 		public RouteEntry getRouteEntry() {
 			return routeEntry;
 		}

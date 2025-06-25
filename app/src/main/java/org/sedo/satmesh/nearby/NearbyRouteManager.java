@@ -33,6 +33,8 @@ import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeRepository.NodeCallback;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
+import org.whispersystems.libsignal.protocol.PreKeySignalMessage;
+import org.whispersystems.libsignal.protocol.SignalMessage;
 
 import java.util.List;
 import java.util.UUID;
@@ -756,7 +758,8 @@ public class NearbyRouteManager {
 	 */
 	private void sendRoutedMessageToNextHop(
 			@NonNull String nextHopAddressName,
-			@NonNull NearbyMessageBody outerNearbyMessageBody // The NearbyMessageBody with type ROUTED_MESSAGE
+			@NonNull NearbyMessageBody outerNearbyMessageBody, // The NearbyMessageBody with type ROUTED_MESSAGE
+			@Nullable BiConsumer<Payload, Boolean> callback
 	) {
 		try {
 			Log.d(TAG, "Sending RoutedMessage (outer) to next hop: " + nextHopAddressName);
@@ -772,22 +775,51 @@ public class NearbyRouteManager {
 					.build();
 
 			// Use NearbyManager to send the raw payload bytes
-			nearbyManager.sendNearbyMessageInternal(nearbyMessage, nextHopAddressName, (payload, success) -> {
+			BiConsumer<Payload, Boolean> finalCallback = callback != null ? callback : (payload, success) -> {
 				if (success) {
 					Log.d(TAG, "RoutedMessage payload " + payload.getId() + " sent successfully to " + nextHopAddressName);
 				} else {
 					Log.e(TAG, "Failed to send RoutedMessage payload " + payload.getId() + " to " + nextHopAddressName);
 				}
-			});
+			};
+			nearbyManager.sendNearbyMessageInternal(nearbyMessage, nextHopAddressName, finalCallback);
 		} catch (Exception e) {
 			Log.e(TAG, "Error building or sending RoutedMessage to " + nextHopAddressName + ": " + e.getMessage(), e);
 		}
 	}
 
+	/**
+	 * Initiates the process of sending an application-level message (contained in
+	 * {@code internalNearbyMessageBody}) from the {@code originalSenderAddressName}
+	 * to the {@code finalDestinationAddressName} via an established route.
+	 * <p>
+	 * This method first encapsulates the {@code internalNearbyMessageBody} and
+	 * {@code originalSenderAddressName} into a {@link RoutedMessageBody},
+	 * which is then end-to-end encrypted for the {@code finalDestinationAddressName}.
+	 * This encrypted payload is then wrapped within a {@link RoutedMessage}
+	 * along with routing information (route UUID, usage UUID).
+	 * Finally, this {@link RoutedMessage} is sent to the
+	 * determined next hop along the route, with hop-by-hop encryption/decryption.
+	 * <p>
+	 * The method queries the local route table to find the most recent active route
+	 * to the {@code finalDestinationAddressName} and resolves the immediate next hop.
+	 *
+	 * @param finalDestinationAddressName The {@code SignalProtocolAddress.name} of the ultimate
+	 *                                    recipient node for this message.
+	 * @param originalSenderAddressName   The {@code SignalProtocolAddress.name} of the node
+	 *                                    that originally sent this message.
+	 * @param internalNearbyMessageBody   The {@link NearbyMessageBody} representing the actual
+	 *                                    application-level message (e.g., chat message, personal info, ACK). This object
+	 *                                    is *unencrypted* at this stage and will be encrypted end-to-end within this method.
+	 * @param callback                    A {@link BiConsumer} callback that will be invoked with the Nearby Connections
+	 *                                    {@link Payload} and a boolean indicating whether the transmission to the {@code next hop}
+	 *                                    was successful ({@code true}) or failed ({@code false}).
+	 */
 	public void sendMessageThroughRoute(
 			@NonNull String finalDestinationAddressName,
 			@NonNull String originalSenderAddressName,
-			@NonNull NearbyMessageBody internalNearbyMessageBody // The actual message, UNENCRYPTED
+			@NonNull NearbyMessageBody internalNearbyMessageBody, // The actual message, UNENCRYPTED
+			@NonNull BiConsumer<Payload, Boolean> callback
 	) {
 		executor.execute(() -> {
 			Log.d(TAG, "Attempting to send message to " + finalDestinationAddressName + " from " + originalSenderAddressName);
@@ -824,7 +856,6 @@ public class NearbyRouteManager {
 			// 4. Create the end-to-end encrypted RoutedMessageBody
 			// This part is encrypted for the final destination
 			RoutedMessageBody routedMessageBody = RoutedMessageBody.newBuilder()
-					.setOriginalSenderNodeId(originalSenderAddressName)
 					.setInternalMessageBody(internalNearbyMessageBody)
 					.build();
 
@@ -845,6 +876,7 @@ public class NearbyRouteManager {
 					.setRouteUuid(activeRoute.getDiscoveryUuid())
 					.setRouteUsageUuid(routeUsage.getUsageRequestUuid())
 					.setEncryptedRoutedMessageBody(ByteString.copyFrom(encryptedRoutedMessageBody.serialize()))
+					.setOriginalSenderNodeId(originalSenderAddressName)
 					.build();
 
 			// 6. Encapsulate RoutedMessage into an OUTER NearbyMessageBody of type ROUTED_MESSAGE
@@ -855,13 +887,136 @@ public class NearbyRouteManager {
 
 			// 7. Send the OUTER NearbyMessageBody to the next hop
 			// This part will be encrypted hop-by-hop by NearbySignalMessenger
-			sendRoutedMessageToNextHop(nextHopAddressName, outerNearbyMessageBody);
+			sendRoutedMessageToNextHop(nextHopAddressName, outerNearbyMessageBody, callback);
 
 			Log.d(TAG, "Message for " + finalDestinationAddressName + " sent via route " + activeRoute.getDiscoveryUuid() + " to next hop " + nextHopAddressName);
 
 			// 8. Update RouteUsage timestamp for the used route
 			routeUsage.setLastUsedTimestamp(System.currentTimeMillis());
 			routeUsageDao.update(routeUsage);
+		});
+	}
+
+	/**
+	 * Handles an incoming {@link RoutedMessage}, processing it either as the final destination
+	 * or as an intermediate node for forwarding.
+	 * <p>
+	 * If the current node is the final destination, it decrypts the end-to-end encrypted
+	 * payload within the {@code incomingRoutedMessage}, extracts the original sender's ID and
+	 * the actual message content, and then dispatches it to {@link NearbyManager} for further
+	 * application-level processing.
+	 * <p>
+	 * If the current node is an intermediate hop, it identifies the next hop for the
+	 * {@code finalDestinationNodeId} within the {@code incomingRoutedMessage} and
+	 * re-encapsulates the message for forwarding to that next hop. The end-to-end
+	 * encrypted payload remains untouched by intermediate nodes if the payload is already
+	 * set, but altered by defining the payload ID else.
+	 * <p>
+	 * This method also updates the {@link RouteUsage} timestamp
+	 * for the route being utilized.
+	 *
+	 * @param senderAddressName     The {@code SignalProtocolAddress.name} of the node that sent this
+	 *                              {@code RoutedMessage} to the current node (i.e., the previous hop).
+	 * @param incomingRoutedMessage The deserialized {@link RoutedMessage} received, containing
+	 *                              routing information and the end-to-end encrypted payload.
+	 * @param localHostAddressName  The {@code SignalProtocolAddress.name} of the current local node.
+	 * @param payloadId             The ID of the original Nearby Connections payload that carried this message.
+	 *                              Used primarily for logging and tracking.
+	 */
+	public void handleIncomingRoutedMessage(
+			@NonNull String senderAddressName, // The previous hop
+			@NonNull RoutedMessage incomingRoutedMessage, // The deserialized RoutedMessage
+			@NonNull String localHostAddressName,
+			long payloadId
+	) {
+		executor.execute(() -> {
+			String finalDestinationAddressName = incomingRoutedMessage.getFinalDestinationNodeId();
+			String routeUuid = incomingRoutedMessage.getRouteUuid();
+
+			Log.d(TAG, "Handling incoming RoutedMessage for final destination: " + finalDestinationAddressName +
+					" via route UUID: " + routeUuid + " from previous hop: " + senderAddressName);
+
+			// 1. Check if current node is the final destination
+			if (finalDestinationAddressName.equals(localHostAddressName)) {
+				Log.d(TAG, "Current node is the final destination for RoutedMessage with UUID: " + routeUuid);
+
+				// a. Decrypt the end-to-end encrypted payload (RoutedMessageBody)
+				RoutedMessageBody decryptedRoutedMessageBody;
+				SignalProtocolAddress originalSenderSignalAddress = getAddress(incomingRoutedMessage.getOriginalSenderNodeId());
+				CiphertextMessage ciphertextMessage;
+				byte[] cipherData = incomingRoutedMessage.getEncryptedRoutedMessageBody().toByteArray();
+				try {
+					try {
+						ciphertextMessage = new SignalMessage(cipherData);
+					} catch (Exception ignored) {
+						/*
+						 * Instruction in the try clause will throw exception if the message
+						 * is the first encrypted through devices
+						 */
+						ciphertextMessage = new PreKeySignalMessage(cipherData);
+					}
+					byte[] decryptedBytes = signalManager.decryptMessage(originalSenderSignalAddress, ciphertextMessage);
+					decryptedRoutedMessageBody = RoutedMessageBody.parseFrom(decryptedBytes);
+				} catch (Exception e) {
+					Log.e(TAG, "Failed to E2E decrypt RoutedMessageBody for UUID " + routeUuid + ": " + e.getMessage(), e);
+					return;
+				}
+
+				// b. Extract original sender and the internal NearbyMessageBody
+				String originalSenderNodeId = incomingRoutedMessage.getOriginalSenderNodeId();
+				NearbyMessageBody internalNearbyMessageBody = decryptedRoutedMessageBody.getInternalMessageBody();
+				Log.d(TAG, "Message for " + finalDestinationAddressName + " from original sender " + originalSenderNodeId + " received.");
+				// c. Deliver the internalNearbyMessageBody to the application layer via NearbyManager
+				nearbyManager.onRoutedMessageReceived(originalSenderNodeId, internalNearbyMessageBody,
+						incomingRoutedMessage.hasPayloadId() ? incomingRoutedMessage.getPayloadId() : payloadId);
+			} else {
+				// 2. Current node is an intermediate node, forward the message
+				Log.d(TAG, "Current node is an intermediate node for RoutedMessage to " + finalDestinationAddressName);
+
+				// a. Find the active route from current node to final destination
+				Node finalDestinationNode = nodeRepository.findNodeSync(finalDestinationAddressName);
+				if (finalDestinationNode == null) {
+					Log.e(TAG, "Final destination node " + finalDestinationAddressName + " not found locally on intermediate node. Cannot forward.");
+					return;
+				}
+				RouteWithUsageTimestamp routeWithUsageTimestamp = routeEntryDao.getMostRecentOpenedRouteByDestinationSync(finalDestinationNode.getId());
+				if (routeWithUsageTimestamp == null) {
+					Log.e(TAG, "No active route from intermediate node to " + finalDestinationAddressName + ". Cannot forward RoutedMessage.");
+					return;
+				}
+				RouteUsage routeUsage = routeUsageDao.getRouteUsageByRequestUuid(incomingRoutedMessage.getRouteUsageUuid());
+				if (routeUsage == null) {
+					Log.w(TAG, "Unable to locate the route usage for request ID=" + incomingRoutedMessage.getRouteUuid() + " from " + senderAddressName);
+				}
+				RouteEntry activeRoute = routeWithUsageTimestamp.getRouteEntry();
+
+				// b. Resolve the next hop
+				Node nextHopNode = nodeRepository.findNodeSync(activeRoute.getNextHopLocalId());
+				if (nextHopNode == null) {
+					Log.e(TAG, "Next hop node for route " + activeRoute.getDiscoveryUuid() + " not found on intermediate node. Route might be stale/invalid.");
+					routeEntryDao.delete(activeRoute);
+					return;
+				}
+				String nextHopAddressName = nextHopNode.getAddressName();
+				RoutedMessage routedMessage;
+				if (incomingRoutedMessage.hasPayloadId() && incomingRoutedMessage.getPayloadId() != 0L) {
+					routedMessage = incomingRoutedMessage; // Re-use the existing RoutedMessage bytes
+				} else {
+					routedMessage = incomingRoutedMessage.toBuilder().setPayloadId(payloadId).build();
+				}
+
+				// c. Create an OUTER NearbyMessageBody with the SAME incoming RoutedMessage
+				// The `encrypted_routed_message_body` is left untouched, as it's E2E encrypted.
+				NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
+						.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
+						.setEncryptedData(routedMessage.toByteString())
+						.build();
+
+				// d. Send this OUTER NearbyMessageBody to the next hop
+				sendRoutedMessageToNextHop(nextHopAddressName, outerNearbyMessageBody, null);
+
+				Log.d(TAG, "RoutedMessage for " + finalDestinationAddressName + " forwarded to " + nextHopAddressName);
+			}
 		});
 	}
 }

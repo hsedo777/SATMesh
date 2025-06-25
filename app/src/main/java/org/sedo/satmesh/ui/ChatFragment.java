@@ -1,5 +1,7 @@
 package org.sedo.satmesh.ui;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Bundle;
 import android.text.Editable;
@@ -15,6 +17,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.view.ActionMode;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.MenuProvider;
@@ -25,11 +29,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatBinding;
+import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.ChatAdapter;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.Objects;
+import java.util.Set;
 
 public class ChatFragment extends Fragment {
 
@@ -40,8 +46,82 @@ public class ChatFragment extends Fragment {
 
 	private ChatViewModel viewModel;
 	private ChatAdapter adapter;
-	private FragmentChatBinding binding;
+	private ActionMode currentActionMode;
+	// Implémentation de ActionMode.Callback
+	private final ActionMode.Callback actionModeCallback = new ActionMode.Callback() {
+		@Override
+		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+			mode.getMenuInflater().inflate(R.menu.menu_chat_contextual_action_mode, menu);
+			// Access the ActionMode's view and set its background color
+			View decorView = requireActivity().getWindow().getDecorView();
+			View actionModeView = decorView.findViewById(androidx.appcompat.R.id.action_mode_bar);
+			if (actionModeView != null) {
+				actionModeView.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.secondaryColor));
 
+			}
+			return true;
+		}
+
+		@Override
+		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+			// Called after onCreateActionMode and whenever the ActionMode is invalidated.
+			// Update menu items based on selection count.
+			MenuItem copyItem = menu.findItem(R.id.action_copy);
+			if (copyItem != null) {
+				// Disable the copy button if more than one message is selected
+				copyItem.setVisible(adapter.getSelectedCount() == 1);
+			}
+			return false;
+		}
+
+		@Override
+		public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+			Set<Long> selectedMessageIds = adapter.getSelectedMessageIds();
+			if (selectedMessageIds.isEmpty()) {
+				mode.finish();
+				return true;
+			}
+
+			int id = item.getItemId();
+			if (id == R.id.action_delete) {
+				Log.d(Constants.TAG_CHAT_FRAGMENT, "Deleting " + selectedMessageIds.size() + " message(s)");
+				// TODO: Call ViewModel/Repository to delete message by IDs
+				// chatViewModel.deleteMessages(selectedMessageIds);
+				mode.finish();
+				return true;
+			} else if (id == R.id.action_copy) {
+				StringBuilder copiedText = new StringBuilder();
+				// Copy only if one message is selected
+				if (selectedMessageIds.size() == 1) {
+					// Since only one message is selected, we can directly get its content
+					// from the first (and only) ID in the set.
+					Long messageIdToCopy = selectedMessageIds.iterator().next();
+					adapter.getCurrentList().stream()
+							.filter(m -> m.getId().equals(messageIdToCopy))
+							.findFirst()
+							.ifPresent(messageToCopy -> copiedText.append(messageToCopy.getContent()));
+
+				}
+
+				if (copiedText.length() > 0) {
+					ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+					ClipData clip = ClipData.newPlainText("SatMesh Message", copiedText.toString());
+					clipboard.setPrimaryClip(clip);
+					Toast.makeText(getContext(), R.string.message_copied, Toast.LENGTH_SHORT).show();
+				}
+				mode.finish();
+				return true;
+			}
+			return false;
+		}
+
+		@Override
+		public void onDestroyActionMode(ActionMode mode) {
+			adapter.clearSelection();
+			currentActionMode = null;
+		}
+	};
+	private FragmentChatBinding binding;
 	private Node hostNode;
 	private Node remoteNode;
 
@@ -137,15 +217,16 @@ public class ChatFragment extends Fragment {
 			toolbar.getOverflowIcon().setTint(ContextCompat.getColor(requireContext(), R.color.colorOnSecondary));
 		}
 
-
 		adapter = new ChatAdapter(hostNode.getId());
 		binding.chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+		adapter.setOnMessageClickListener(this::onMessageClick);
+		adapter.setOnMessageLongClickListener(this::onMessageLongClick);
 		binding.chatRecyclerView.setAdapter(adapter);
 
 		binding.chatRecyclerView.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
 			@Override
 			public void onChildViewAttachedToWindow(@NonNull View view) {
-			int position = binding.chatRecyclerView.getChildAdapterPosition(view);
+				int position = binding.chatRecyclerView.getChildAdapterPosition(view);
 				viewModel.markAsRead(adapter.getItem(position));
 			}
 
@@ -279,5 +360,36 @@ public class ChatFragment extends Fragment {
 	public void onDestroyView() {
 		super.onDestroyView();
 		binding = null; // Clear binding
+	}
+
+	// Implémentation of OnMessageLongClickListener
+	public void onMessageLongClick(@NonNull Message message, @NonNull ChatAdapter.MessageViewHolder holder) {
+		if (currentActionMode == null) {
+			currentActionMode = ((AppCompatActivity) requireActivity()).startSupportActionMode(actionModeCallback);
+		}
+		toggleMessageSelection(message.getId());
+		if (currentActionMode != null) {
+			currentActionMode.setTitle(getString(R.string.selected_messages_count, adapter.getSelectedCount()));
+			currentActionMode.invalidate();
+		}
+	}
+
+	// Implémentation of OnMessageClickListener
+	public void onMessageClick(@NonNull Message message, @NonNull ChatAdapter.MessageViewHolder holder) {
+		if (currentActionMode != null) {
+			toggleMessageSelection(message.getId());
+			if (currentActionMode != null) {
+				currentActionMode.setTitle(getString(R.string.selected_messages_count, adapter.getSelectedCount()));
+				currentActionMode.invalidate();
+			}
+		}
+	}
+
+	// Helper method to centralize selection logic
+	private void toggleMessageSelection(@NonNull Long messageId) {
+		adapter.toggleSelection(messageId);
+		if (!adapter.hasSelection() && currentActionMode != null) {
+			currentActionMode.finish();
+		}
 	}
 }

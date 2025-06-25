@@ -108,9 +108,8 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 	 * Toggles the selection state of a given message.
 	 *
 	 * @param id The id of the message to toggle.
-	 * @return true if the message is now selected, false if now deselected.
 	 */
-	public boolean toggleSelection(@NonNull Long id) {
+	public void toggleSelection(@NonNull Long id) {
 		boolean wasSelected = selectedMessageIds.contains(id);
 		if (wasSelected) {
 			selectedMessageIds.remove(id);
@@ -122,7 +121,6 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 		int position = message != null ? getCurrentList().indexOf(message) : -1;
 		if (position != -1)
 			notifyItemChanged(position);
-		return !wasSelected;
 	}
 
 	/**
@@ -131,7 +129,7 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 	 */
 	public void clearSelection() {
 		if (!selectedMessageIds.isEmpty()) {
-			Set<Long> oldSelectedPositions = getSelectedMessageIds();
+			Set<Long> oldSelectedPositions = new HashSet<>(selectedMessageIds);
 			selectedMessageIds.clear();
 			List<Message> messages = getCurrentList();
 			List<Message> selectedMessages = messages.stream().filter(message -> oldSelectedPositions.contains(message.getId())).collect(Collectors.toList());

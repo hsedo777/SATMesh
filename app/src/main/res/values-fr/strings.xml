@@ -72,6 +72,11 @@
 	<string name="menu_help_feedback">Aide &amp; Retour</string>
 	<string name="menu_about">À propos</string>
 
+	<string name="action_delete">Supprimer</string>
+	<string name="action_copy">Copier</string>
+	<string name="selected_messages_count">%d sélectionné(e)</string>
+	<string name="message_copied">Message copié</string>
+
 	<string name="message_status">État du message</string>
 	<!--
 	<string name=""></string>

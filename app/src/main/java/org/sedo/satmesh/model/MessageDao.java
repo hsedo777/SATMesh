@@ -2,6 +2,7 @@ package org.sedo.satmesh.model;
 
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
+import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.Query;
 import androidx.room.Update;
@@ -21,6 +22,7 @@ public interface MessageDao {
 	 * Inserts a new Message into the database. If a message with the same payloadId
 	 * from the same sender and to the same recipient already exists, it will be
 	 * aborted (OnConflictStrategy.ABORT).
+	 *
 	 * @param message The Message object to insert.
 	 * @return The row ID of the newly inserted Message.
 	 */
@@ -37,7 +39,16 @@ public interface MessageDao {
 	void update(Message message);
 
 	/**
+	 * Delete one message from database.
+	 *
+	 * @param message the message to be deleted
+	 */
+	@Delete
+	void delete(Message message);
+
+	/**
 	 * Retrieves a single message by its primary key ID.
+	 *
 	 * @param id The primary key ID of the message.
 	 * @return The Message object, or null if not found.
 	 */
@@ -48,6 +59,7 @@ public interface MessageDao {
 	 * Retrieves a message by its payload ID.
 	 * This is useful for finding a specific message to update its status
 	 * when an acknowledgement (ACK) is received.
+	 *
 	 * @param payloadId The unique payload ID of the message.
 	 * @return The Message object, or null if not found.
 	 */
@@ -59,6 +71,7 @@ public interface MessageDao {
 	 * Retrieves all messages exchanged between two specific nodes (users), ordered by timestamp.
 	 * This query is designed for displaying a chat conversation.
 	 * It fetches messages where the sender is A and recipient is B, OR sender is B and recipient is A.
+	 *
 	 * @param nodeId1 The ID of the first node (e.g., local host node ID).
 	 * @param nodeId2 The ID of the second node (e.g., contact node ID).
 	 * @return A LiveData list of Message objects representing the conversation history.
@@ -72,8 +85,9 @@ public interface MessageDao {
 	/**
 	 * Retrieves all messages currently in a specific statuses from a specific sender.
 	 * This is useful for retrying message delivery sending ack.
+	 *
 	 * @param senderNodeId The ID of the sender Node for which to retrieve messages.
-	 * @param statuses The statuses of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @param statuses     The statuses of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
 	 * @return A list of messages matching the criteria.
 	 */
 	@Query("SELECT * FROM message WHERE senderNodeId = :senderNodeId AND status IN (:statuses) ORDER BY timestamp ASC")
@@ -84,23 +98,24 @@ public interface MessageDao {
 	 * This method is synchronous (blocking) and should be called from a background thread.
 	 *
 	 * @param recipientNodeId The ID of the recipient node.
-	 * @param statuses The statuses of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @param statuses        The statuses of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
 	 * @return A list of messages matching the criteria.
 	 */
 	@Query("SELECT * FROM message WHERE recipientNodeId = :recipientNodeId AND status IN (:statuses) ORDER BY timestamp ASC")
 	List<Message> getMessagesInStatusesForRecipientSync(Long recipientNodeId, List<Integer> statuses);
 
 	/**
-	 * Deletes a specific message by its primary key ID.
-	 * @param id The primary key ID of the message to delete.
-	 * @return The number of rows deleted.
+	 * Deletes list of message by their primary key ID.
+	 *
+	 * @param ids The list of primary keys ID of the messages to delete.
 	 */
-	@Query("DELETE FROM message WHERE id = :id")
-	int deleteMessageById(Long id);
+	@Query("DELETE FROM message WHERE id IN (:ids)")
+	void deleteMessagesById(List<Long> ids);
 
 	/**
 	 * Deletes all messages exchanged with a specific node.
 	 * This is useful when deleting a contact's conversation history.
+	 *
 	 * @param nodeId The ID of the node whose messages are to be deleted (as sender or recipient).
 	 * @return The number of rows deleted.
 	 */
@@ -117,13 +132,15 @@ public interface MessageDao {
 	 * Searches for messages using Full-Text Search (FTS) on their content.
 	 * Results can be filtered to conversations involving the local host.
 	 * FTS allows for more advanced search capabilities (e.g., stemming, ranking).
+	 *
 	 * @param query The search query string. FTS queries can be more complex (e.g., "word1 AND word2").
 	 * @return A LiveData list of Message objects that match the FTS query, ordered by relevance.
 	 */
 	@Query("SELECT m.* FROM message AS m JOIN message_fts AS fts " +
 			"ON m.id = fts.rowid " +
 			"AND fts.content MATCH :query " +
-			"ORDER BY bm25(matchinfo(message_fts)) DESC") // ORDER BY m.timestamp DESC
+			"ORDER BY bm25(matchinfo(message_fts)) DESC")
+	// ORDER BY m.timestamp DESC
 	LiveData<List<Message>> searchMessagesByContentFts(String query);
 
 	/**
@@ -138,7 +155,7 @@ public interface MessageDao {
 	 * - The remote Node involved in the conversation, using its actual defined columns.
 	 * - The latest Message exchanged in that conversation, using its actual defined columns.
 	 * - The count of unread messages for that specific conversation (messages received by the host).
-	 *
+	 * <p>
 	 * The list is ordered by the timestamp of the latest message, with the most recent conversations first.
 	 *
 	 * @param hostNodeId The ID of the local (host) node for which to retrieve conversations.

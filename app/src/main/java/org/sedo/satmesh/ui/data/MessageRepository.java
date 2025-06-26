@@ -33,16 +33,16 @@ public class MessageRepository {
 	 * Inserts a message into the database.
 	 * The callback will be invoked on the main thread after the operation.
 	 *
-	 * @param message The message to insert.
+	 * @param message  The message to insert.
 	 * @param callback A consumer to receive the success status (true for success, false for failure).
 	 */
 	public void insertMessage(Message message, @Nullable Consumer<Boolean> callback) {
 		executor.execute(() -> {
-			try{
+			try {
 				message.setId(messageDao.insert(message));
 				if (callback != null)
 					callback.accept(true);
-			} catch (Exception e){
+			} catch (Exception e) {
 				if (callback != null)
 					callback.accept(false);
 			}
@@ -55,13 +55,13 @@ public class MessageRepository {
 	 * @param message The message to update.
 	 */
 	public void updateMessage(Message message) {
-		executor.execute(() -> messageDao.update(message));
+		messageDao.update(message);
 	}
 
 	/**
 	 * Retrieves live data of messages for a specific conversation between two nodes.
 	 *
-	 * @param hostNodeId The ID of the local node.
+	 * @param hostNodeId   The ID of the local node.
 	 * @param remoteNodeId The ID of the remote node.
 	 * @return LiveData containing a list of messages for the conversation.
 	 */
@@ -69,8 +69,8 @@ public class MessageRepository {
 		return messageDao.getConversationMessages(hostNodeId, remoteNodeId);
 	}
 
-	public Message getMessageById(long messageId){
-		return messageDao.getMessageById(messageId);
+	public Message getMessageById(long messageId) {
+		return messageDao.getMessageByIdSync(messageId);
 	}
 
 	/**
@@ -78,12 +78,13 @@ public class MessageRepository {
 	 * This method is synchronous and should be called from a background thread.
 	 */
 	public Message getMessageByPayloadId(Long payloadId) {
-		return messageDao.getMessageByPayloadId(payloadId);
+		return messageDao.getMessageByPayloadIdSync(payloadId);
 	}
 
 	/**
 	 * Retrieves messages from a specific sender and in a specific statues.
 	 * This method is synchronous and should be called from a background thread.
+	 *
 	 * @see MessageDao#getMessagesInStatusesFromSenderSync(Long, List)
 	 */
 	public List<Message> getMessagesInStatusesFromSenderSync(Long senderNodeId, List<Integer> statues) {
@@ -95,7 +96,7 @@ public class MessageRepository {
 	 * This method performs a synchronous database query and should be called from a background thread.
 	 *
 	 * @param recipientNodeId The ID of the recipient node.
-	 * @param statues The statues of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
+	 * @param statues         The statues of the messages to retrieve (e.g., Message.MESSAGE_STATUS_FAILED).
 	 * @return A list of messages matching the criteria. Returns an empty list if no messages are found or on error.
 	 */
 	public List<Message> getMessagesInStatusesForRecipientSync(Long recipientNodeId, List<Integer> statues) {
@@ -112,5 +113,13 @@ public class MessageRepository {
 	 */
 	public LiveData<List<ChatListItem>> getChatListItems(Long hostNodeId) {
 		return messageDao.getChatListItems(hostNodeId);
+	}
+
+	/**
+	 * Delegated to {@link MessageDao#deleteMessagesById(List)}
+	 * This method is executed on its executor thread.
+	 */
+	public void deleteMessagesById(List<Long> ids) {
+		executor.execute(() -> messageDao.deleteMessagesById(ids));
 	}
 }

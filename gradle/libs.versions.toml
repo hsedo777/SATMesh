@@ -9,8 +9,8 @@ material = "1.12.0"
 activity = "1.9.3"
 constraintlayout = "2.2.1"
 playServicesNearby = "19.3.0"
-roomCompiler = "2.7.1"
-roomRuntime = "2.7.1"
+roomCompiler = "2.7.2"
+roomRuntime = "2.7.2"
 sqlcipherAndroid = "4.9.0"
 
 [libraries]

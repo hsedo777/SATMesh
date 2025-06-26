@@ -37,7 +37,6 @@ import org.sedo.satmesh.utils.Constants;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class ChatFragment extends Fragment {
 
@@ -191,6 +190,8 @@ public class ChatFragment extends Fragment {
 
 		Toolbar toolbar = binding.chatToolbar;
 		toolbar.setNavigationOnClickListener(v -> {
+			if (currentActionMode != null)
+				currentActionMode.finish();
 			if (chatListAccessor != null) {
 				chatListAccessor.moveToChatList(true, true);
 			}

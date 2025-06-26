@@ -120,7 +120,7 @@ public interface MessageDao {
 	 * @return The number of rows deleted.
 	 */
 	@Query("DELETE FROM message WHERE senderNodeId = :nodeId OR recipientNodeId = :nodeId")
-	int deleteMessagesWithNode(Long nodeId);
+	void deleteMessagesWithNode(Long nodeId);
 
 	/**
 	 * Deletes all messages from the database.

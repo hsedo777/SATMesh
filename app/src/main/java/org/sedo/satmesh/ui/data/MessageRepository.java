@@ -122,4 +122,12 @@ public class MessageRepository {
 	public void deleteMessagesById(List<Long> ids) {
 		executor.execute(() -> messageDao.deleteMessagesById(ids));
 	}
+
+	/**
+	 * Delegated to {@link MessageDao#deleteMessagesWithNode(Long)}
+	 * This method is executed on caller's thread
+	 */
+	public void deleteMessagesWithNode(Long nodeId){
+		messageDao.deleteMessagesWithNode(nodeId);
+	}
 }

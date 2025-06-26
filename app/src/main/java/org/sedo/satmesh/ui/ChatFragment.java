@@ -189,13 +189,7 @@ public class ChatFragment extends Fragment {
 		}
 
 		Toolbar toolbar = binding.chatToolbar;
-		toolbar.setNavigationOnClickListener(v -> {
-			if (currentActionMode != null)
-				currentActionMode.finish();
-			if (chatListAccessor != null) {
-				chatListAccessor.moveToChatList(true, true);
-			}
-		});
+		toolbar.setNavigationOnClickListener(v -> backToChatList());
 
 		// IMPROVED: Toolbar click listener for potential manual re-initiation or info display
 		toolbar.setOnClickListener(v -> {
@@ -338,9 +332,19 @@ public class ChatFragment extends Fragment {
 
 			@Override
 			public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
-				if (menuItem.getItemId() == R.id.action_clear_chat) {
-					// TODO: Implement actual chat clearing logic in ViewModel and Repository
-					Toast.makeText(getContext(), R.string.clear_chat, Toast.LENGTH_SHORT).show();
+				int itemId = menuItem.getItemId();
+				if (itemId == R.id.action_clear_chat) {
+					viewModel.clearChat(success -> {
+						if (success) {
+							backToChatList();
+						}
+					});
+					return true;
+				} else if (itemId == R.id.action_export_chat) {
+					String result = viewModel.exportChatMessages();
+					if (result != null) {
+						Toast.makeText(getContext(), result, Toast.LENGTH_LONG).show();
+					}
 					return true;
 				}
 				return false;
@@ -355,6 +359,14 @@ public class ChatFragment extends Fragment {
 			chatListAccessor = (ChatListAccessor) context;
 		} else {
 			throw new RuntimeException("User of fragment ChatFragment must implement interface `ChatListAccessor`");
+		}
+	}
+
+	private void backToChatList() {
+		if (currentActionMode != null)
+			currentActionMode.finish();
+		if (chatListAccessor != null) {
+			chatListAccessor.moveToChatList(true, true);
 		}
 	}
 

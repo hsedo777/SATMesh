@@ -1,6 +1,7 @@
 package org.sedo.satmesh.ui;
 
 import android.app.Application;
+import android.os.Environment;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -23,11 +24,18 @@ import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 public class ChatViewModel extends AndroidViewModel {
 
@@ -335,44 +343,44 @@ public class ChatViewModel extends AndroidViewModel {
 	/**
 	 * Marks, if possible, the specified message as read. To be marked as read,
 	 * here is the set of conditions required :
-	 *  - the message is sent by remote node
-	 *  - the message is not already in state read
-	 *  - we successfully sent the message read ack to the remote node
+	 * - the message is sent by remote node
+	 * - the message is not already in state read
+	 * - we successfully sent the message read ack to the remote node
 	 * This method is asynchronous.
 	 */
-	public void markAsRead(@Nullable Message message){
-		if (message == null || message.getId() == null){
+	public void markAsRead(@Nullable Message message) {
+		if (message == null || message.getId() == null) {
 			Log.d(TAG, "Getting null as message to mark read.");
 			return;
 		}
-		if (!Boolean.TRUE.equals(connectionActive.getValue())){
+		if (!Boolean.TRUE.equals(connectionActive.getValue())) {
 			// Log.d(TAG, "We can't sent message ack out of secured connection."); -- will appear too much
 			return;
 		}
 		Node remoteNode = remoteNodeLiveData.getValue();
-		if (remoteNode == null || remoteNode.getId() == null || remoteNode.getAddressName() == null){
+		if (remoteNode == null || remoteNode.getId() == null || remoteNode.getAddressName() == null) {
 			Log.e(TAG, "Unable to find the remote node from LiveData : the message can't be marked read.");
 			return;
 		}
-		if (!remoteNode.getId().equals(message.getSenderNodeId())){
+		if (!remoteNode.getId().equals(message.getSenderNodeId())) {
 			// This will appear more times, so I didn't log it.
 			return;
 		}
-		if (message.getStatus() == Message.MESSAGE_STATUS_READ){
+		if (message.getStatus() == Message.MESSAGE_STATUS_READ) {
 			// This will appear more times, that is why I do not log it.
 			return;
 		}
-		if (message.getPayloadId() == null || message.getPayloadId() == 0L){
+		if (message.getPayloadId() == null || message.getPayloadId() == 0L) {
 			Log.d(TAG, "There is no payload ID bound to this message.");
 			return;
 		}
 		executor.execute(() -> {
-			if (!nearbySignalMessenger.hasSession(remoteNode.getAddressName())){
+			if (!nearbySignalMessenger.hasSession(remoteNode.getAddressName())) {
 				Log.d(TAG, "Messages can't be marked read without secured session.");
 				return;
 			}
 			nearbySignalMessenger.sendMessageAck(message.getPayloadId(), remoteNode.getAddressName(), false, success -> {
-				if (success){
+				if (success) {
 					message.setStatus(Message.MESSAGE_STATUS_READ);
 					messageRepository.updateMessage(message);
 				}
@@ -396,9 +404,89 @@ public class ChatViewModel extends AndroidViewModel {
 		uiMessage.postValue(getApplication().getString(R.string.resending_failed_messages));
 	}
 
-	public void deleteMessagesById(@NonNull List<Long> ids){
+	public void deleteMessagesById(@NonNull List<Long> ids) {
 		if (ids.isEmpty())
 			return;
 		messageRepository.deleteMessagesById(ids);
+	}
+
+	/**
+	 * Exports the current chat messages to a plain text file in the device's Downloads directory.
+	 * The exported file format includes timestamp, sender, and message content for each message.
+	 *
+	 * @return A string indicating the export success message with the file path, or null if the export fails
+	 * due to missing node information, empty conversation, or an I/O error.
+	 */
+	public String exportChatMessages() {
+		Node hostNode = hostNodeLiveData.getValue();
+		Node remoteNode = remoteNodeLiveData.getValue();
+		if (hostNode == null || remoteNode == null) {
+			Log.e(TAG, "Cannot export messages if the host or remote node is unknown!");
+			return null;
+		}
+		List<Message> messages = conversation.getValue();
+		if (messages == null) {
+			Log.e(TAG, "Failed to load conversation's messages!");
+			return null;
+		}
+		if (messages.isEmpty()) {
+			Log.d(TAG, "There is no message found in the conversation.");
+			return null;
+		}
+		// Prepare the content
+		StringBuilder chatContent = new StringBuilder();
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+
+		for (Message message : messages) {
+			String senderLabel = (message.getSenderNodeId().equals(hostNode.getId())) ?
+					getApplication().getString(R.string.me) : remoteNode.getNonNullName();
+			String timestamp = sdf.format(new Date(message.getTimestamp()));
+			chatContent.append(String.format("[%s] %s: %s%n", timestamp, senderLabel, message.getContent()));
+		}
+
+		// Save to a file
+		try {
+			// Define directory and filename
+			File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+			if (!downloadsDir.exists()) {
+				boolean result = downloadsDir.mkdirs(); // Create the directory if it doesn't exist
+				Log.d(TAG, "Download directory status: " + result);
+			}
+			String fileName = "chat_export_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date()) + ".txt";
+			File exportFile = new File(downloadsDir, fileName);
+
+			FileWriter writer = new FileWriter(exportFile);
+			writer.append(chatContent.toString());
+			writer.flush();
+			writer.close();
+
+			return getApplication().getString(R.string.chat_export_info, exportFile.getAbsolutePath());
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
+		}
+		return null;
+	}
+
+	/**
+	 * Clears all chat messages associated with the current remote node.
+	 * The operation is performed asynchronously on a background thread.
+	 *
+	 * @param callback A consumer to receive the result (true if successful, false otherwise).
+	 */
+	public void clearChat(@NonNull Consumer<Boolean> callback) {
+		executor.execute(() -> {
+			try {
+				Node remoteNode = remoteNodeLiveData.getValue();
+				if (remoteNode == null) {
+					Log.d(TAG, "Impossible to detect the remote node.");
+					callback.accept(false);
+					return;
+				}
+				messageRepository.deleteMessagesWithNode(remoteNode.getId());
+				callback.accept(true);
+			} catch (Exception e) {
+				callback.accept(false);
+			}
+		});
 	}
 }

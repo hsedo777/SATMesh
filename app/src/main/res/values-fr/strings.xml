@@ -66,6 +66,8 @@
 	<string name="action_more_options">Plus d\'options</string>
 	<string name="new_chat_fab_content_description">Démarrer une nouvelle discussion</string>
 	<string name="you">Vous</string>
+	<string name="me">Moi</string>
+	<string name="chat_export_info">Discussion exportée dans %s</string>
 	<!-- Menu -->
 	<string name="menu_settings">Paramètres</string>
 	<string name="menu_known_nodes">Nœuds connus</string>

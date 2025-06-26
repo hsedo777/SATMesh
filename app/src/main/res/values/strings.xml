@@ -65,6 +65,8 @@
 	<string name="action_more_options">More options</string>
 	<string name="new_chat_fab_content_description">Start a new chat</string>
 	<string name="you">You</string>
+	<string name="me">Me</string>
+	<string name="chat_export_info">Chat exported to %s</string>
 	<!-- Menu -->
 	<string name="menu_settings">Settings</string>
 	<string name="menu_known_nodes">Known Nodes</string>

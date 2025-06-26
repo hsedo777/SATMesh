@@ -42,7 +42,7 @@ public interface MessageDao {
 	 * @return The Message object, or null if not found.
 	 */
 	@Query("SELECT * FROM message WHERE id = :id")
-	Message getMessageById(Long id);
+	Message getMessageByIdSync(Long id);
 
 	/**
 	 * Retrieves a message by its payload ID.
@@ -52,7 +52,7 @@ public interface MessageDao {
 	 * @return The Message object, or null if not found.
 	 */
 	@Query("SELECT * FROM message WHERE payloadId = :payloadId")
-	Message getMessageByPayloadId(Long payloadId);
+	Message getMessageByPayloadIdSync(Long payloadId);
 
 
 	/**

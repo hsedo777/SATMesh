@@ -34,8 +34,10 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.ChatAdapter;
 import org.sedo.satmesh.utils.Constants;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class ChatFragment extends Fragment {
 
@@ -85,8 +87,7 @@ public class ChatFragment extends Fragment {
 			int id = item.getItemId();
 			if (id == R.id.action_delete) {
 				Log.d(Constants.TAG_CHAT_FRAGMENT, "Deleting " + selectedMessageIds.size() + " message(s)");
-				// TODO: Call ViewModel/Repository to delete message by IDs
-				// chatViewModel.deleteMessages(selectedMessageIds);
+				viewModel.deleteMessagesById(new ArrayList<>(selectedMessageIds));
 				mode.finish();
 				return true;
 			} else if (id == R.id.action_copy) {

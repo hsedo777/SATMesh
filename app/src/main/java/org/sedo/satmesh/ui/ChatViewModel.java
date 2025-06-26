@@ -395,4 +395,10 @@ public class ChatViewModel extends AndroidViewModel {
 		nearbySignalMessenger.attemptResendFailedMessagesTo(currentRemoteNode);
 		uiMessage.postValue(getApplication().getString(R.string.resending_failed_messages));
 	}
+
+	public void deleteMessagesById(@NonNull List<Long> ids){
+		if (ids.isEmpty())
+			return;
+		messageRepository.deleteMessagesById(ids);
+	}
 }

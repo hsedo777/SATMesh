@@ -23,10 +23,10 @@ public class ChatListViewModel extends AndroidViewModel {
 
 	private final static String TAG = "ChatListViewModel";
 	// Repositories instances created or obtained within the ViewModel
-	private final MessageRepository messageRepository;
+	protected final MessageRepository messageRepository;
 
 	// MutableLiveData to hold the hostNodeId, which will trigger data loading
-	private final MutableLiveData<Long> hostNodeIdLiveData = new MutableLiveData<>();
+	protected final MutableLiveData<Long> hostNodeIdLiveData = new MutableLiveData<>();
 
 	// MediatorLiveData to combine chat list items with node connectivity states
 	private final MediatorLiveData<List<ChatListItem>> chatListItems = new MediatorLiveData<>();
@@ -42,28 +42,30 @@ public class ChatListViewModel extends AndroidViewModel {
 		currentNodeTransientStatesSource = NodeTransientStateRepository.getInstance().getTransientNodeStates();
 
 		// Setup the MediatorLiveData to combine and enrich the data
-		chatListItems.addSource(hostNodeIdLiveData, id -> {
-			if (id != null) {
-				// If hostNodeId changes or is set for the first time
-				// Remove previous source for chat items if it exists
-				if (currentChatListItemsSource != null) {
-					chatListItems.removeSource(currentChatListItemsSource);
-				}
-				Log.d(TAG, "Start loading items at: " + System.currentTimeMillis());
-				currentChatListItemsSource = getDiscussions(id);
-				chatListItems.addSource(currentChatListItemsSource, chatItems -> {
-					Log.d(TAG, "Loading items ends at: " + System.currentTimeMillis());
-					combineLatestData(chatItems, currentNodeTransientStatesSource.getValue());
-				});
-			} else {
-				// If hostNodeId becomes null, clear the chat list
-				chatListItems.setValue(null);
-			}
-		});
+		chatListItems.addSource(hostNodeIdLiveData, this::onHostNodeIdSet);
 		// Initialize NodeTransientStates source only once
 		chatListItems.addSource(currentNodeTransientStatesSource, nodeStatesMap ->
 				combineLatestData(currentChatListItemsSource != null ? currentChatListItemsSource.getValue() : null, nodeStatesMap)
 		);
+	}
+
+	protected void onHostNodeIdSet(Long hostNodeId){
+		if (hostNodeId != null) {
+			// If hostNodeId changes or is set for the first time
+			// Remove previous source for chat items if it exists
+			if (currentChatListItemsSource != null) {
+				chatListItems.removeSource(currentChatListItemsSource);
+			}
+			Log.d(TAG, "Start loading items at: " + System.currentTimeMillis());
+			currentChatListItemsSource = getDiscussions(hostNodeId);
+			chatListItems.addSource(currentChatListItemsSource, chatItems -> {
+				Log.d(TAG, "Loading items ends at: " + System.currentTimeMillis());
+				combineLatestData(chatItems, currentNodeTransientStatesSource.getValue());
+			});
+		} else {
+			// If hostNodeId becomes null, clear the chat list
+			chatListItems.setValue(null);
+		}
 	}
 
 	public LiveData<List<ChatListItem>> getChatListItems() {

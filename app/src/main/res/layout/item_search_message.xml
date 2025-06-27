@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:padding="@dimen/space_sm"
+	android:background="@color/cardBackgroundColor3"
+	android:clickable="true"
+	android:focusable="true">
+
+	<TextView
+		android:id="@+id/text_remote_node_name"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:textColor="@color/cardText3"
+		android:textSize="@dimen/text_size_body"
+		android:textStyle="bold"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/text_message_date"
+		app:layout_constraintHorizontal_bias="0"
+		app:layout_constraintHorizontal_chainStyle="packed"
+		android:layout_marginEnd="@dimen/space_xs"
+		tools:text="Bob (Friend)"/>
+
+	<TextView
+		android:id="@+id/text_message_date"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:textColor="@color/cardText3"
+		android:textSize="@dimen/text_size_small"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		tools:text="Yesterday, 14:35"/>
+
+	<TextView
+		android:id="@+id/text_message_preview"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="@dimen/space_xs"
+		android:textColor="@color/cardText3"
+		android:textSize="@dimen/text_size_body"
+		android:maxLines="2"
+		android:ellipsize="end"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintTop_toBottomOf="@id/text_remote_node_name"
+		tools:text="This is an example message content that contains the 'search term' within it."/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

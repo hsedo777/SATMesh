@@ -29,7 +29,7 @@ public class ChatListViewModel extends AndroidViewModel {
 	protected final MutableLiveData<Long> hostNodeIdLiveData = new MutableLiveData<>();
 
 	// MediatorLiveData to combine chat list items with node connectivity states
-	private final MediatorLiveData<List<ChatListItem>> chatListItems = new MediatorLiveData<>();
+	protected final MediatorLiveData<List<ChatListItem>> chatListItems = new MediatorLiveData<>();
 	// LiveData for node transient states from the nodeTransientStateRepository (which is a Map)
 	private final LiveData<Map<String, NodeTransientState>> currentNodeTransientStatesSource;
 	// LiveData for the raw chat list items from the messageRepository (before enrichment)

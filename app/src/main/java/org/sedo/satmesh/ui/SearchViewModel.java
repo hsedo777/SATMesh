@@ -33,8 +33,13 @@ public class SearchViewModel extends ChatListViewModel {
 				updateSearchSources(hostId, searchQueryLiveData.getValue())
 		);
 		searchMessageItems.addSource(searchQueryLiveData, query ->
-				updateSearchSources(hostNodeIdLiveData.getValue(), query)
+				updateSearchSources(getHostNodeId(), query)
 		);
+
+		chatListItems.addSource(searchQueryLiveData, query ->{
+			Log.d(TAG, "Input query=" + query);
+			onHostNodeIdSet(getHostNodeId()); // Re-evaluate the list
+		});
 	}
 
 	/**

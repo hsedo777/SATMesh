@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:fitsSystemWindows="true"
+	tools:context=".ui.SearchFragment">
+
+	<com.google.android.material.appbar.AppBarLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:fitsSystemWindows="true">
+
+		<androidx.appcompat.widget.Toolbar
+			android:id="@+id/toolbar"
+			android:layout_width="match_parent"
+			android:layout_height="?attr/actionBarSize"
+			app:layout_scrollFlags="scroll|enterAlways"
+			app:subtitleTextColor="@color/colorOnSecondary"
+			app:titleTextColor="@color/colorOnSecondary">
+
+			<androidx.appcompat.widget.SearchView
+				android:id="@+id/search_view"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="@android:color/transparent"
+				android:iconifiedByDefault="false"
+				android:queryBackground="@android:color/transparent"
+				android:queryHint="@string/search_hint" />
+
+		</androidx.appcompat.widget.Toolbar>
+	</com.google.android.material.appbar.AppBarLayout>
+
+	<androidx.core.widget.NestedScrollView
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical"
+			android:padding="@dimen/space_sm"
+			android:background="@color/primaryColor">
+
+			<TextView
+				android:id="@+id/text_no_results"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:gravity="center"
+				android:paddingVertical="@dimen/space_xl"
+				android:text="@string/no_results_found"
+				android:textColor="@color/colorOnPrimary"
+				android:textSize="@dimen/text_size_title"
+				android:visibility="gone"
+				tools:visibility="visible" />
+
+			<TextView
+				android:id="@+id/label_discussions"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/space_sm"
+				android:paddingBottom="@dimen/space_sm"
+				android:text="@string/label_discussions"
+				android:textSize="@dimen/text_size_body"
+				android:textStyle="bold"
+				android:visibility="gone"
+				tools:visibility="visible" />
+
+			<androidx.recyclerview.widget.RecyclerView
+				android:id="@+id/recycler_discussions"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:nestedScrollingEnabled="false"
+				app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+				tools:itemCount="3"
+				tools:listitem="@layout/item_conversation" />
+
+			<TextView
+				android:id="@+id/label_messages"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/space_sm"
+				android:paddingBottom="@dimen/space_sm"
+				android:text="@string/label_messages"
+				android:textSize="@dimen/text_size_body"
+				android:textStyle="bold"
+				android:visibility="gone"
+				tools:visibility="visible" />
+
+			<androidx.recyclerview.widget.RecyclerView
+				android:id="@+id/recycler_messages"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:nestedScrollingEnabled="false"
+				app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+				tools:itemCount="5"
+				tools:listitem="@layout/item_search_message" />
+		</LinearLayout>
+	</androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

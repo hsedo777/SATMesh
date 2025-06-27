@@ -268,6 +268,9 @@ public class ChatFragment extends Fragment {
 				// Scroll to bottom only if it's not already at the bottom to avoid jumpiness
 				// Or always scroll if it's a new message
 				binding.chatRecyclerView.scrollToPosition(messages.size() - 1);
+			} else if (messages != null) {
+				// Empty list of messages
+				backToChatList();
 			}
 		});
 
@@ -334,11 +337,7 @@ public class ChatFragment extends Fragment {
 			public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
 				int itemId = menuItem.getItemId();
 				if (itemId == R.id.action_clear_chat) {
-					viewModel.clearChat(success -> {
-						if (success) {
-							backToChatList();
-						}
-					});
+					viewModel.clearChat();
 					return true;
 				} else if (itemId == R.id.action_export_chat) {
 					String result = viewModel.exportChatMessages();

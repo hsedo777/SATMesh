@@ -35,7 +35,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
 
 public class ChatViewModel extends AndroidViewModel {
 
@@ -470,22 +469,18 @@ public class ChatViewModel extends AndroidViewModel {
 	/**
 	 * Clears all chat messages associated with the current remote node.
 	 * The operation is performed asynchronously on a background thread.
-	 *
-	 * @param callback A consumer to receive the result (true if successful, false otherwise).
 	 */
-	public void clearChat(@NonNull Consumer<Boolean> callback) {
+	public void clearChat() {
 		executor.execute(() -> {
 			try {
 				Node remoteNode = remoteNodeLiveData.getValue();
 				if (remoteNode == null) {
 					Log.d(TAG, "Impossible to detect the remote node.");
-					callback.accept(false);
 					return;
 				}
 				messageRepository.deleteMessagesWithNode(remoteNode.getId());
-				callback.accept(true);
 			} catch (Exception e) {
-				callback.accept(false);
+				Log.e(TAG, e.getMessage(), e);
 			}
 		});
 	}

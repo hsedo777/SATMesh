@@ -127,7 +127,14 @@ public class MessageRepository {
 	 * Delegated to {@link MessageDao#deleteMessagesWithNode(Long)}
 	 * This method is executed on caller's thread
 	 */
-	public void deleteMessagesWithNode(Long nodeId){
+	public void deleteMessagesWithNode(Long nodeId) {
 		messageDao.deleteMessagesWithNode(nodeId);
+	}
+
+	/**
+	 * Delegated to methode {@link MessageDao#searchMessagesByContentFts(String, long)}
+	 */
+	public LiveData<List<SearchMessageItem>> searchMessagesByContentFts(@NonNull String query, long hostNodeId) {
+		return messageDao.searchMessagesByContentFts(query, hostNodeId);
 	}
 }

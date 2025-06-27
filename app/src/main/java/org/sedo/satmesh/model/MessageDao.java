@@ -1,5 +1,6 @@
 package org.sedo.satmesh.model;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Delete;
@@ -8,6 +9,7 @@ import androidx.room.Query;
 import androidx.room.Update;
 
 import org.sedo.satmesh.ui.data.ChatListItem;
+import org.sedo.satmesh.ui.data.SearchMessageItem;
 
 import java.util.List;
 
@@ -128,18 +130,50 @@ public interface MessageDao {
 	void deleteAllMessages();
 
 	/**
-	 * Searches for messages using Full-Text Search (FTS) on their content.
-	 * Results can be filtered to conversations involving the local host.
-	 * FTS allows for more advanced search capabilities (e.g., stemming, ranking).
+	 * Searches for messages using Full-Text Search (FTS) on their content,
+	 * and joins with the Node table to retrieve the associated remote node details
+	 * for each message, based on the host node ID.
+	 * This query constructs the remote node ID using a subquery and then joins to the Node table,
+	 * mapping all necessary columns to the SearchMessageItem POJO.
 	 *
-	 * @param query The search query string. FTS queries can be more complex (e.g., "word1 AND word2").
-	 * @return A LiveData list of Message objects that match the FTS query, ordered by relevance.
+	 * @param query      The search query string for FTS (e.g., "word1 AND word2").
+	 * @param hostNodeId The ID of the current host node.
+	 * @return A LiveData list of SearchMessageItem objects that match the FTS query,
+	 * each containing the Message and its corresponding remote Node.
 	 */
-	@Query("SELECT m.* FROM message AS m JOIN message_fts AS fts " +
-			"ON m.id = fts.rowid " +
-			"AND fts.content MATCH :query " +
+	@Query("SELECT " +
+			// 1. Select all columns for the Message object
+			"M.id AS id, " +
+			"M.payloadId AS payloadId, " +
+			"M.content AS content, " +
+			"M.timestamp AS timestamp, " +
+			"M.status AS status, " +
+			"M.type AS type, " +
+			"M.senderNodeId AS senderNodeId, " +
+			"M.recipientNodeId AS recipientNodeId, " +
+			// 2. Select all columns for the Remote Node object (using 'remoteNode_' prefix for @Embedded)
+			"N.id AS remoteNode_id, " +
+			"N.displayName AS remoteNode_displayName, " +
+			"N.addressName AS remoteNode_addressName, " +
+			"N.trusted AS remoteNode_trusted, " +
+			"N.lastSeen AS remoteNode_lastSeen, " +
+			"N.connected AS remoteNode_connected " +
+			"FROM message AS M " +
+			"JOIN message_fts AS fts ON M.id = fts.rowid " + // FTS join
+			"JOIN (" + // Subquery to determine the 'partnerId' (remoteNodeId) for each message
+			"  SELECT " +
+			"    id, " + // Message ID from the outer query to link back
+			"    CASE " +
+			"      WHEN senderNodeId = :hostNodeId THEN recipientNodeId " +
+			"      ELSE senderNodeId " +
+			"    END AS partnerId " +
+			"  FROM message " + // This refers to the message table within the subquery
+			") AS PartnerLookup ON M.id = PartnerLookup.id " + // Join this subquery result with the main message table
+			"JOIN node AS N ON N.id = PartnerLookup.partnerId " + // Now, join with Node using the calculated partnerId
+			"WHERE " +
+			"fts.content MATCH :query " + // FTS match on content
 			"ORDER BY bm25(matchinfo(message_fts)) DESC")
-	LiveData<List<Message>> searchMessagesByContentFts(String query);
+	LiveData<List<SearchMessageItem>> searchMessagesByContentFts(@NonNull String query, long hostNodeId);
 
 	/**
 	 * Count the total number of messages in database.

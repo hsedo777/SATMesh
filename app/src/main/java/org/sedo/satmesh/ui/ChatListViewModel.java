@@ -30,12 +30,10 @@ public class ChatListViewModel extends AndroidViewModel {
 
 	// MediatorLiveData to combine chat list items with node connectivity states
 	private final MediatorLiveData<List<ChatListItem>> chatListItems = new MediatorLiveData<>();
-
-	// LiveData for the raw chat list items from the messageRepository (before enrichment)
-	private LiveData<List<ChatListItem>> currentChatListItemsSource;
-
 	// LiveData for node transient states from the nodeTransientStateRepository (which is a Map)
 	private final LiveData<Map<String, NodeTransientState>> currentNodeTransientStatesSource;
+	// LiveData for the raw chat list items from the messageRepository (before enrichment)
+	private LiveData<List<ChatListItem>> currentChatListItemsSource;
 
 	public ChatListViewModel(@NonNull Application application) {
 		super(application);
@@ -52,7 +50,7 @@ public class ChatListViewModel extends AndroidViewModel {
 					chatListItems.removeSource(currentChatListItemsSource);
 				}
 				Log.d(TAG, "Start loading items at: " + System.currentTimeMillis());
-				currentChatListItemsSource = messageRepository.getChatListItems(id);
+				currentChatListItemsSource = getDiscussions(id);
 				chatListItems.addSource(currentChatListItemsSource, chatItems -> {
 					Log.d(TAG, "Loading items ends at: " + System.currentTimeMillis());
 					combineLatestData(chatItems, currentNodeTransientStatesSource.getValue());
@@ -72,7 +70,7 @@ public class ChatListViewModel extends AndroidViewModel {
 		return chatListItems;
 	}
 
-	public Long getHostNodeId(){
+	public Long getHostNodeId() {
 		return hostNodeIdLiveData.getValue();
 	}
 
@@ -87,6 +85,15 @@ public class ChatListViewModel extends AndroidViewModel {
 		if (!Objects.equals(id, hostNodeIdLiveData.getValue())) {
 			hostNodeIdLiveData.setValue(id);
 		}
+	}
+
+	/**
+	 * Get the {@code LiveData} of discussions
+	 *
+	 * @param hostNodeId the local ID of the host node.
+	 */
+	protected LiveData<List<ChatListItem>> getDiscussions(long hostNodeId) {
+		return messageRepository.getChatListItems(hostNodeId);
 	}
 
 	/**

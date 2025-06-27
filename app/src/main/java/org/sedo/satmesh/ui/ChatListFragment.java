@@ -41,7 +41,6 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		return fragment;
 	}
 
-	// --- Fragment Lifecycle Methods ---
 	@Override
 	public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
 	                         @Nullable Bundle savedInstanceState) {
@@ -127,7 +126,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		nearbyDiscoveryListener = null;
 	}
 
-	// --- REQUIREMENT 5: Implement OnItemClickListener ---
+	// Implement OnItemClickListener
 	@Override
 	public void onItemClick(@NonNull ChatListItem item) {
 		Log.d(TAG, "Clicked on chat item: " + item.remoteNode.getDisplayName());

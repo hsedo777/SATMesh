@@ -117,7 +117,6 @@ public interface MessageDao {
 	 * This is useful when deleting a contact's conversation history.
 	 *
 	 * @param nodeId The ID of the node whose messages are to be deleted (as sender or recipient).
-	 * @return The number of rows deleted.
 	 */
 	@Query("DELETE FROM message WHERE senderNodeId = :nodeId OR recipientNodeId = :nodeId")
 	void deleteMessagesWithNode(Long nodeId);
@@ -140,11 +139,12 @@ public interface MessageDao {
 			"ON m.id = fts.rowid " +
 			"AND fts.content MATCH :query " +
 			"ORDER BY bm25(matchinfo(message_fts)) DESC")
-	// ORDER BY m.timestamp DESC
 	LiveData<List<Message>> searchMessagesByContentFts(String query);
 
 	/**
-	 * Count the total number of messages in database
+	 * Count the total number of messages in database.
+	 *
+	 * @return the number of messages in the database.
 	 */
 	@Query("SELECT COUNT(id) FROM message")
 	long countAll();

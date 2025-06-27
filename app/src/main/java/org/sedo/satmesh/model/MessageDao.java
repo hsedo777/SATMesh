@@ -1,6 +1,5 @@
 package org.sedo.satmesh.model;
 
-import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Delete;
@@ -173,7 +172,7 @@ public interface MessageDao {
 			"WHERE " +
 			"fts.content MATCH :query " + // FTS match on content
 			"ORDER BY bm25(matchinfo(message_fts)) DESC")
-	LiveData<List<SearchMessageItem>> searchMessagesByContentFts(@NonNull String query, long hostNodeId);
+	LiveData<List<SearchMessageItem>> searchMessagesByContentFts(String query, long hostNodeId);
 
 	/**
 	 * Count the total number of messages in database.
@@ -244,4 +243,53 @@ public interface MessageDao {
 			"ORDER BY M.timestamp DESC")
 	LiveData<List<ChatListItem>> getChatListItems(Long hostNodeId);
 
+	@Query("SELECT " +
+			"  N.id AS remote_node_id, " +
+			"  N.displayName AS remote_node_displayName, " +
+			"  N.addressName AS remote_node_addressName, " +
+			"  N.trusted AS remote_node_trusted, " +
+			"  N.lastSeen AS remote_node_lastSeen, " +
+			"  N.connected AS remote_node_connected, " +
+			"  M.id AS last_msg_id, " +
+			"  M.payloadId AS last_msg_payloadId, " +
+			"  M.content AS last_msg_content, " +
+			"  M.timestamp AS last_msg_timestamp, " +
+			"  M.status AS last_msg_status, " +
+			"  M.type AS last_msg_type, " +
+			"  M.senderNodeId AS last_msg_senderNodeId, " +
+			"  M.recipientNodeId AS last_msg_recipientNodeId, " +
+			"  COALESCE(UC.unreadCount, 0) AS unreadCount " +
+			"FROM message AS M " +
+			"JOIN ( " +
+			"  SELECT " +
+			"    CASE " +
+			"      WHEN senderNodeId = :hostNodeId THEN recipientNodeId " +
+			"      ELSE senderNodeId " +
+			"    END AS partnerId, " +
+			"    MAX(timestamp) AS latestTimestamp " +
+			"  FROM message " +
+			"  WHERE senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId " +
+			"  GROUP BY partnerId " +
+			") AS LM ON ( " +
+			"     ((M.senderNodeId = :hostNodeId AND M.recipientNodeId = LM.partnerId) " +
+			"   OR (M.recipientNodeId = :hostNodeId AND M.senderNodeId = LM.partnerId)) " +
+			"   AND M.timestamp = LM.latestTimestamp " +
+			") " +
+			"JOIN node AS N ON N.id = LM.partnerId " +
+			"LEFT JOIN ( " +
+			"  SELECT " +
+			"    CASE " +
+			"      WHEN senderNodeId = :hostNodeId THEN recipientNodeId " +
+			"      ELSE senderNodeId " +
+			"    END AS partner_id_for_unread, " +
+			"    COUNT(id) AS unreadCount " +
+			"  FROM message " +
+			"  WHERE (senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId) " +
+			"    AND status != " + Message.MESSAGE_STATUS_READ + " " +
+			"    AND recipientNodeId = :hostNodeId " +
+			"  GROUP BY partner_id_for_unread " +
+			") AS UC ON UC.partner_id_for_unread = LM.partnerId " +
+			"WHERE N.displayName LIKE '%' || :query || '%' " +
+			"ORDER BY M.timestamp DESC")
+	LiveData<List<ChatListItem>> searchDiscussions(long hostNodeId, String query);
 }

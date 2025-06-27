@@ -137,4 +137,11 @@ public class MessageRepository {
 	public LiveData<List<SearchMessageItem>> searchMessagesByContentFts(@NonNull String query, long hostNodeId) {
 		return messageDao.searchMessagesByContentFts(query, hostNodeId);
 	}
+
+	/**
+	 * Delegated method to {@link MessageDao#searchMessagesByContentFts(String, long)}
+	 */
+	public LiveData<List<ChatListItem>> searchDiscussions(long hostNodeId, String query) {
+		return messageDao.searchDiscussions(hostNodeId, query);
+	}
 }

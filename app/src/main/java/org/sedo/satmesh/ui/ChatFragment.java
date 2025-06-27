@@ -9,7 +9,6 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,7 +20,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.view.ActionMode;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.MenuProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -213,6 +211,21 @@ public class ChatFragment extends Fragment {
 			toolbar.getOverflowIcon().setTint(ContextCompat.getColor(requireContext(), R.color.colorOnSecondary));
 		}
 
+		toolbar.setOnMenuItemClickListener(menuItem -> {
+			int itemId = menuItem.getItemId();
+			if (itemId == R.id.action_clear_chat) {
+				viewModel.clearChat();
+				return true;
+			} else if (itemId == R.id.action_export_chat) {
+				String result = viewModel.exportChatMessages();
+				if (result != null) {
+					Toast.makeText(getContext(), result, Toast.LENGTH_LONG).show();
+				}
+				return true;
+			}
+			return false;
+		});
+
 		adapter = new ChatAdapter(hostNode.getId());
 		binding.chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 		adapter.setOnMessageClickListener(this::onMessageClick);
@@ -325,30 +338,6 @@ public class ChatFragment extends Fragment {
 		// (Re)load conversation and initiate connection/key exchange process
 		// This should be called AFTER all observers are set up, so they can immediately react.
 		viewModel.setConversationNodes(hostNode, remoteNode);
-
-		// Menu provider setup (no changes here, already good)
-		requireActivity().addMenuProvider(new MenuProvider() {
-			@Override
-			public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
-				menuInflater.inflate(R.menu.chat_menu, menu);
-			}
-
-			@Override
-			public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
-				int itemId = menuItem.getItemId();
-				if (itemId == R.id.action_clear_chat) {
-					viewModel.clearChat();
-					return true;
-				} else if (itemId == R.id.action_export_chat) {
-					String result = viewModel.exportChatMessages();
-					if (result != null) {
-						Toast.makeText(getContext(), result, Toast.LENGTH_LONG).show();
-					}
-					return true;
-				}
-				return false;
-			}
-		}, getViewLifecycleOwner());
 	}
 
 	@Override

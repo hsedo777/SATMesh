@@ -65,6 +65,7 @@
 				android:text="@string/label_discussions"
 				android:textSize="@dimen/text_size_body"
 				android:textStyle="bold"
+				android:textColor="@color/colorOnPrimary"
 				android:visibility="gone"
 				tools:visibility="visible" />
 
@@ -86,6 +87,7 @@
 				android:text="@string/label_messages"
 				android:textSize="@dimen/text_size_body"
 				android:textStyle="bold"
+				android:textColor="@color/colorOnPrimary"
 				android:visibility="gone"
 				tools:visibility="visible" />
 

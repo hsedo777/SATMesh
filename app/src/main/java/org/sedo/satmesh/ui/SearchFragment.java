@@ -10,6 +10,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -36,6 +37,7 @@ public class SearchFragment extends Fragment {
 	private SearchMessageAdapter messagesAdapter;
 
 	private DiscussionListener discussionListener;
+	private ChatListAccessor chatListAccessor;
 
 	public static SearchFragment newInstance(long hostNodeId) {
 		SearchFragment searchFragment = new SearchFragment();
@@ -48,8 +50,9 @@ public class SearchFragment extends Fragment {
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof DiscussionListener) {
+		if (context instanceof DiscussionListener && context instanceof ChatListAccessor) {
 			discussionListener = (DiscussionListener) context;
+			chatListAccessor = (ChatListAccessor) context;
 		} else {
 			throw new RuntimeException("This fragment require the 'DiscussionListener'");
 		}
@@ -59,6 +62,7 @@ public class SearchFragment extends Fragment {
 	public void onDetach() {
 		super.onDetach();
 		discussionListener = null;
+		chatListAccessor = null;
 	}
 
 	@Nullable
@@ -102,6 +106,15 @@ public class SearchFragment extends Fragment {
 		// 5. Observe the LiveData of ViewModel
 		observeViewModel();
 		searchViewModel.setHostNodeIdLiveData(hostNodeId);
+
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				if (chatListAccessor != null){
+					chatListAccessor.moveToChatList(true, true);
+				}
+			}
+		});
 	}
 
 	private void setupRecyclerViews(long hostNodeId) {

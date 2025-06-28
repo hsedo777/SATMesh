@@ -110,7 +110,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		binding.chatListAppBar.setOnMenuItemClickListener(item -> {
 			int id = item.getItemId();
 			if (id == R.id.action_search) {
-				((MainActivity) requireActivity()).navigateTo(SearchFragment.newInstance(chatListViewModel.getHostNodeId()), SearchFragment.TAG, false, true);
+				((MainActivity) requireActivity()).navigateTo(SearchFragment.newInstance(chatListViewModel.getHostNodeId()), SearchFragment.TAG, true, true);
 				return true;
 			}
 			return false;

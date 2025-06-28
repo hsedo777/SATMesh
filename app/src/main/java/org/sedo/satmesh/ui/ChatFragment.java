@@ -14,6 +14,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -338,6 +339,13 @@ public class ChatFragment extends Fragment {
 		// (Re)load conversation and initiate connection/key exchange process
 		// This should be called AFTER all observers are set up, so they can immediately react.
 		viewModel.setConversationNodes(hostNode, remoteNode);
+
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				backToChatList();
+			}
+		});
 	}
 
 	@Override

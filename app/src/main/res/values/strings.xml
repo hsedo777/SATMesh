@@ -84,6 +84,9 @@
 	<string name="label_messages">Messages</string>
 
 	<string name="message_status">Message status</string>
+
+	<string name="label_last_seen">Last seen: %s</string>
+	<string name="label_last_seen_never">Last seen: Never</string>
 	<!--
 	<string name=""></string>
 	-->

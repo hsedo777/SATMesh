@@ -85,6 +85,9 @@
 	<string name="label_messages">Messages</string>
 
 	<string name="message_status">État du message</string>
+
+	<string name="label_last_seen">Dernière connexion : %s</string>
+	<string name="label_last_seen_never">Dernière connexion : Jamais</string>
 	<!--
 	<string name=""></string>
 	-->

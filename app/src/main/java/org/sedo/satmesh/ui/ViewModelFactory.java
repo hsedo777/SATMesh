@@ -43,10 +43,10 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
 		if (modelClass.isAssignableFrom(ChatViewModel.class)) {
 			return (T) new ChatViewModel(application);
 		}
-		if (modelClass.isAssignableFrom(SearchViewModel.class)) { // Required to be before `ChatListViewModel` check
+		if (modelClass == SearchViewModel.class) {
 			return (T) new SearchViewModel(application);
 		}
-		if (modelClass.isAssignableFrom(ChatListViewModel.class)) {
+		if (modelClass == ChatListViewModel.class) {
 			return (T) new ChatListViewModel(application);
 		}
 		// If no matching ViewModel is found, throw an IllegalArgumentException

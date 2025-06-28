@@ -1,5 +1,7 @@
 package org.sedo.satmesh.ui;
 
+import static org.sedo.satmesh.utils.Constants.TAG_CHAT_FRAGMENT;
+
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -31,14 +33,15 @@ import org.sedo.satmesh.databinding.FragmentChatBinding;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.ChatAdapter;
-import org.sedo.satmesh.utils.Constants;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 public class ChatFragment extends Fragment {
 
+	private static final String TAG = TAG_CHAT_FRAGMENT;
 	private static final String ARG_HOST_PREFIX = "host_node_";
 	private static final String ARG_REMOTE_PREFIX = "remote_node_";
 
@@ -83,7 +86,7 @@ public class ChatFragment extends Fragment {
 
 			int id = item.getItemId();
 			if (id == R.id.action_delete) {
-				Log.d(Constants.TAG_CHAT_FRAGMENT, "Deleting " + selectedMessageIds.size() + " message(s)");
+				Log.d(TAG, "Deleting " + selectedMessageIds.size() + " message(s)");
 				viewModel.deleteMessagesById(new ArrayList<>(selectedMessageIds));
 				mode.finish();
 				return true;
@@ -146,7 +149,7 @@ public class ChatFragment extends Fragment {
 			// Ensure nodes are restored
 			if (hostNode == null || hostNode.getId() == null || remoteNode == null || remoteNode.getId() == null) {
 				// Alert and close the fragment
-				Log.e(Constants.TAG_CHAT_FRAGMENT, "onCreate() : failed to fetch nodes from arguments or nodes are null!");
+				Log.e(TAG, "onCreate() : failed to fetch nodes from arguments or nodes are null!");
 				Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
 				requireActivity().getOnBackPressedDispatcher().onBackPressed();
 			}
@@ -173,6 +176,34 @@ public class ChatFragment extends Fragment {
 
 		// If ViewModel already has nodes set (e.g., after orientation change), use them.
 		// Otherwise, use the ones from arguments and tell ViewModel to set them.
+		if (!retrieveAndValidateNodes()) {
+			return; // Exit if nodes are not valid
+		}
+
+		// Setup Toolbar
+		setupToolbar();
+
+		// Setup RecyclerView and Adapter
+		setupChatRecyclerView();
+
+		// Setup Message Input (EditText and Send Button)
+		setupMessageInput();
+
+		// Observe ViewModel LiveData
+		observeViewModel();
+
+		// (Re)load conversation and initiate connection/key exchange process
+		// This should be called AFTER all observers are set up, so they can immediately react.
+		viewModel.setConversationNodes(hostNode, remoteNode);
+
+		// Setup Back Press handling
+		setupOnBackPressed();
+	}
+
+	/**
+	 * Retrieve and Validate Nodes
+	 */
+	private boolean retrieveAndValidateNodes() {
 		if (hostNode == null || remoteNode == null) {
 			hostNode = viewModel.getHostNodeLiveData().getValue();
 			remoteNode = viewModel.getRemoteNodeLiveData().getValue();
@@ -180,12 +211,15 @@ public class ChatFragment extends Fragment {
 
 		// IMPORTANT: Ensure hostNode and remoteNode are not null before proceeding
 		if (hostNode == null || remoteNode == null) {
-			Log.e(Constants.TAG_CHAT_FRAGMENT, "onViewCreated() : hostNode or remoteNode is null after ViewModel initialization!");
+			Log.e(TAG, "retrieveAndValidateNodes() : hostNode or remoteNode is null! Cannot proceed.");
 			Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
 			requireActivity().getOnBackPressedDispatcher().onBackPressed();
-			return; // Prevent NullPointerException
+			return false; // Indicate failure
 		}
+		return true; // Indicate success
+	}
 
+	private void setupToolbar() {
 		Toolbar toolbar = binding.chatToolbar;
 		toolbar.setNavigationOnClickListener(v -> backToChatList());
 
@@ -225,7 +259,9 @@ public class ChatFragment extends Fragment {
 			}
 			return false;
 		});
+	}
 
+	private void setupChatRecyclerView() {
 		adapter = new ChatAdapter(hostNode.getId());
 		binding.chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 		adapter.setOnMessageClickListener(this::onMessageClick);
@@ -244,7 +280,9 @@ public class ChatFragment extends Fragment {
 				// pass
 			}
 		});
+	}
 
+	private void setupMessageInput() {
 		binding.sendButton.setOnClickListener(v -> {
 			String text = Objects.requireNonNull(binding.messageEditText.getText()).toString().trim();
 			if (!text.isEmpty()) {
@@ -273,7 +311,9 @@ public class ChatFragment extends Fragment {
 
 		// Initial state: disable send button if text field is empty
 		binding.sendButton.setEnabled(!Objects.requireNonNullElse(binding.messageEditText.getText(), "").toString().trim().isEmpty());
+	}
 
+	private void observeViewModel() {
 		// Observers of `ViewModel`'s `LiveData`s
 		viewModel.getConversation().observe(getViewLifecycleOwner(), messages -> {
 			adapter.submitList(messages);
@@ -289,26 +329,26 @@ public class ChatFragment extends Fragment {
 
 		viewModel.getUiMessage().observe(getViewLifecycleOwner(), message -> {
 			if (message != null && !message.isEmpty()) {
-				Log.d(Constants.TAG_CHAT_FRAGMENT, message);
+				Log.d(TAG, message);
 				Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
 			}
 		});
 
-		// IMPROVED: Observe remoteNodeLiveData for dynamic display name updates
+		// Observe remoteNodeLiveData for dynamic display name updates
 		viewModel.getRemoteNodeLiveData().observe(getViewLifecycleOwner(), updatedRemoteNode -> {
 			if (updatedRemoteNode != null) {
 				remoteNode = updatedRemoteNode; // Update local remoteNode reference
 				if (updatedRemoteNode.getDisplayName() != null && !updatedRemoteNode.getDisplayName().isEmpty()) {
-					toolbar.setTitle(updatedRemoteNode.getDisplayName());
+					binding.chatToolbar.setTitle(updatedRemoteNode.getDisplayName());
 				} else {
-					toolbar.setTitle(getString(R.string.app_name));
+					binding.chatToolbar.setTitle(getString(R.string.app_name));
 				}
 			}
 		});
 
 		// Current status (connected/disconnected) - determines visibility of indicator
 		viewModel.getConnectionActive().observe(getViewLifecycleOwner(), isActive -> {
-			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Active: " + isActive);
+			Log.d(TAG, "Connection Active: " + isActive);
 			String message = viewModel.getUiMessage().getValue();
 			if (Boolean.FALSE.equals(isActive) && message != null && !message.isEmpty()) {
 				binding.chatToolbar.setSubtitle(message);
@@ -326,19 +366,16 @@ public class ChatFragment extends Fragment {
 				binding.connectionIndicator.setVisibility(View.GONE);
 				return;
 			}
-			Log.d(Constants.TAG_CHAT_FRAGMENT, "Connection Detailed Status: " + status);
+			Log.d(TAG, "Connection Detailed Status: " + status);
 			// Use ContextCompat.getColor for consistent color loading
 			binding.connectionIndicator.getBackground().setTint(ContextCompat.getColor(requireContext(), status.getColorResId()));
 			binding.connectionIndicator.setVisibility(View.VISIBLE);
 			// To be added: Update status text next to the toolbar title if you add a TextView for it.
 			// Example: binding.connectionIndicator.setTooltipText(status.getDisplayString());
 		});
+	}
 
-
-		// (Re)load conversation and initiate connection/key exchange process
-		// This should be called AFTER all observers are set up, so they can immediately react.
-		viewModel.setConversationNodes(hostNode, remoteNode);
-
+	private void setupOnBackPressed() {
 		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
@@ -362,6 +399,37 @@ public class ChatFragment extends Fragment {
 			currentActionMode.finish();
 		if (chatListAccessor != null) {
 			chatListAccessor.moveToChatList(true, true);
+		}
+	}
+
+	/**
+	 * Scrolls the RecyclerView to the message with the given ID.
+	 *
+	 * @param messageId The ID of the message to scroll to.
+	 */
+	private void scrollToSpecificMessage(long messageId) {
+		List<Message> currentMessages = adapter.getCurrentList();
+		Message message = currentMessages.stream().filter(m -> Long.valueOf(messageId).equals(m.getId())).findFirst().orElse(null);
+		int position = message != null ? currentMessages.indexOf(message) : -1;
+
+		if (position != -1) {
+			// Use post to ensure the recycler is rendered before scroll
+			binding.chatRecyclerView.post(() -> {
+				LinearLayoutManager layoutManager = (LinearLayoutManager) binding.chatRecyclerView.getLayoutManager();
+				if (layoutManager != null) {
+					int offset = binding.chatRecyclerView.getHeight() / 2;
+					View view = layoutManager.findViewByPosition(position);
+					if (view != null) {
+						offset -= view.getHeight() / 2;
+					}
+					layoutManager.scrollToPositionWithOffset(position, offset);
+				} else {
+					binding.chatRecyclerView.scrollToPosition(position);
+				}
+				Log.d(TAG, "Scrolled to message at position: " + position + " (ID: " + messageId + ")");
+			});
+		} else {
+			Log.w(TAG, "Message with ID " + messageId + " not found in the list.");
 		}
 	}
 

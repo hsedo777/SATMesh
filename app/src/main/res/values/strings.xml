@@ -85,8 +85,12 @@
 
 	<string name="message_status">Message status</string>
 
-	<string name="label_last_seen">Last seen: %s</string>
-	<string name="label_last_seen_never">Last seen: Never</string>
+	<!-- View of nodes -->
+	<string name="label_last_seen">Last seen: </string>
+	<string name="label_address_name">Public Address: </string>
+	<string name="label_last_seen_never">Never</string>
+	<string name="title_known_nodes">Known Nodes</string>
+	<string name="no_known_nodes_message">No known nodes found. Connect with other devices to see them here!</string>
 	<!--
 	<string name=""></string>
 	-->

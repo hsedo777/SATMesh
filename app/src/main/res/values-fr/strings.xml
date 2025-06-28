@@ -86,8 +86,12 @@
 
 	<string name="message_status">État du message</string>
 
-	<string name="label_last_seen">Dernière connexion : %s</string>
-	<string name="label_last_seen_never">Dernière connexion : Jamais</string>
+	<!-- View of nodes -->
+	<string name="label_last_seen">Dernière connexion : </string>
+	<string name="label_address_name">Adresse public : </string>
+	<string name="label_last_seen_never">Jamais</string>
+	<string name="title_known_nodes">Nœuds connus</string>
+	<string name="no_known_nodes_message">Aucun nœud connu trouvé. Connectez-vous à d\'autres appareils pour les voir ici !</string>
 	<!--
 	<string name=""></string>
 	-->

@@ -226,8 +226,7 @@ public class KnownNodesAdapter extends ListAdapter<Node, KnownNodesAdapter.Known
 			remoteNodeDisplayName.setText(node.getNonNullName());
 			remoteNodeAddressName.setText(node.getAddressName());
 			if (node.getLastSeen() != null) {
-				remoteNodeLastSeen.setText(itemView.getContext().getString(R.string.label_last_seen,
-						Utils.formatTimestampByInterval(itemView.getContext(), node.getLastSeen())));
+				remoteNodeLastSeen.setText(Utils.formatTimestampByInterval(itemView.getContext(), node.getLastSeen()));
 			} else {
 				remoteNodeLastSeen.setText(itemView.getContext().getString(R.string.label_last_seen_never));
 			}

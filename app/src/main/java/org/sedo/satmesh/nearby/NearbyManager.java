@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -64,6 +66,7 @@ public class NearbyManager {
 	private final ConnectionsClient connectionsClient;
 	// Use local address name as advertising name
 	private final String localName;
+	private final ExecutorService executorService;
 	/**
 	 * PayloadCallback handles incoming data payloads.
 	 * It processes received bytes as Protobuf messages and dispatches them.
@@ -218,6 +221,7 @@ public class NearbyManager {
 	private NearbyManager(@NonNull Context context, @NonNull String localName) {
 		this.connectionsClient = Nearby.getConnectionsClient(context);
 		this.localName = localName;
+		this.executorService = Executors.newSingleThreadExecutor();
 	}
 
 	public static NearbyManager getInstance(@NonNull Context context, @NonNull String localName) {
@@ -517,6 +521,7 @@ public class NearbyManager {
 		// Clear all maps
 		endpointStates.clear();
 		addressNameToEndpointId.clear();
+		executorService.shutdownNow();
 		Log.d(TAG, "All Nearby interactions stopped and connections reset.");
 	}
 
@@ -559,36 +564,38 @@ public class NearbyManager {
 	                                                 @NonNull String recipientAddressName,
 	                                                 @NonNull BiConsumer<Payload, Boolean> transmissionCallback,
 	                                                 @Nullable Consumer<Boolean> onDiscoveryInitiatedCallback) {
-		final String endpointId = getLinkedEndpointId(recipientAddressName);
-		if (endpointId == null) {
-			Log.e(TAG, "There is no direct connection to address '" + recipientAddressName + "', we are going to attempt to find a route.");
-			try {
-				NearbyRouteManager nearbyRouteManager = NearbySignalMessenger.getInstance().getNearbyRouteManager();
-				RouteAndUsage routeAndUsage = nearbyRouteManager.getIfExistRouteAndUsageFor(recipientAddressName);
-				if (routeAndUsage == null || routeAndUsage.routeEntry == null) {
-					Log.d(TAG, "No route found. Init route discovery.");
-					nearbyRouteManager.initiateRouteDiscovery(recipientAddressName,
-							unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback),
-							onDiscoveryInitiatedCallback);
-				} else {
-					// There is a valid active route
-					nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback);
+		executorService.execute(() -> {
+			final String endpointId = getLinkedEndpointId(recipientAddressName);
+			if (endpointId == null) {
+				Log.e(TAG, "There is no direct connection to address '" + recipientAddressName + "', we are going to attempt to find a route.");
+				try {
+					NearbyRouteManager nearbyRouteManager = NearbySignalMessenger.getInstance().getNearbyRouteManager();
+					RouteAndUsage routeAndUsage = nearbyRouteManager.getIfExistRouteAndUsageFor(recipientAddressName);
+					if (routeAndUsage == null || routeAndUsage.routeEntry == null) {
+						Log.d(TAG, "No route found. Init route discovery.");
+						nearbyRouteManager.initiateRouteDiscovery(recipientAddressName,
+								unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback),
+								onDiscoveryInitiatedCallback);
+					} else {
+						// There is a valid active route
+						nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback);
+					}
+				} catch (Exception e) {
+					Log.e(TAG, "Handling route for message transmission failed.", e);
+					transmissionCallback.accept(null, false); // Notify failure
 				}
+				return;
+			}
+
+			try {
+				byte[] messageBytes = NearbySignalMessenger.getInstance().encryptBody(plainMessageBody, recipientAddressName).toByteArray();
+				sendNearbyMessage(endpointId, messageBytes, transmissionCallback);
+				Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
 			} catch (Exception e) {
-				Log.e(TAG, "Handling route for message transmission failed.", e);
+				Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
 				transmissionCallback.accept(null, false); // Notify failure
 			}
-			return;
-		}
-
-		try {
-			byte[] messageBytes = NearbySignalMessenger.getInstance().encryptBody(plainMessageBody, recipientAddressName).toByteArray();
-			sendNearbyMessage(endpointId, messageBytes, transmissionCallback);
-			Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
-		} catch (Exception e) {
-			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-			transmissionCallback.accept(null, false); // Notify failure
-		}
+		});
 	}
 
 	/**
@@ -638,7 +645,6 @@ public class NearbyManager {
 		Payload payload = Payload.fromBytes(data); // Create payload from bytes
 		connectionsClient.sendPayload(endpointId, payload)
 				.addOnSuccessListener(unused -> {
-					// TODO : we will debug if success and failing listeners are called both
 					Log.d(TAG, "Payload ID " + payload.getId() + " sent successfully to " + endpointId);
 					if (callback != null) {
 						callback.accept(payload, true);
@@ -649,6 +655,24 @@ public class NearbyManager {
 					if (callback != null) {
 						callback.accept(payload, false);
 					}
+					// The device is probably disconnected, try force disconnection
+					executorService.execute(() -> {
+						ConnectionState state = endpointStates.remove(endpointId);
+						if (state != null && state.addressName != null) {
+							// Try disconnection
+							disconnectFromEndpoint(endpointId);
+							addressNameToEndpointId.remove(state.addressName);
+							endpointStates.remove(endpointId);
+							NodeTransientStateRepository.getInstance().updateTransientNodeState(state.addressName, NodeState.ON_DISCONNECTED);
+						} else {
+							String address = addressNameToEndpointId.entrySet().stream().filter(entry -> endpointId.equals(entry.getValue()))
+									.map(Map.Entry::getKey).findFirst().orElse(null);
+							Log.e(TAG, "Payload sending failed to endpoint=" + endpointId + " in state=" + state + " and with extracted address=" + address);
+							if (address != null) {
+								addressNameToEndpointId.remove(address);
+							}
+						}
+					});
 				});
 	}
 

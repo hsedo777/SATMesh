@@ -85,63 +85,65 @@ public class NearbyRouteManager {
 
 	/**
 	 * Helper method to send a RouteRequestMessage.
-	 * This method runs on caller thread.
+	 * This method runs on an execution thread.
 	 *
 	 * @param recipientAddressName The SignalProtocolAddress.name of the recipient.
 	 * @param messageBody          The RouteRequestMessage to send.
 	 */
 	private void sendRouteRequestMessage(@NonNull String recipientAddressName, @NonNull RouteRequestMessage messageBody) {
-		try {
-			Log.d(TAG, "Sending RouteRequestMessage to " + recipientAddressName + " for UUID: " + messageBody.getUuid());
-			NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
-					.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_REQ)
-					.setEncryptedData(messageBody.toByteString())
-					.build();
-			// Encrypt message
-			SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
-			CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, nearbyMessageBody.toByteArray());
+		executor.execute(() -> {
+			try {
+				Log.d(TAG, "Sending RouteRequestMessage to " + recipientAddressName + " for UUID: " + messageBody.getUuid());
+				NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
+						.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_REQ)
+						.setEncryptedData(messageBody.toByteString())
+						.build();
+				// Encrypt message
+				SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
+				CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, nearbyMessageBody.toByteArray());
 
-			// Encapsulate the message
-			NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
-					.setExchange(false)
-					.setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
+				// Encapsulate the message
+				NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
+						.setExchange(false)
+						.setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
 
-			// NearbyManager handles encryption and payload sending
-			// The callback needs to handle the payload ID for tracking
-			nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, (payload, success) -> {
-				if (success) {
-					Log.d(TAG, "RouteRequestMessage payload " + payload.getId() + " sent successfully to " + recipientAddressName);
-					Consumer<Node> save = node -> {
-						// Ensure the broadcast status is recorded for tracking
-						BroadcastStatusEntry broadcastStatus = new BroadcastStatusEntry(messageBody.getUuid(), node.getId());
-						broadcastStatus.setPendingResponseInProgress(false); // Default to false
-						broadcastStatusEntryDao.insert(broadcastStatus);
-						Log.d(TAG, "BroadcastStatusEntry created for request " + messageBody.getUuid() + " to neighbor " + node.getId());
-					};
-					Node node = nodeRepository.findNodeSync(recipientAddressName);
-					if (node == null) {
-						Log.e(TAG, "Failed to find node for " + recipientAddressName + " after sending RouteRequestMessage. We are creating it.");
-						Node newNode = new Node();
-						newNode.setAddressName(recipientAddressName);
-						nodeRepository.insert(newNode, ok -> {
-							if (ok) {
-								save.accept(newNode);
-							} else {
-								Log.w(TAG, "Failed to persist the node!");
-							}
-							// To fetch failing, caller of this method might try to retrieve occurrence of the broadcast in DB
-						});
+				// NearbyManager handles encryption and payload sending
+				// The callback needs to handle the payload ID for tracking
+				nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, (payload, success) -> {
+					if (success) {
+						Log.d(TAG, "RouteRequestMessage payload " + payload.getId() + " sent successfully to " + recipientAddressName);
+						Consumer<Node> save = node -> {
+							// Ensure the broadcast status is recorded for tracking
+							BroadcastStatusEntry broadcastStatus = new BroadcastStatusEntry(messageBody.getUuid(), node.getId());
+							broadcastStatus.setPendingResponseInProgress(false); // Default to false
+							broadcastStatusEntryDao.insert(broadcastStatus);
+							Log.d(TAG, "BroadcastStatusEntry created for request " + messageBody.getUuid() + " to neighbor " + node.getId());
+						};
+						Node node = nodeRepository.findNodeSync(recipientAddressName);
+						if (node == null) {
+							Log.e(TAG, "Failed to find node for " + recipientAddressName + " after sending RouteRequestMessage. We are creating it.");
+							Node newNode = new Node();
+							newNode.setAddressName(recipientAddressName);
+							nodeRepository.insert(newNode, ok -> {
+								if (ok) {
+									save.accept(newNode);
+								} else {
+									Log.w(TAG, "Failed to persist the node!");
+								}
+								// To fetch failing, caller of this method might try to retrieve occurrence of the broadcast in DB
+							});
+						} else {
+							save.accept(node);
+						}
 					} else {
-						save.accept(node);
+						Log.e(TAG, "Failed to send RouteRequestMessage payload " + payload.getId() + " to " + recipientAddressName);
+						// To fetch failing, caller of this method might try to retrieve occurrence of the broadcast in DB
 					}
-				} else {
-					Log.e(TAG, "Failed to send RouteRequestMessage payload " + payload.getId() + " to " + recipientAddressName);
-					// To fetch failing, caller of this method might try to retrieve occurrence of the broadcast in DB
-				}
-			});
-		} catch (Exception e) {
-			Log.e(TAG, "Error building or sending RouteRequestMessage to " + recipientAddressName + ": " + e.getMessage(), e);
-		}
+				});
+			} catch (Exception e) {
+				Log.e(TAG, "Error building or sending RouteRequestMessage to " + recipientAddressName + ": " + e.getMessage(), e);
+			}
+		});
 	}
 
 	/**

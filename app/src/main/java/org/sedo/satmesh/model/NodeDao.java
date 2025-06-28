@@ -2,6 +2,7 @@ package org.sedo.satmesh.model;
 
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
+import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
@@ -44,10 +45,6 @@ public interface NodeDao {
 	@Query("SELECT * FROM node WHERE addressName = :addressName")
 	Node getNodeByAddressNameSync(String addressName);
 
-	@Query("SELECT * FROM node WHERE addressName = :addressName")
-	LiveData<Node> getNodeByAddressName(String addressName);
-
-
 	/**
 	 * Retrieves a Node by its primary key ID.
 	 *
@@ -86,12 +83,19 @@ public interface NodeDao {
 	 *
 	 * @return A LiveData list of all Node objects, which can be observed for changes.
 	 */
-	@Query("SELECT * FROM node ORDER BY displayName ASC")
+	@Query("SELECT * FROM node ORDER BY displayName COLLATE NOCASE ASC")
 	LiveData<List<Node>> getAllNodes();
 
+	@Delete
+	int delete(List<Node> nodes); // For deleting multiple nodes (useful for selected items)
+
 	/**
-	 * Deletes all Nodes from the database.
+	 * Retrieves all known Node objects from the database, excluding the host node.
+	 * The nodes are ordered by their display name for a consistent list.
+	 *
+	 * @param hostNodeId The ID of the current host node, which should be excluded from the list.
+	 * @return A LiveData list of Node objects that are not the host node.
 	 */
-	@Query("DELETE FROM node WHERE id != :hostId")
-	void deleteAllOtherNodes(Long hostId);
+	@Query("SELECT * FROM node WHERE id != :hostNodeId ORDER BY displayName COLLATE NOCASE ASC")
+	LiveData<List<Node>> getKnownNodesExcludingHost(long hostNodeId);
 }

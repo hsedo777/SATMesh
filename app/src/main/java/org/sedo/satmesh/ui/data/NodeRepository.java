@@ -64,10 +64,6 @@ public class NodeRepository {
 		return dao.getNodeByAddressNameSync(addressName);
 	}
 
-	public LiveData<Node> findNode(String addressName) {
-		return dao.getNodeByAddressName(addressName);
-	}
-
 	public LiveData<List<Node>> getConnectedNode() {
 		return dao.getConnectedNode();
 	}
@@ -101,6 +97,27 @@ public class NodeRepository {
 				});
 			}
 		});
+	}
+
+	/**
+	 * Retrieves a LiveData list of all known Node objects from the database,
+	 * excluding the specified host node. The list is ordered by display name.
+	 *
+	 * @param hostNodeId The ID of the current host node to be excluded.
+	 * @return A LiveData object containing a list of known Node objects.
+	 */
+	public LiveData<List<Node>> getKnownNodesExcludingHost(long hostNodeId) {
+		return dao.getKnownNodesExcludingHost(hostNodeId);
+	}
+
+	/**
+	 * Deletes a list of Node objects from the database.
+	 * This operation is performed asynchronously on a background thread.
+	 *
+	 * @param nodes The list of Node objects to be deleted.
+	 */
+	public void deleteNodes(List<Node> nodes) {
+		executor.execute(() -> dao.delete(nodes));
 	}
 
 	public interface NodeCallback {

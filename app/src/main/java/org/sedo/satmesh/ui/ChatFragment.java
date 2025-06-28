@@ -464,6 +464,25 @@ public class ChatFragment extends Fragment {
 						offset -= view.getHeight() / 2;
 					}
 					layoutManager.scrollToPositionWithOffset(position, offset);
+
+					// Delay applying the animation slightly to ensure the view is fully rendered after scroll
+					binding.chatRecyclerView.postDelayed(() -> {
+						// Find the ViewHolder for the scrolled-to item
+						RecyclerView.ViewHolder viewHolder = binding.chatRecyclerView.findViewHolderForAdapterPosition(position);
+						if (viewHolder != null) {
+							View itemView = viewHolder.itemView; // Get the root view of the message item
+
+							// Load the animation from XML
+							android.view.animation.Animation blinkAnimation =
+									android.view.animation.AnimationUtils.loadAnimation(getContext(), R.anim.blink_animation);
+
+							// Start the animation on the item view
+							itemView.startAnimation(blinkAnimation);
+							Log.d(TAG, "Applied blink animation to message at position: " + position);
+						} else {
+							Log.w(TAG, "ViewHolder not found for position " + position + " after scroll.");
+						}
+					}, 100); // Small delay (e.g., 100ms) after scroll
 				} else {
 					binding.chatRecyclerView.scrollToPosition(position);
 				}
@@ -481,7 +500,7 @@ public class ChatFragment extends Fragment {
 	}
 
 	// Implémentation of OnMessageLongClickListener
-	public void onMessageLongClick(@NonNull Message message, @NonNull ChatAdapter.MessageViewHolder holder) {
+	public void onMessageLongClick(@NonNull Message message, @NonNull ChatAdapter.MessageViewHolder ignoredHolder) {
 		if (currentActionMode == null) {
 			currentActionMode = ((AppCompatActivity) requireActivity()).startSupportActionMode(actionModeCallback);
 		}

@@ -362,9 +362,6 @@ public class ChatFragment extends Fragment {
 				// Scroll to bottom only if it's not already at the bottom to avoid jumpiness
 				// Or always scroll if it's a new message
 				binding.chatRecyclerView.scrollToPosition(messages.size() - 1);
-			} else if (messages != null) {
-				// Empty list of messages
-				backToChatList();
 			}
 		});
 

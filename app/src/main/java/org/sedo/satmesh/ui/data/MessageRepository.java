@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 
+import org.jetbrains.annotations.NotNull;
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.MessageDao;
@@ -51,11 +52,23 @@ public class MessageRepository {
 
 	/**
 	 * Updates an existing message in the database.
+	 * This method is executed in an executor thread
 	 *
 	 * @param message The message to update.
 	 */
 	public void updateMessage(Message message) {
-		messageDao.update(message);
+		executor.execute(() -> messageDao.update(message));
+	}
+
+	public void updateMessage(Message message, @NotNull Consumer<Boolean> callback) {
+		executor.execute(() -> {
+			try{
+				messageDao.update(message);
+				callback.accept(true);
+			} catch (Exception ignored){
+				callback.accept(false);
+			}
+		});
 	}
 
 	/**
@@ -69,7 +82,7 @@ public class MessageRepository {
 		return messageDao.getConversationMessages(hostNodeId, remoteNodeId);
 	}
 
-	public Message getMessageById(long messageId) {
+	public Message getMessageByIdSync(long messageId) {
 		return messageDao.getMessageByIdSync(messageId);
 	}
 
@@ -77,7 +90,7 @@ public class MessageRepository {
 	 * Returns a message based on its payload ID and participants.
 	 * This method is synchronous and should be called from a background thread.
 	 */
-	public Message getMessageByPayloadId(Long payloadId) {
+	public Message getMessageByPayloadIdSync(Long payloadId) {
 		return messageDao.getMessageByPayloadIdSync(payloadId);
 	}
 

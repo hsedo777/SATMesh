@@ -36,7 +36,7 @@ public class SearchViewModel extends ChatListViewModel {
 				updateSearchSources(getHostNodeId(), query)
 		);
 
-		chatListItems.addSource(searchQueryLiveData, query ->{
+		chatListItems.addSource(searchQueryLiveData, query -> {
 			Log.d(TAG, "Input query=" + query);
 			onHostNodeIdSet(getHostNodeId()); // Re-evaluate the list
 		});
@@ -76,6 +76,15 @@ public class SearchViewModel extends ChatListViewModel {
 	 */
 	public LiveData<List<SearchMessageItem>> getSearchMessageItems() {
 		return searchMessageItems;
+	}
+
+	/**
+	 * Gets the current value of the query string
+	 *
+	 * @return the search query
+	 */
+	public String getSearchQuery() {
+		return searchQueryLiveData.getValue();
 	}
 
 	/**

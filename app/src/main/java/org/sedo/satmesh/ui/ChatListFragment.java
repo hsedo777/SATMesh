@@ -113,6 +113,10 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 				((MainActivity) requireActivity()).navigateTo(SearchFragment.newInstance(chatListViewModel.getHostNodeId()), SearchFragment.TAG, true, true);
 				return true;
 			}
+			if (id == R.id.menu_known_nodes) {
+				((MainActivity) requireActivity()).navigateTo(KnownNodesFragment.newInstance(chatListViewModel.getHostNodeId()), KnownNodesFragment.TAG, true, true);
+				return true;
+			}
 			return false;
 		});
 	}
@@ -120,11 +124,9 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof DiscussionListener) {
+		if (context instanceof DiscussionListener && context instanceof NearbyDiscoveryListener) {
 			discussionListener = (DiscussionListener) context;
-			if (context instanceof NearbyDiscoveryListener) {
-				nearbyDiscoveryListener = (NearbyDiscoveryListener) context;
-			}
+			nearbyDiscoveryListener = (NearbyDiscoveryListener) context;
 		} else {
 			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener'");
 		}

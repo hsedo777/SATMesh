@@ -1,6 +1,7 @@
 package org.sedo.satmesh.ui;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -11,7 +12,6 @@ import android.widget.EditText;
 import android.widget.ImageView;
 
 import androidx.activity.OnBackPressedCallback;
-import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SearchView;
@@ -115,6 +115,19 @@ public class SearchFragment extends Fragment {
 				}
 			}
 		});
+
+		binding.searchView.post(() -> {
+			binding.searchView.onActionViewExpanded(); // Open search bar
+			EditText searchEditText = binding.searchView.findViewById(androidx.appcompat.R.id.search_src_text);
+			if (searchEditText != null) {
+				searchEditText.requestFocus();
+				// Open keyboard
+				InputMethodManager imm = (InputMethodManager) requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+				if (imm != null) {
+					imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
+				}
+			}
+		});
 	}
 
 	private void setupRecyclerViews(long hostNodeId) {
@@ -162,10 +175,14 @@ public class SearchFragment extends Fragment {
 
 	private void customizeSearchView(SearchView searchView) {
 		EditText searchEditText = searchView.findViewById(androidx.appcompat.R.id.search_src_text);
-		@ColorInt int colorOnSurface = ContextCompat.getColor(requireContext(), R.color.colorOnSecondary);
+		int colorOnSurface = ContextCompat.getColor(requireContext(), R.color.colorOnSecondary);
 		if (searchEditText != null) {
 			searchEditText.setTextColor(colorOnSurface);
 			searchEditText.setHintTextColor(colorOnSurface);
+
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // API 29 (Q)
+				searchEditText.setTextCursorDrawable(R.drawable.white_cursor);
+			}
 		}
 
 		ImageView searchIcon = searchView.findViewById(androidx.appcompat.R.id.search_mag_icon);

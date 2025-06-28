@@ -57,7 +57,6 @@ public class ChatFragment extends Fragment {
 			View actionModeView = decorView.findViewById(androidx.appcompat.R.id.action_mode_bar);
 			if (actionModeView != null) {
 				actionModeView.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.secondaryColor));
-
 			}
 			return true;
 		}

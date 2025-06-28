@@ -4,8 +4,7 @@
 	xmlns:tools="http://schemas.android.com/tools"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
-	android:layout_marginVertical="@dimen/space_xs"
-	android:background="@drawable/bg_node_selector"
+	android:layout_marginVertical="2dp"
 	android:clickable="true"
 	android:focusable="true"
 	app:cardCornerRadius="@dimen/space_md"
@@ -14,6 +13,7 @@
 	<androidx.constraintlayout.widget.ConstraintLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
+		android:background="@drawable/bg_node_selector"
 		android:padding="@dimen/space_sm">
 
 		<TextView
@@ -40,7 +40,7 @@
 
 		<TextView
 			android:id="@+id/text_node_last_seen"
-			android:layout_width="wrap_content"
+			android:layout_width="0dp"
 			android:layout_height="wrap_content"
 			android:layout_marginStart="@dimen/space_xs"
 			android:textColor="@color/node_text_selector"
@@ -57,7 +57,6 @@
 			android:textColor="@color/node_text_selector"
 			android:textSize="@dimen/text_size_body"
 			android:textStyle="bold"
-			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintTop_toBottomOf="@id/text_node_last_seen_label" />
 
@@ -65,12 +64,12 @@
 			android:id="@+id/text_node_address_name"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:layout_marginStart="@dimen/space_xs"
+			android:paddingHorizontal="@dimen/space_xs"
 			android:textColor="@color/node_text_selector"
 			android:textSize="@dimen/text_size_body"
 			app:layout_constraintBottom_toBottomOf="parent"
-			app:layout_constraintStart_toEndOf="@id/label_address_name"
-			app:layout_constraintTop_toBottomOf="@id/text_node_last_seen_label"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/label_address_name"
 			tools:text="satmesh-964F-5586-AB82-0023" />
 
 	</androidx.constraintlayout.widget.ConstraintLayout>

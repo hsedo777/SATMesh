@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.view.ActionMode;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -45,6 +46,12 @@ public class KnownNodesFragment extends Fragment {
 		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
 			MenuInflater inflater = mode.getMenuInflater();
 			inflater.inflate(R.menu.menu_known_nodes_contextual, menu);
+			// Access the ActionMode's view and set its background color
+			View decorView = requireActivity().getWindow().getDecorView();
+			View actionModeView = decorView.findViewById(androidx.appcompat.R.id.action_mode_bar);
+			if (actionModeView != null) {
+				actionModeView.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.secondaryColor));
+			}
 			return true; // Return true for the ActionMode to be created
 		}
 

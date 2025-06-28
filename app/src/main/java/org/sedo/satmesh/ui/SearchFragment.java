@@ -26,7 +26,7 @@ import org.sedo.satmesh.ui.adapter.SearchMessageAdapter;
 
 public class SearchFragment extends Fragment {
 
-	private static final String TAG = "SearchFragment";
+	public static final String TAG = "SearchFragment";
 	private static final String HOST_NODE_ID_KEY = "host_node_id";
 
 	private FragmentSearchBinding binding;
@@ -156,14 +156,12 @@ public class SearchFragment extends Fragment {
 	private void observeViewModel() {
 		searchViewModel.getChatListItems().observe(getViewLifecycleOwner(), discussions -> {
 			Log.d(TAG, "Discussions updated: " + (discussions != null ? discussions.size() : "null"));
-			discussionsAdapter.submitList(discussions);
-			updateVisibility();
+			discussionsAdapter.submitList(discussions, this::updateVisibility);
 		});
 
 		searchViewModel.getSearchMessageItems().observe(getViewLifecycleOwner(), messages -> {
 			Log.d(TAG, "Messages updated: " + (messages != null ? messages.size() : "null"));
-			messagesAdapter.submitList(messages);
-			updateVisibility();
+			messagesAdapter.setSearchContent(messages, searchViewModel.getSearchQuery(), this::updateVisibility);
 		});
 	}
 

@@ -255,7 +255,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	@Override
-	public void discussWith(@NonNull Node remoteNode) {
+	public void discussWith(@NonNull Node remoteNode, boolean removePreviousFragment) {
 		// Refresh from db
 		appDatabase.getQueryExecutor().execute(() -> {
 			Node hostNode = appDatabase.nodeDao().getNodeByIdSync(
@@ -266,7 +266,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 				Log.e(TAG, "Unable to find the host node");
 				finish();
 			}
-			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(Objects.requireNonNull(hostNode), node), Constants.TAG_CHAT_FRAGMENT, false, true);
+			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(Objects.requireNonNull(hostNode), node), Constants.TAG_CHAT_FRAGMENT, removePreviousFragment, true);
 			Node node = appDatabase.nodeDao().getNodeByAddressNameSync(remoteNode.getAddressName());
 			if (node == null) {
 				try {

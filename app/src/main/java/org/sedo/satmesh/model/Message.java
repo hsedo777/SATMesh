@@ -123,6 +123,36 @@ public class Message {
 	@ColumnInfo(name = "recipientNodeId")
 	private Long recipientNodeId;
 
+	/**
+	 * Test if the input integer value is a valid status code
+	 *
+	 * @param status the code to test
+	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_STATUS}.
+	 */
+	public static boolean isValidStatusCode(int status) {
+		return Arrays.asList(Message.MESSAGE_STATUS_DELIVERED,
+						Message.MESSAGE_STATUS_PENDING,
+						Message.MESSAGE_STATUS_ROUTING,
+						Message.MESSAGE_STATUS_READ,
+						Message.MESSAGE_STATUS_FAILED,
+						MESSAGE_STATUS_PENDING_KEY_EXCHANGE)
+				.contains(status);
+	}
+
+	/**
+	 * Test if the input integer value is a valid message type
+	 *
+	 * @param type the code to test
+	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_TYPE}.
+	 */
+	public static boolean isValidMessageTpe(int type) {
+		return Arrays.asList(Message.MESSAGE_TYPE_TEXT,
+						Message.MESSAGE_TYPE_AUDIO,
+						Message.MESSAGE_TYPE_FILE,
+						Message.MESSAGE_TYPE_IMAGE)
+				.contains(type);
+	}
+
 	public Long getId() {
 		return id;
 	}
@@ -136,6 +166,9 @@ public class Message {
 	}
 
 	public void setPayloadId(Long payloadId) {
+		if (payloadId != null && payloadId == 0L) {
+			return;
+		}
 		this.payloadId = payloadId;
 	}
 
@@ -200,33 +233,5 @@ public class Message {
 	@Override
 	public int hashCode() {
 		return Objects.hash(payloadId, content, timestamp, status, type, senderNodeId, recipientNodeId);
-	}
-
-	/**
-	 * Test if the input integer value is a valid status code
-	 * @param status the code to test
-	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_STATUS}.
-	 */
-	public static boolean isValidStatusCode(int status){
-		return Arrays.asList(Message.MESSAGE_STATUS_DELIVERED,
-						Message.MESSAGE_STATUS_PENDING,
-						Message.MESSAGE_STATUS_ROUTING,
-						Message.MESSAGE_STATUS_READ,
-						Message.MESSAGE_STATUS_FAILED,
-						MESSAGE_STATUS_PENDING_KEY_EXCHANGE)
-				.contains(status);
-	}
-
-	/**
-	 * Test if the input integer value is a valid message type
-	 * @param type the code to test
-	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_TYPE}.
-	 */
-	public static boolean isValidMessageTpe(int type){
-		return Arrays.asList(Message.MESSAGE_TYPE_TEXT,
-						Message.MESSAGE_TYPE_AUDIO,
-						Message.MESSAGE_TYPE_FILE,
-						Message.MESSAGE_TYPE_IMAGE)
-				.contains(type);
 	}
 }

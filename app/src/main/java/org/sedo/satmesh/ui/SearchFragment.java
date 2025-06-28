@@ -35,12 +35,30 @@ public class SearchFragment extends Fragment {
 	private ChatListAdapter discussionsAdapter;
 	private SearchMessageAdapter messagesAdapter;
 
+	private DiscussionListener discussionListener;
+
 	public static SearchFragment newInstance(long hostNodeId) {
 		SearchFragment searchFragment = new SearchFragment();
 		Bundle bundle = new Bundle();
 		bundle.putLong(HOST_NODE_ID_KEY, hostNodeId);
 		searchFragment.setArguments(bundle);
 		return searchFragment;
+	}
+
+	@Override
+	public void onAttach(@NonNull Context context) {
+		super.onAttach(context);
+		if (context instanceof DiscussionListener) {
+			discussionListener = (DiscussionListener) context;
+		} else {
+			throw new RuntimeException("This fragment require the 'DiscussionListener'");
+		}
+	}
+
+	@Override
+	public void onDetach() {
+		super.onDetach();
+		discussionListener = null;
 	}
 
 	@Nullable
@@ -90,8 +108,9 @@ public class SearchFragment extends Fragment {
 		// RecyclerView des discussions
 		discussionsAdapter = new ChatListAdapter(hostNodeId);
 		discussionsAdapter.setOnItemClickListener(item -> {
-			// TODO
-			Log.d(TAG, "Discussion clicked: " + item.remoteNode.getDisplayName());
+			if (discussionListener != null) {
+				discussionListener.discussWith(item.remoteNode, true);
+			}
 		});
 		binding.recyclerDiscussions.setLayoutManager(new LinearLayoutManager(getContext()));
 		binding.recyclerDiscussions.setAdapter(discussionsAdapter);

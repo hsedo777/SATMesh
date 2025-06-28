@@ -133,7 +133,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 				} else {
 					// Redirect the user to chat fragment
 					if (listener != null) {
-						listener.discussWith(item.node);
+						listener.discussWith(item.node, false);
 					}
 				}
 			}

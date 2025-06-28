@@ -13,6 +13,8 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import org.sedo.satmesh.MainActivity;
+import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatListBinding;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
@@ -100,9 +102,18 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 			}
 		});
 		binding.fabNodeDiscovery.setOnClickListener(view1 -> {
-			if (nearbyDiscoveryListener != null){
+			if (nearbyDiscoveryListener != null) {
 				nearbyDiscoveryListener.moveToDiscoveryView(false, true);
 			}
+		});
+
+		binding.chatListAppBar.setOnMenuItemClickListener(item -> {
+			int id = item.getItemId();
+			if (id == R.id.action_search) {
+				((MainActivity) requireActivity()).navigateTo(SearchFragment.newInstance(chatListViewModel.getHostNodeId()), SearchFragment.TAG, false, true);
+				return true;
+			}
+			return false;
 		});
 	}
 
@@ -111,7 +122,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		super.onAttach(context);
 		if (context instanceof DiscussionListener) {
 			discussionListener = (DiscussionListener) context;
-			if (context instanceof NearbyDiscoveryListener){
+			if (context instanceof NearbyDiscoveryListener) {
 				nearbyDiscoveryListener = (NearbyDiscoveryListener) context;
 			}
 		} else {
@@ -126,12 +137,18 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		nearbyDiscoveryListener = null;
 	}
 
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		binding = null;
+	}
+
 	// Implement OnItemClickListener
 	@Override
 	public void onItemClick(@NonNull ChatListItem item) {
 		Log.d(TAG, "Clicked on chat item: " + item.remoteNode.getDisplayName());
-		if (discussionListener != null){
-			discussionListener.discussWith(item.remoteNode);
+		if (discussionListener != null) {
+			discussionListener.discussWith(item.remoteNode, true);
 		}
 	}
 }

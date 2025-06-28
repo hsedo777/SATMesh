@@ -158,7 +158,7 @@ public interface MessageDao {
 			"N.lastSeen AS remoteNode_lastSeen, " +
 			"N.connected AS remoteNode_connected " +
 			"FROM message AS M " +
-			"JOIN message_fts AS fts ON M.id = fts.rowid " + // FTS join
+			"JOIN message_fts AS fts ON M.id = fts.rowid " +
 			"JOIN (" + // Subquery to determine the 'partnerId' (remoteNodeId) for each message
 			"  SELECT " +
 			"    id, " + // Message ID from the outer query to link back
@@ -171,7 +171,7 @@ public interface MessageDao {
 			"JOIN node AS N ON N.id = PartnerLookup.partnerId " + // Now, join with Node using the calculated partnerId
 			"WHERE " +
 			"fts.content MATCH :query " + // FTS match on content
-			"ORDER BY bm25(matchinfo(message_fts)) DESC")
+			"ORDER BY M.timestamp DESC")
 	LiveData<List<SearchMessageItem>> searchMessagesByContentFts(String query, long hostNodeId);
 
 	/**

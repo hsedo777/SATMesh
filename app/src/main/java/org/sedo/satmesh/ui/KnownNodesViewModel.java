@@ -3,6 +3,7 @@ package org.sedo.satmesh.ui;
 import android.app.Application;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -44,6 +45,11 @@ public class KnownNodesViewModel extends AndroidViewModel {
 		if (!Long.valueOf(hostNodeId).equals(hostNodeIdLiveData.getValue())) {
 			hostNodeIdLiveData.setValue(hostNodeId);
 		}
+	}
+
+	@Nullable
+	public Long getHostNodeId() {
+		return hostNodeIdLiveData.getValue();
 	}
 
 	/**

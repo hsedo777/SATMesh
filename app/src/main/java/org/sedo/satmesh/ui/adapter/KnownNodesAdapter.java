@@ -64,16 +64,12 @@ public class KnownNodesAdapter extends ListAdapter<Node, KnownNodesAdapter.Known
 	 * This method is called from the Fragment/Activity when an item is clicked/long-clicked.
 	 *
 	 * @param nodeId The ID of the node whose selection state is to be toggled.
-	 * @return true if the node is now selected, false otherwise.
 	 */
-	public boolean toggleSelection(@NonNull Long nodeId) {
-		boolean isSelected;
+	public void toggleSelection(@NonNull Long nodeId) {
 		if (isSelected(nodeId)) {
 			selectedNodeIds.remove(nodeId);
-			isSelected = false;
 		} else {
 			selectedNodeIds.add(nodeId);
-			isSelected = true;
 		}
 		// Notify item changed to re-bind and update its selected state visual
 		// We iterate through currentList to find the position.
@@ -82,7 +78,6 @@ public class KnownNodesAdapter extends ListAdapter<Node, KnownNodesAdapter.Known
 		if (position != -1) {
 			notifyItemChanged(position);
 		}
-		return isSelected;
 	}
 
 	/**
@@ -120,15 +115,6 @@ public class KnownNodesAdapter extends ListAdapter<Node, KnownNodesAdapter.Known
 	 */
 	public int getSelectedItemCount() {
 		return selectedNodeIds.size();
-	}
-
-	/**
-	 * Returns a set of IDs of all currently selected nodes.
-	 *
-	 * @return A {@link Set} containing the IDs of selected nodes.
-	 */
-	public Set<Long> getSelectedNodeIds() {
-		return new HashSet<>(selectedNodeIds); // Return a copy to prevent external modification
 	}
 
 	/**

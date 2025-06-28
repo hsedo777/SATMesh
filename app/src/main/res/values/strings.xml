@@ -75,7 +75,7 @@
 
 	<string name="action_delete">Delete</string>
 	<string name="action_copy">Copy</string>
-	<string name="selected_messages_count">%d selected</string>
+	<string name="selected_count">%d selected</string>
 	<string name="message_copied">Message copied to clipboard</string>
 
 	<string name="search_hint">Search messages or discussions</string>

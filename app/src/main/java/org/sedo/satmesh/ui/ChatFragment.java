@@ -379,7 +379,7 @@ public class ChatFragment extends Fragment {
 		}
 		toggleMessageSelection(message.getId());
 		if (currentActionMode != null) {
-			currentActionMode.setTitle(getString(R.string.selected_messages_count, adapter.getSelectedCount()));
+			currentActionMode.setTitle(getString(R.string.selected_count, adapter.getSelectedCount()));
 			currentActionMode.invalidate();
 		}
 	}
@@ -389,7 +389,7 @@ public class ChatFragment extends Fragment {
 		if (currentActionMode != null) {
 			toggleMessageSelection(message.getId());
 			if (currentActionMode != null) {
-				currentActionMode.setTitle(getString(R.string.selected_messages_count, adapter.getSelectedCount()));
+				currentActionMode.setTitle(getString(R.string.selected_count, adapter.getSelectedCount()));
 				currentActionMode.invalidate();
 			}
 		}

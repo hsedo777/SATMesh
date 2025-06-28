@@ -41,14 +41,16 @@ import java.util.Set;
 
 public class ChatFragment extends Fragment {
 
+	public static final String MESSAGE_ID_TO_SCROLL_KEY = "message_id_to_scroll";
 	private static final String TAG = TAG_CHAT_FRAGMENT;
 	private static final String ARG_HOST_PREFIX = "host_node_";
 	private static final String ARG_REMOTE_PREFIX = "remote_node_";
 
 	private ChatListAccessor chatListAccessor;
-
 	private ChatViewModel viewModel;
 	private ChatAdapter adapter;
+	private Long messageIdToScrollTo = null;
+
 	private ActionMode currentActionMode;
 	// Implémentation de ActionMode.Callback
 	private final ActionMode.Callback actionModeCallback = new ActionMode.Callback() {
@@ -130,34 +132,29 @@ public class ChatFragment extends Fragment {
 		// Required empty public constructor
 	}
 
-	public static ChatFragment newInstance(Node hostNode, Node remoteNode) {
+	/**
+	 * Creates a new instance of {@link ChatFragment} to display a conversation
+	 * between two specific nodes, with optional additional arguments.
+	 * This method is the recommended way to instantiate the fragment with the necessary data.
+	 *
+	 * @param hostNode   The local (host) node of the conversation. This node typically represents the device running the application.
+	 * @param remoteNode The remote node with which the conversation is established.
+	 * @param extra      An optional {@link Bundle} containing additional arguments for the fragment.
+	 *                   Currently, only the key {@link #MESSAGE_ID_TO_SCROLL_KEY} is supported for scrolling
+	 *                   to a specific message after the fragment loads. If this ID is provided,
+	 *                   the chat RecyclerView will attempt to scroll to that message. Can be {@code null}.
+	 * @return A new instance of {@link ChatFragment} configured with the nodes and additional arguments.
+	 */
+	public static ChatFragment newInstance(Node hostNode, Node remoteNode, @Nullable Bundle extra) {
 		ChatFragment fragment = new ChatFragment();
 		Bundle args = new Bundle();
 		hostNode.write(args, ARG_HOST_PREFIX);
 		remoteNode.write(args, ARG_REMOTE_PREFIX);
+		if (extra != null) {
+			args.putAll(extra);
+		}
 		fragment.setArguments(args);
 		return fragment;
-	}
-
-	@Override
-	public void onCreate(@Nullable Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-
-		if (getArguments() != null) {
-			hostNode = Node.restoreFromBundle(getArguments(), ARG_HOST_PREFIX);
-			remoteNode = Node.restoreFromBundle(getArguments(), ARG_REMOTE_PREFIX);
-			// Ensure nodes are restored
-			if (hostNode == null || hostNode.getId() == null || remoteNode == null || remoteNode.getId() == null) {
-				// Alert and close the fragment
-				Log.e(TAG, "onCreate() : failed to fetch nodes from arguments or nodes are null!");
-				Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
-				requireActivity().getOnBackPressedDispatcher().onBackPressed();
-			}
-		}
-		/*
-		 * Else, nodes are mapped in the view model, cause `getArguments() == null ===> the fragment is recreated by android`
-		 * We retrieve them later from ViewModel.
-		 */
 	}
 
 	@Nullable
@@ -176,7 +173,7 @@ public class ChatFragment extends Fragment {
 
 		// If ViewModel already has nodes set (e.g., after orientation change), use them.
 		// Otherwise, use the ones from arguments and tell ViewModel to set them.
-		if (!retrieveAndValidateNodes()) {
+		if (!retrieveInitialData()) {
 			return; // Exit if nodes are not valid
 		}
 
@@ -203,7 +200,27 @@ public class ChatFragment extends Fragment {
 	/**
 	 * Retrieve and Validate Nodes
 	 */
-	private boolean retrieveAndValidateNodes() {
+	private boolean retrieveInitialData() {
+		if (getArguments() != null) {
+			hostNode = Node.restoreFromBundle(getArguments(), ARG_HOST_PREFIX);
+			remoteNode = Node.restoreFromBundle(getArguments(), ARG_REMOTE_PREFIX);
+			// Ensure nodes are restored
+			if (hostNode == null || hostNode.getId() == null || remoteNode == null || remoteNode.getId() == null) {
+				// Alert and close the fragment
+				Log.e(TAG, "onCreate() : failed to fetch nodes from arguments or nodes are null!");
+				Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
+				requireActivity().getOnBackPressedDispatcher().onBackPressed();
+				return false;
+			}
+			if (getArguments().containsKey(MESSAGE_ID_TO_SCROLL_KEY)) {
+				messageIdToScrollTo = getArguments().getLong(MESSAGE_ID_TO_SCROLL_KEY);
+				Log.d(TAG, "Message ID to scroll to: " + messageIdToScrollTo);
+			}
+		}
+		/*
+		 * Else, nodes are mapped in the view model, cause `getArguments() == null ===> the fragment is recreated by android`
+		 * We retrieve them later from ViewModel.
+		 */
 		if (hostNode == null || remoteNode == null) {
 			hostNode = viewModel.getHostNodeLiveData().getValue();
 			remoteNode = viewModel.getRemoteNodeLiveData().getValue();
@@ -263,7 +280,9 @@ public class ChatFragment extends Fragment {
 
 	private void setupChatRecyclerView() {
 		adapter = new ChatAdapter(hostNode.getId());
-		binding.chatRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+		LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
+		layoutManager.setStackFromEnd(true);
+		binding.chatRecyclerView.setLayoutManager(layoutManager);
 		adapter.setOnMessageClickListener(this::onMessageClick);
 		adapter.setOnMessageLongClickListener(this::onMessageLongClick);
 		binding.chatRecyclerView.setAdapter(adapter);
@@ -278,6 +297,28 @@ public class ChatFragment extends Fragment {
 			@Override
 			public void onChildViewDetachedFromWindow(@NonNull View view) {
 				// pass
+			}
+		});
+
+		adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+			@Override
+			public void onItemRangeInserted(int positionStart, int itemCount) { // Catch new insertion
+				super.onItemRangeInserted(positionStart, itemCount);
+
+				if (messageIdToScrollTo != null) {
+					scrollToSpecificMessage(messageIdToScrollTo);
+					messageIdToScrollTo = null;// Scroll once
+				}
+			}
+
+			@Override
+			public void onChanged() { // Handle submitting new list
+				super.onChanged();
+
+				if (messageIdToScrollTo != null) {
+					scrollToSpecificMessage(messageIdToScrollTo);
+					messageIdToScrollTo = null;// Scroll once
+				}
 			}
 		});
 	}

@@ -16,6 +16,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -255,7 +256,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	@Override
-	public void discussWith(@NonNull Node remoteNode, boolean removePreviousFragment) {
+	public void discussWith(@NonNull Node remoteNode, boolean removePreviousFragment, @Nullable Long messageIdToScrollTo) {
 		// Refresh from db
 		appDatabase.getQueryExecutor().execute(() -> {
 			Node hostNode = appDatabase.nodeDao().getNodeByIdSync(
@@ -265,8 +266,16 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			if (hostNode == null) {
 				Log.e(TAG, "Unable to find the host node");
 				finish();
+				return;
 			}
-			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(Objects.requireNonNull(hostNode), node), Constants.TAG_CHAT_FRAGMENT, removePreviousFragment, true);
+			Bundle bundle;
+			if (messageIdToScrollTo != null){
+				bundle = new Bundle();
+				bundle.putLong(ChatFragment.MESSAGE_ID_TO_SCROLL_KEY, messageIdToScrollTo);
+			} else {
+				bundle = null;
+			}
+			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(hostNode, node, bundle), Constants.TAG_CHAT_FRAGMENT, removePreviousFragment, true);
 			Node node = appDatabase.nodeDao().getNodeByAddressNameSync(remoteNode.getAddressName());
 			if (node == null) {
 				try {

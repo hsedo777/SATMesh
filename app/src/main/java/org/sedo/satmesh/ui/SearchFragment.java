@@ -144,8 +144,9 @@ public class SearchFragment extends Fragment {
 		// RecyclerView des messages
 		messagesAdapter = new SearchMessageAdapter(hostNodeId);
 		messagesAdapter.setOnItemClickListener(item -> {
-			// TODO
-			Log.d(TAG, "Message clicked: " + item.message.getContent());
+			if (discussionListener != null){
+				discussionListener.discussWith(item.remoteNode, true, item.message.getId());
+			}
 		});
 		binding.recyclerMessages.setLayoutManager(new LinearLayoutManager(getContext()));
 		binding.recyclerMessages.setAdapter(messagesAdapter);

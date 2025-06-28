@@ -330,10 +330,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	private void updateMessageStatus(long messageDbId, int status, @Nullable Long payloadId) {
 		executor.execute(() -> {
 			try {
-				Message msg = messageRepository.getMessageById(messageDbId);
+				Message msg = messageRepository.getMessageByIdSync(messageDbId);
 				if (msg != null) {
 					msg.setStatus(status);
-					if (payloadId != null) {
+					if (payloadId != null && payloadId != 0L) {
 						msg.setPayloadId(payloadId); // Set the Nearby Payload ID
 					}
 					messageRepository.updateMessage(msg);
@@ -421,19 +421,13 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param messageDbId          The ID of the message in the local database (used for updates).
 	 */
 	public void sendEncryptedTextMessage(@NonNull String recipientAddressName, @NonNull TextMessage textMessage, long messageDbId) {
-		/*
-		 * Important : Cause the message must be wrapped in the payload, it
-		 * is not possible to write the payload ID in the message. But after creating
-		 * the payload, the local message will be set up to date with the correct payload
-		 * ID.
-		 */
 		executor.execute(() -> {
 			try {
 				// Ensure a session exists before attempting to encrypt
 				if (!hasSession(recipientAddressName)) {
 					Log.i(TAG, "No active Signal session with " + recipientAddressName + ". Attempting to establish session first.");
 					// Update message status to "FAILED" or "PENDING_KEY_EXCHANGE" in DB.
-					updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE, null);
+					updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE, textMessage.getPayloadId());
 					/*
 					 * Initiate key exchange if no session. This is a crucial change.
 					 * The actual message will be sent *after* session is established.
@@ -456,13 +450,13 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					} else {
 						Log.e(TAG, "Failed to send TextMessage to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
 						// Update message in DB with failed status
-						updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, null);
+						updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId());
 					}
-				}, initiated -> updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, null));
+				}, initiated -> updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId()));
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error encrypting or sending TextMessage to " + recipientAddressName, e);
-				updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, null);
+				updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId());
 			}
 		});
 	}
@@ -557,12 +551,17 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				for (Message message : failedMessages) {
 					// Before attempting to resend, update its status to PENDING
 					message.setStatus(Message.MESSAGE_STATUS_PENDING);
-					messageRepository.updateMessage(message); // This will update UI if it observes
-
-					TextMessage text = TextMessage.newBuilder().setContent(message.getContent()).setPayloadId(Objects.requireNonNullElse(message.getPayloadId(), 0L)).setTimestamp(message.getTimestamp()).build();
-
-					// Send the message. nearbySignalMessenger will handle success/failure status update.
-					sendEncryptedTextMessage(remoteNode.getAddressName(), text, message.getId());
+					messageRepository.updateMessage(message, onSuccess -> {
+						if (onSuccess) {
+							TextMessage text = TextMessage.newBuilder()
+									.setContent(message.getContent())
+									.setPayloadId(Objects.requireNonNullElse(message.getPayloadId(), 0L))
+									.setTimestamp(message.getTimestamp())
+									.build();
+							// Send the message. nearbySignalMessenger will handle success/failure status update.
+							sendEncryptedTextMessage(remoteNode.getAddressName(), text, message.getId());
+						}
+					}); // This will update UI if it observes
 				}
 			} else {
 				Log.d(TAG, "No failed messages found to resend for " + remoteNode.getDisplayName());
@@ -774,13 +773,44 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					return;
 				}
 
-				Log.d(TAG, "Received and persisted TextMessage from " + senderAddressName + ": " + textMessage.getContent());
-				// Persist the received text message
-				message = new Message();
+				Log.d(TAG, "Received TextMessage from " + senderAddressName);
 				if (textMessage.getPayloadId() != 0L) {
 					// We are in case or retransmission
 					payloadId = textMessage.getPayloadId();
+					Message retransmitted = messageRepository.getMessageByPayloadIdSync(payloadId);
+					if (retransmitted != null) {
+						Log.d(TAG, "Message multiple retransmission");
+						int oldStatus = retransmitted.getStatus();
+						// The sender is trying to send the message again because it's in pending status by his side
+						retransmitted.setStatus(Message.MESSAGE_STATUS_PENDING);
+						messageRepository.updateMessage(retransmitted, ok -> {
+							if (ok) {
+								if (oldStatus != Message.MESSAGE_STATUS_READ) {
+									// Send delivery ack
+									sendMessageAck(retransmitted.getPayloadId(), senderAddressName, true, onSuccess -> {
+										if (onSuccess) {
+											retransmitted.setStatus(Message.MESSAGE_STATUS_DELIVERED);
+											messageRepository.updateMessage(retransmitted);
+										}
+									});
+								} else {
+									// This is a double message
+									// Send read ack
+									sendMessageAck(retransmitted.getPayloadId(), senderAddressName, false, onSuccess -> {
+										if (onSuccess) {
+											retransmitted.setStatus(Message.MESSAGE_STATUS_READ);
+											messageRepository.updateMessage(retransmitted);
+										}
+									});
+								}
+							}
+						});
+						return;
+					}
 				}
+				Log.d(TAG, "Persisting the message.");
+				// Persist the received text message
+				message = new Message();
 				message.setPayloadId(payloadId);
 				message.setStatus(Message.MESSAGE_STATUS_PENDING);
 				message.setSenderNodeId(senderNode.getId());
@@ -803,7 +833,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			case MESSAGE_DELIVERED_ACK:
 				MessageAck deliveredAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
 				// Update status of the original message in DB
-				message = messageRepository.getMessageByPayloadId(deliveredAck.getPayloadId());
+				message = messageRepository.getMessageByPayloadIdSync(deliveredAck.getPayloadId());
 				if (message == null) {
 					Log.e(TAG, "Receiving message delivered ack for non-identified payload id=" + deliveredAck.getPayloadId());
 					return;
@@ -816,7 +846,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			case MESSAGE_READ_ACK:
 				MessageAck readAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
 				// Update status of the original message in DB
-				message = messageRepository.getMessageByPayloadId(readAck.getPayloadId());
+				message = messageRepository.getMessageByPayloadIdSync(readAck.getPayloadId());
 				if (message == null) {
 					Log.e(TAG, "Receiving message read ack for non-identified payload id=" + readAck.getPayloadId());
 					return;

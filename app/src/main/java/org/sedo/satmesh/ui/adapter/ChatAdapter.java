@@ -183,21 +183,19 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 		protected final TextView messageText;
 		protected final TextView timestampText;
 		protected final ImageView messageStatus;
-		protected final ViewGroup messageWrapper;
 
 		public MessageViewHolder(@NonNull View itemView) {
 			super(itemView);
 			messageText = itemView.findViewById(R.id.message_text);
 			timestampText = itemView.findViewById(R.id.message_time);
 			messageStatus = itemView.findViewById(R.id.message_status);
-			messageWrapper = itemView.findViewById(R.id.message_wrapper);
 		}
 
 		public void bind(@NonNull Message message) {
 			messageText.setText(message.getContent());
 			int screenWidth = Resources.getSystem().getDisplayMetrics().widthPixels;
 			messageText.setMaxWidth((int) (0.75d * screenWidth));
-			timestampText.setText(Utils.formatTimestamp(itemView.getContext(), message.getTimestamp()));
+			timestampText.setText(Utils.formatTimestampByInterval(itemView.getContext(), message.getTimestamp()));
 		}
 
 		public void setSelected(boolean selected) {

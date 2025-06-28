@@ -6,7 +6,6 @@ import org.sedo.satmesh.R;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Locale;
 
 /**
@@ -41,8 +40,7 @@ public class Utils {
 
 		// Check if it's today
 		if (isSameDay(now, messageCal)) {
-			SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", locale);
-			return timeFormat.format(new Date(timestamp));
+			return new SimpleDateFormat("HH:mm", locale).format(messageCal.getTime());
 		}
 
 		// Check if it's yesterday
@@ -56,15 +54,13 @@ public class Utils {
 		Calendar oneWeekAgo = (Calendar) now.clone();
 		oneWeekAgo.add(Calendar.DAY_OF_YEAR, -7);
 		if (messageCal.after(oneWeekAgo)) {
-			SimpleDateFormat weekdayFormat = new SimpleDateFormat("EEEE", locale); // Monday, etc.
-			return weekdayFormat.format(messageCal.getTime());
+			return new SimpleDateFormat("EEEE", locale).format(messageCal.getTime());
 		}
 
 		// Check if it's the same month in the same year
 		if (now.get(Calendar.YEAR) == messageCal.get(Calendar.YEAR) &&
 				now.get(Calendar.MONTH) == messageCal.get(Calendar.MONTH)) {
-			SimpleDateFormat dayMonthFormat = new SimpleDateFormat("d MMMM", locale); // 5 June
-			return dayMonthFormat.format(messageCal.getTime());
+			return new SimpleDateFormat("d MMMM", locale).format(messageCal.getTime());
 		}
 
 		// Check if it's the same year
@@ -76,6 +72,59 @@ public class Utils {
 		// Else, return full date (e.g., 05 Jun 2023)
 		SimpleDateFormat defaultFormat = new SimpleDateFormat("dd MMM yyyy", locale);
 		return defaultFormat.format(messageCal.getTime());
+	}
+
+	/**
+	 * Formats a timestamp (UTC) into a more granular interval-based format.
+	 * <ul>
+	 * <li>&lt; 24 hours: "HH:mm"</li>
+	 * <li>Yesterday: "Yesterday HH:mm" (localized)</li>
+	 * <li>&lt; 7 days: "EEE HH:mm"</li>
+	 * <li>&lt; 1 month: "EEEE dd"</li>
+	 * <li>&lt; 1 year: "dd MMM"</li>
+	 * <li>Else: "dd MMM yyyy"</li>
+	 * </ul>
+	 *
+	 * @param context   The application context.
+	 * @param timestamp A UTC-based timestamp in milliseconds since epoch.
+	 * @return A localized human-readable timestamp string.
+	 */
+	public static String formatTimestampByInterval(Context context, long timestamp) {
+		Locale locale = Locale.getDefault();
+
+		Calendar now = Calendar.getInstance();
+		Calendar messageCal = Calendar.getInstance();
+		messageCal.setTimeInMillis(timestamp);
+
+		long deltaMillis = now.getTimeInMillis() - timestamp;
+		long hours = deltaMillis / (1000 * 60 * 60);
+		long days = deltaMillis / (1000 * 60 * 60 * 24);
+
+		if (hours < 24) {
+			return new SimpleDateFormat("HH:mm", locale).format(messageCal.getTime());
+		}
+
+		Calendar yesterday = (Calendar) now.clone();
+		yesterday.add(Calendar.DAY_OF_YEAR, -1);
+		if (isSameDay(yesterday, messageCal)) {
+			return context.getString(R.string.yesterday) + " " + new SimpleDateFormat("HH:mm", locale).format(messageCal.getTime());
+		}
+		if (days < 7) {
+			return new SimpleDateFormat("EEE HH:mm", locale).format(messageCal.getTime());
+		}
+
+		Calendar oneMonthAgo = (Calendar) now.clone();
+		oneMonthAgo.add(Calendar.MONTH, -1);
+		if (messageCal.after(oneMonthAgo)) {
+			return new SimpleDateFormat("EEEE dd", locale).format(messageCal.getTime());
+		}
+
+		Calendar oneYearAgo = (Calendar) now.clone();
+		oneYearAgo.add(Calendar.YEAR, -1);
+		if (messageCal.after(oneYearAgo)) {
+			return new SimpleDateFormat("dd MMM", locale).format(messageCal.getTime());
+		}
+		return new SimpleDateFormat("dd MMM yyyy", locale).format(messageCal.getTime());
 	}
 
 	private static boolean isSameDay(Calendar cal1, Calendar cal2) {

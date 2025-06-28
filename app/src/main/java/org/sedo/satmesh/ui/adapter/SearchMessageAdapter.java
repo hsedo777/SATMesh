@@ -18,10 +18,9 @@ import org.sedo.satmesh.R;
 import org.sedo.satmesh.ui.data.SearchMessageItem;
 import org.sedo.satmesh.utils.Utils;
 
-import java.util.Collections;
+import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 public class SearchMessageAdapter extends ListAdapter<SearchMessageItem, SearchMessageAdapter.SearchMessageViewHolder> {
 
@@ -39,7 +38,8 @@ public class SearchMessageAdapter extends ListAdapter<SearchMessageItem, SearchM
 	};
 	private final long hostNodeId;
 	private OnItemClickListener listener;
-	private String currentSearchQuery;
+	private String currentOriginalQuery;
+	private String currentNormalizedQuery;
 
 	public SearchMessageAdapter(long hostNodeId) {
 		super(DIFF_CALLBACK);
@@ -47,22 +47,33 @@ public class SearchMessageAdapter extends ListAdapter<SearchMessageItem, SearchM
 	}
 
 	/**
-	 * Sets the essential context for displaying messages, including the host node
-	 * and the current search query for highlighting.
+	 * Updates the list of search message items displayed by the adapter and
+	 * sets the current search query for text highlighting.
+	 * The provided {@code searchQuery} is internally normalized and lowercased once
+	 * to optimize highlighting performance.
 	 *
-	 * @param searchQuery The search query string, used to highlight matching text in messages.
+	 * <p>This method utilizes {@link DiffUtil} to efficiently calculate and dispatch
+	 * updates to the RecyclerView, minimizing UI changes. The {@code onComplete}
+	 * {@link Runnable} is executed once {@link DiffUtil} has finished processing the list
+	 * and all UI updates have been dispatched, ensuring that dependent UI logic (like
+	 * visibility of "no results" messages) is performed on a fully updated RecyclerView.</p>
+	 *
+	 * @param messages    The new list of {@link SearchMessageItem} objects to be displayed.
+	 *                    This list will be diffed against the currently displayed list.
+	 * @param searchQuery The original search query string provided by the user. This string
+	 *                    is used for calculating highlight positions and displaying the exact
+	 *                    matched text. It will be normalized and lowercased internally.
+	 * @param onComplete  A {@link Runnable} to be executed after the new list has been
+	 *                    processed by {@link DiffUtil} and all necessary UI updates have been
+	 *                    dispatched to the RecyclerView. This is ideal for updating view
+	 *                    visibilities or other logic that depends on the final state of the list.
 	 */
-	public void setSearchQuery(@NonNull String searchQuery) {
-		String oldSearchQuery = currentSearchQuery;
-		this.currentSearchQuery = searchQuery.toLowerCase(Locale.getDefault());
-		/*
-		 * Re-submit the current list to trigger DiffUtil re-evaluation with the new query.
-		 * This is to solve the case where the list still same but the query String changed.
-		 */
-		if (!Objects.equals(oldSearchQuery, currentSearchQuery)) {
-			List<SearchMessageItem> messages = getCurrentList();
-			submitList(Collections.emptyList(), () -> submitList(messages));
-		}
+	public void setSearchContent(List<SearchMessageItem> messages, @NonNull String searchQuery, @NonNull Runnable onComplete) {
+		this.currentOriginalQuery = searchQuery.trim();
+		this.currentNormalizedQuery = Normalizer.normalize(searchQuery.trim(), Normalizer.Form.NFD)
+				.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+				.toLowerCase(Locale.getDefault());
+		submitList(messages, onComplete);
 	}
 
 	// Setter for the item click listener
@@ -88,7 +99,7 @@ public class SearchMessageAdapter extends ListAdapter<SearchMessageItem, SearchM
 	@Override
 	public void onBindViewHolder(@NonNull SearchMessageViewHolder holder, int position) {
 		SearchMessageItem currentItem = getItem(position);
-		holder.bind(currentItem, hostNodeId, currentSearchQuery);
+		holder.bind(currentItem, hostNodeId, currentOriginalQuery, currentNormalizedQuery);
 	}
 
 	public interface OnItemClickListener {
@@ -125,11 +136,12 @@ public class SearchMessageAdapter extends ListAdapter<SearchMessageItem, SearchM
 		/**
 		 * Binds a SearchMessageItem object to the views in the ViewHolder, with highlighting.
 		 *
-		 * @param item        The SearchMessageItem object to bind (contains Message and remoteNode).
-		 * @param hostNodeId  The local ID of the host node, to determine if sender is "Me".
-		 * @param searchQuery The search query to highlight in the message content.
+		 * @param item                  The SearchMessageItem object to bind.
+		 * @param hostNodeId            The local ID of the host node.
+		 * @param originalSearchQuery   The original search query string (e.g., "café").
+		 * @param normalizedSearchQuery The pre-normalized and lowercased search query for efficient matching (e.g., "cafe").
 		 */
-		public void bind(@NonNull SearchMessageItem item, long hostNodeId, String searchQuery) {
+		public void bind(@NonNull SearchMessageItem item, long hostNodeId, String originalSearchQuery, String normalizedSearchQuery) {
 			// 1. Set Remote Node Name
 			String senderLabel;
 			Long hostId = hostNodeId;
@@ -146,17 +158,14 @@ public class SearchMessageAdapter extends ListAdapter<SearchMessageItem, SearchM
 
 			// 3. Set Message Preview with Highlighting
 			String messageContent = item.message.getContent();
-			// Normalize content and query for accent-insensitive and case-insensitive search
-			String normalizedContent = java.text.Normalizer.normalize(messageContent, java.text.Normalizer.Form.NFD)
-					.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-					.toLowerCase(Locale.getDefault());
-
-			String normalizedSearchQuery = java.text.Normalizer.normalize(searchQuery, java.text.Normalizer.Form.NFD)
-					.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-					.toLowerCase(Locale.getDefault());
 
 			// Only proceed with highlighting if the normalized query is not empty
 			if (!normalizedSearchQuery.isEmpty()) {
+				// Normalize content and query for accent-insensitive and case-insensitive search
+				String normalizedContent = java.text.Normalizer.normalize(messageContent, java.text.Normalizer.Form.NFD)
+						.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+						.toLowerCase(Locale.getDefault());
+
 				SpannableString spannableString = new SpannableString(messageContent); // Use original content for SpannableString
 
 				int lastIndex = 0;
@@ -167,7 +176,7 @@ public class SearchMessageAdapter extends ListAdapter<SearchMessageItem, SearchM
 					if (lastIndex != -1) {
 						// Apply the span to the ORIGINAL content using the found index
 						spannableString.setSpan(new StyleSpan(Typeface.BOLD),
-								lastIndex, lastIndex + normalizedSearchQuery.length(),
+								lastIndex, lastIndex + originalSearchQuery.length(),
 								Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 						lastIndex += normalizedSearchQuery.length();
 					}

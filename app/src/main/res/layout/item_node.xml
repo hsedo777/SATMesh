@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:layout_marginVertical="@dimen/space_xs"
+	android:background="@drawable/bg_node_selector"
+	android:clickable="true"
+	android:focusable="true"
+	android:padding="@dimen/space_sm"
+	app:cardCornerRadius="@dimen/space_md"
+	app:cardElevation="4dp">
+
+	<androidx.constraintlayout.widget.ConstraintLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content">
+
+		<TextView
+			android:id="@+id/text_node_display_name"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:textColor="@color/node_text_selector"
+			android:textSize="@dimen/text_size_title"
+			android:textStyle="bold"
+			app:layout_constraintEnd_toStartOf="@id/text_node_last_seen"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			tools:text="Alice's Phone" />
+
+		<TextView
+			android:id="@+id/text_node_last_seen"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:textColor="@color/node_text_selector"
+			android:textSize="@dimen/text_size_small"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			tools:text="Last seen: 2025-06-28 10:30 AM" />
+
+		<TextView
+			android:id="@+id/text_node_address_name"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="@dimen/space_xs"
+			android:textColor="@color/node_text_selector"
+			android:textSize="@dimen/text_size_body"
+			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/text_node_display_name"
+			tools:text="satmesh-964F-5586-AB82-0023" />
+
+	</androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

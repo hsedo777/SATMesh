@@ -7,7 +7,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -26,7 +25,6 @@ import java.util.List;
 public class NearbyDiscoveryFragment extends Fragment {
 
 	private static final String HOST_DEVICE_NAME = "host_name";
-	private static final String ADD_TO_BACK_STACK = "add_to_back_stack";
 	private static final String TAG = Constants.TAG_DISCOVERY_FRAGMENT;
 
 	private DiscussionListener listener;
@@ -34,17 +32,15 @@ public class NearbyDiscoveryFragment extends Fragment {
 	private NearbyDiscoveryAdapter adapter;
 	private FragmentNearbyDiscoveryBinding binding;
 	private String hostDeviceName;
-	private Boolean addToBackStack;
 
 	public NearbyDiscoveryFragment() {
 		// Required public default constructor
 	}
 
-	public static NearbyDiscoveryFragment newInstance(@NonNull String deviceLocalName, boolean addToBackStack) {
+	public static NearbyDiscoveryFragment newInstance(@NonNull String deviceLocalName) {
 		NearbyDiscoveryFragment fragment = new NearbyDiscoveryFragment();
 		Bundle bundle = new Bundle();
 		bundle.putString(HOST_DEVICE_NAME, deviceLocalName);
-		bundle.putBoolean(ADD_TO_BACK_STACK, addToBackStack);
 		fragment.setArguments(bundle);
 		return fragment;
 	}
@@ -71,7 +67,6 @@ public class NearbyDiscoveryFragment extends Fragment {
 		if (getArguments() != null) {
 			// Initial instantiation
 			hostDeviceName = getArguments().getString(HOST_DEVICE_NAME);
-			addToBackStack = getArguments().getBoolean(ADD_TO_BACK_STACK);
 		}
 	}
 
@@ -87,14 +82,12 @@ public class NearbyDiscoveryFragment extends Fragment {
 		super.onViewCreated(view, savedInstanceState);
 
 		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance(requireActivity().getApplication())).get(NearbyDiscoveryViewModel.class);
-		if (hostDeviceName == null || addToBackStack == null) {
+		if (hostDeviceName == null) {
 			// Fragment recreated
 			hostDeviceName = viewModel.getHostDeviceName();
-			addToBackStack = viewModel.isAddToBackStack();
 		} else {
 			// First instance
 			viewModel.setHostDeviceName(hostDeviceName);
-			viewModel.setAddToBackStack(addToBackStack);
 		}
 		viewModel.getDescriptionState().observe(getViewLifecycleOwner(), descriptionState -> {
 			binding.nearbyDescription.setText(descriptionState.text);
@@ -108,14 +101,6 @@ public class NearbyDiscoveryFragment extends Fragment {
 		// Observe the combined list from ViewModel
 		viewModel.getDisplayNodeListLiveData().observe(getViewLifecycleOwner(), this::onNodesChanged);
 
-		if (!viewModel.isAddToBackStack()) {
-			requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
-				@Override
-				public void handleOnBackPressed() {
-					NearbyDiscoveryFragment.this.requireActivity().finish();
-				}
-			});
-		}
 		adapter = new NearbyDiscoveryAdapter();
 		adapter.attachOnNodeClickListener(new OnNodeClickListener() {
 			@Override

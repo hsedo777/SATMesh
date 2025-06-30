@@ -436,7 +436,7 @@ public class ChatFragment extends Fragment {
 		if (currentActionMode != null)
 			currentActionMode.finish();
 		if (chatListAccessor != null) {
-			chatListAccessor.moveToChatList(true, true);
+			chatListAccessor.moveToChatList(true);
 		}
 	}
 

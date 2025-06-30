@@ -111,7 +111,7 @@ public class SearchFragment extends Fragment {
 			@Override
 			public void handleOnBackPressed() {
 				if (chatListAccessor != null){
-					chatListAccessor.moveToChatList(true, true);
+					chatListAccessor.moveToChatList(true);
 				}
 			}
 		});

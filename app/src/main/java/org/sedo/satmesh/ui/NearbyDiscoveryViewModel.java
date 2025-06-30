@@ -45,7 +45,6 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	// Executor for ViewModel specific background tasks that are not handled by repositories
 	private final ExecutorService viewModelExecutor = Executors.newSingleThreadExecutor();
 	private String hostDeviceName;
-	private boolean addToBackStack;
 
 	protected NearbyDiscoveryViewModel(@NonNull Application application) {
 		super(application);
@@ -109,14 +108,6 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
 	public void setHostDeviceName(String hostDeviceName) {
 		this.hostDeviceName = hostDeviceName;
-	}
-
-	public boolean isAddToBackStack() {
-		return addToBackStack;
-	}
-
-	public void setAddToBackStack(boolean addToBackStack) {
-		this.addToBackStack = addToBackStack;
 	}
 
 	/**

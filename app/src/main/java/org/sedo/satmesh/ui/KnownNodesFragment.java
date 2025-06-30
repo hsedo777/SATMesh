@@ -142,7 +142,7 @@ public class KnownNodesFragment extends Fragment {
 			@Override
 			public void handleOnBackPressed() {
 				if (chatListAccessor != null){
-					chatListAccessor.moveToChatList(false, true);
+					chatListAccessor.moveToChatList(false);
 				}
 			}
 		});

@@ -110,7 +110,7 @@ public class SearchFragment extends Fragment {
 		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
-				if (chatListAccessor != null){
+				if (chatListAccessor != null) {
 					chatListAccessor.moveToChatList(true);
 				}
 			}
@@ -144,7 +144,7 @@ public class SearchFragment extends Fragment {
 		// RecyclerView des messages
 		messagesAdapter = new SearchMessageAdapter(hostNodeId);
 		messagesAdapter.setOnItemClickListener(item -> {
-			if (discussionListener != null){
+			if (discussionListener != null) {
 				discussionListener.discussWith(item.remoteNode, true, item.message.getId());
 			}
 		});

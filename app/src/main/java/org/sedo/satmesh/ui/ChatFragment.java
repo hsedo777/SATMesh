@@ -215,6 +215,8 @@ public class ChatFragment extends Fragment {
 			if (getArguments().containsKey(MESSAGE_ID_TO_SCROLL_KEY)) {
 				messageIdToScrollTo = getArguments().getLong(MESSAGE_ID_TO_SCROLL_KEY);
 				Log.d(TAG, "Message ID to scroll to: " + messageIdToScrollTo);
+				// Ensure the value is used only one time
+				getArguments().remove(MESSAGE_ID_TO_SCROLL_KEY);
 			}
 		}
 		/*

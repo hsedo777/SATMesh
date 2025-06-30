@@ -128,6 +128,11 @@ public class SearchFragment extends Fragment {
 				}
 			}
 		});
+
+		String query = searchViewModel.getSearchQuery();
+		if (query != null) {
+			binding.searchView.post(() -> binding.searchView.setQuery(query, true));
+		}
 	}
 
 	private void setupRecyclerViews(long hostNodeId) {

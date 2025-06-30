@@ -1,63 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-	xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:app="http://schemas.android.com/apk/res-auto"
 	android:id="@+id/welcomeFragment"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:padding="@dimen/space_lg"
 	android:background="@drawable/welcome_background"
+	android:gravity="center"
 	android:orientation="vertical"
-	android:gravity="center">
+	android:padding="0dp">
 
 	<TextView
 		android:id="@+id/welcomeTitle"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
+		android:layout_marginTop="@dimen/space_lg"
 		android:text="@string/welcome_title"
-		android:textSize="@dimen/text_size_heading"
-		android:textColor="@color/colorOnPrimary"
-		android:textStyle="bold"
 		android:textAlignment="center"
-		android:layout_marginTop="@dimen/space_lg"/>
+		android:textColor="@color/colorOnPrimary"
+		android:textSize="@dimen/text_size_heading"
+		android:textStyle="bold" />
 
 	<TextView
 		android:id="@+id/instructionText"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
+		android:layout_marginTop="@dimen/space_md"
 		android:text="@string/welcome_description"
-		android:textColor="@color/colorOnPrimary"
-		android:textSize="@dimen/text_size_title"
 		android:textAlignment="center"
-		android:layout_marginTop="@dimen/space_md"/>
+		android:textColor="@color/colorOnPrimary"
+		android:textSize="@dimen/text_size_title" />
 
 	<com.google.android.material.textfield.TextInputLayout
 		android:id="@+id/nameInputLayout"
+		style="@style/Widget.SATMesh.TextInputLayout"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
+		android:layout_marginHorizontal="@dimen/space_md"
 		android:layout_marginTop="@dimen/space_xl"
+		app:boxBackgroundMode="outline"
 		app:counterEnabled="true"
-		app:counterMaxLength="60"
-		style="@style/Widget.SATMesh.TextInputLayout"
-		app:boxBackgroundMode="outline">
+		app:counterMaxLength="60">
 
 		<com.google.android.material.textfield.TextInputEditText
 			android:id="@+id/nameEditText"
+			style="@style/Widget.SATMesh.TextInputEditText.Home"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:hint="@string/username_hint"
-			android:maxLength="60"
-			style="@style/Widget.SATMesh.TextInputEditText.Home"
-			android:inputType="textPersonName"/>
+			android:inputType="textPersonName"
+			android:maxLength="60" />
 	</com.google.android.material.textfield.TextInputLayout>
 
 	<Button
 		android:id="@+id/continueButton"
+		style="@style/Widget.SATMesh.Button"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="@string/continue_button"
-		style="@style/Widget.SATMesh.Button"
+		android:layout_marginTop="@dimen/space_xl"
 		android:enabled="false"
-		android:layout_marginTop="@dimen/space_xl"/>
+		android:text="@string/continue_button" />
 
 </LinearLayout>

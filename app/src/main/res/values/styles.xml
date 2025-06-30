@@ -5,6 +5,7 @@
 		<item name="hintTextColor">@color/colorOnPrimaryHint</item>
 		<item name="counterTextColor">@color/colorOnPrimary</item>
 		<item name="boxStrokeColor">@color/secondaryColor</item>
+		<item name="boxStrokeWidthFocused">2dp</item>
 		<item name="boxStrokeWidth">1dp</item>
 		<item name="boxCornerRadiusTopStart">8dp</item>
 		<item name="boxCornerRadiusTopEnd">8dp</item>

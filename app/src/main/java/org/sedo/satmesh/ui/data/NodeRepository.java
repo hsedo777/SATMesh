@@ -25,10 +25,6 @@ public class NodeRepository {
 		executor = db.getQueryExecutor();
 	}
 
-	public void insert(@NonNull Node node) {
-		executor.execute(() -> node.setId(dao.insert(node)));
-	}
-
 	/**
 	 * Process insertion operation and give control to operate after operation finalized.
 	 * This help to consume asynchronous operation await.

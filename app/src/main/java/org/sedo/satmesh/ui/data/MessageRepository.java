@@ -141,7 +141,7 @@ public class MessageRepository {
 	 * This method is executed on caller's thread
 	 */
 	public void deleteMessagesWithNode(Long nodeId) {
-		messageDao.deleteMessagesWithNode(nodeId);
+		executor.execute(() -> messageDao.deleteMessagesWithNode(nodeId));
 	}
 
 	/**

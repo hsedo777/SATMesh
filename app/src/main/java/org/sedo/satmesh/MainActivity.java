@@ -349,7 +349,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			initializeIntent.setAction(SATMeshCommunicationService.ACTION_INITIALIZE_COMMUNICATION_MODULES);
 			startService(initializeIntent); // Use startService for subsequent commands to a running service
 		} else {
-			Log.d(TAG, "Host setup not complete yet. Service will wait for explicit initialization.");
+			Log.d(TAG, "Host setup not completed yet. Service will wait for explicit initialization.");
 		}
 	}
 

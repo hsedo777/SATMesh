@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -47,6 +48,12 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
 	                         @Nullable Bundle savedInstanceState) {
 		binding = FragmentChatListBinding.inflate(inflater, container, false);
+		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				requireActivity().finish();
+			}
+		});
 		return binding.getRoot();
 	}
 

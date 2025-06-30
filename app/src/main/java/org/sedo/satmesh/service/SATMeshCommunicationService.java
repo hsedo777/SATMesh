@@ -139,8 +139,6 @@ public class SATMeshCommunicationService extends Service {
 	@Override
 	public IBinder onBind(Intent intent) {
 		// For now, we won't need to bind components to this service.
-		// If you need bidirectional communication between UI and service,
-		// you would implement a Binder or Messenger interface here.
 		return null;
 	}
 

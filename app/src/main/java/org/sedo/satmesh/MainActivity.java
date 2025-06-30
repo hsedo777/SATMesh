@@ -48,6 +48,8 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	private static final String[] REQUIRED_PERMISSIONS;
 	private static final int REQUEST_CODE_REQUIRED_PERMISSIONS = 1;
 	private static final String TAG = "MainActivity";
+	// For saving the current fragment tag
+	private static final String CURRENT_FRAGMENT_TAG_KEY = "current_fragment_tag";
 
 	static {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -174,6 +176,21 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		return getSharedPreferences(Constants.PREFS_FILE_NAME, MODE_PRIVATE);
 	}
 
+	private boolean isSetupCompleted() {
+		return getDefaultSharedPreferences().getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
+	}
+
+	@Override
+	protected void onSaveInstanceState(@NonNull Bundle outState) {
+		super.onSaveInstanceState(outState);
+		// Save the tag of the currently active fragment
+		Fragment currentFragment = getCurrentFragmentInContainer();
+		if (currentFragment != null && currentFragment.getTag() != null) {
+			outState.putString(CURRENT_FRAGMENT_TAG_KEY, currentFragment.getTag());
+			Log.d(TAG, "Saving state: current fragment tag is " + currentFragment.getTag());
+		}
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -183,16 +200,35 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		// Initialize database on the main thread ui
 		appDatabase = AppDatabase.getDB(getApplicationContext());
 
-		final Consumer<Void> showFragment = (unused) -> {
+		final Consumer<Void> showFragment;
+		Consumer<Void> showFragmentDefault = (unused) -> {
 			// Load host Node
 			// Check if setup is complete
-			boolean isSetupComplete = getDefaultSharedPreferences().getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
-			if (isSetupComplete) {
+			if (isSetupCompleted()) {
 				navigateToMainScreen();
 			} else {
 				showWelcomeFragment();
 			}
 		};
+		// Used while activity is recreated
+		Consumer<Void> showFragmentRestore = (unused) -> {
+			if (isSetupCompleted()) {
+				Log.d(TAG, "Restore view in state setup completed!");
+				startCommunicationService(); // Ensure service is running
+			}
+			// The fragment will reattach itself
+		};
+
+		if (savedInstanceState != null) {
+			String fragmentTag = savedInstanceState.getString(CURRENT_FRAGMENT_TAG_KEY, null);
+			if (fragmentTag != null) {
+				showFragment = showFragmentRestore;
+			} else {
+				showFragment = showFragmentDefault;
+			}
+		} else {
+			showFragment = showFragmentDefault;
+		}
 		// Location service checker
 		settingsLauncher = registerForActivityResult(
 				new ActivityResultContracts.StartActivityForResult(),
@@ -210,7 +246,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	 * Show the WelcomeFragment for the initial configuration.
 	 */
 	private void showWelcomeFragment() {
-		navigateTo(WelcomeFragment.newInstance(), Constants.TAG_WELCOME_FRAGMENT, false, false);
+		navigateTo(WelcomeFragment.newInstance(), Constants.TAG_WELCOME_FRAGMENT, false);
 	}
 
 	// Implementation of `WelcomeFragment.OnWelcomeCompleteListener`
@@ -269,13 +305,13 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 				return;
 			}
 			Bundle bundle;
-			if (messageIdToScrollTo != null){
+			if (messageIdToScrollTo != null) {
 				bundle = new Bundle();
 				bundle.putLong(ChatFragment.MESSAGE_ID_TO_SCROLL_KEY, messageIdToScrollTo);
 			} else {
 				bundle = null;
 			}
-			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(hostNode, node, bundle), Constants.TAG_CHAT_FRAGMENT, removePreviousFragment, true);
+			Consumer<Node> goToChat = node -> navigateTo(ChatFragment.newInstance(hostNode, node, bundle), Constants.TAG_CHAT_FRAGMENT, removePreviousFragment);
 			Node node = appDatabase.nodeDao().getNodeByAddressNameSync(remoteNode.getAddressName());
 			if (node == null) {
 				try {
@@ -294,13 +330,13 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	// implementation of NearbyDiscoveryListener
 	public void moveToDiscoveryView(boolean removeLast, boolean addToBackStack) {
 		String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
-		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName), addToBackStack), Constants.TAG_DISCOVERY_FRAGMENT, removeLast, addToBackStack);
+		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName)), Constants.TAG_DISCOVERY_FRAGMENT, removeLast);
 	}
 
 	// Implementation of `ChatListAccessor`
-	public void moveToChatList(boolean removeLast, boolean addToBackStack) {
+	public void moveToChatList(boolean removeLast) {
 		Long hostNodeId = getDefaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
-		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast, addToBackStack);
+		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast);
 	}
 
 	/**
@@ -314,7 +350,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			if (count > 0L) {
 				// There is at least one message, navigate to ChatListFragment
 				Log.i(TAG, "Ready to display chat list");
-				moveToChatList(false, false);
+				moveToChatList(false);
 			} else {
 				// There is no message, redirect user on discovery fragment
 				moveToDiscoveryView(true, false);
@@ -340,10 +376,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 
 		// After starting the service, if setup is complete, tell it to initialize modules.
 		// This covers cases where service was already running (e.g., from boot) but not initialized.
-		boolean isSetupComplete = getDefaultSharedPreferences()
-				.getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
-
-		if (isSetupComplete) {
+		if (isSetupCompleted()) {
 			Log.d(TAG, "Host setup is complete. Sending initialize command to service.");
 			Intent initializeIntent = new Intent(this, SATMeshCommunicationService.class);
 			initializeIntent.setAction(SATMeshCommunicationService.ACTION_INITIALIZE_COMMUNICATION_MODULES);
@@ -367,11 +400,8 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	 *                       will be explicitly removed and its entry popped from the back stack
 	 *                       before the new fragment is added. This ensures the previous fragment
 	 *                       is fully destroyed and not simply replaced.
-	 * @param addToBackStack If true, the transaction to display the new fragment will be added
-	 *                       to the back stack, allowing the user to navigate back to the
-	 *                       previous state by pressing the back button.
 	 */
-	public void navigateTo(Fragment fragment, String fragmentTag, boolean removeLast, boolean addToBackStack) {
+	public void navigateTo(Fragment fragment, String fragmentTag, boolean removeLast) {
 		checkNearbyApiPreConditions((unused) -> {
 			// Navigate only if the pre-conditions are verified.
 			FragmentManager fragmentManager = getSupportFragmentManager();
@@ -399,9 +429,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			transaction.replace(R.id.fragment_container, fragment, fragmentTag);
 
 			// Add the transaction to the back stack if requested
-			if (addToBackStack) {
-				transaction.addToBackStack(null); // 'null' means no specific name for this back stack entry
-			}
+			transaction.addToBackStack(null); // 'null' means no specific name for this back stack entry
 
 			// Allow the FragmentManager to reorder operations for performance and visual consistency
 			transaction.setReorderingAllowed(true);

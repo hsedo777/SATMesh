@@ -341,6 +341,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 
 	// Implementation of `ChatListAccessor`
 	public void moveToChatList(boolean removeLast) {
+		resetToHomeScreen();
 		Long hostNodeId = getDefaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
 		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast);
 	}
@@ -348,6 +349,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	// Implementation of `AppHomeListener`
 	@Override
 	public void backToHome() {
+		resetToHomeScreen();
 		navigateToMainScreen();
 	}
 
@@ -410,6 +412,16 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			startService(initializeIntent); // Use startService for subsequent commands to a running service
 		} else {
 			Log.d(TAG, "Host setup not completed yet. Service will wait for explicit initialization.");
+		}
+	}
+
+	/**
+	 * Reset the fragment container to empty
+	 */
+	private void resetToHomeScreen() {
+		FragmentManager fragmentManager = getSupportFragmentManager();
+		if (fragmentManager.getBackStackEntryCount() > 0) {
+			fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
 		}
 	}
 

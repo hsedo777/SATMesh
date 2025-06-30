@@ -27,6 +27,7 @@ import androidx.fragment.app.FragmentTransaction;
 import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.service.SATMeshCommunicationService;
+import org.sedo.satmesh.ui.AppHomeListener;
 import org.sedo.satmesh.ui.ChatFragment;
 import org.sedo.satmesh.ui.ChatListAccessor;
 import org.sedo.satmesh.ui.ChatListFragment;
@@ -40,7 +41,7 @@ import org.sedo.satmesh.utils.Constants;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener, NearbyDiscoveryListener, ChatListAccessor {
+public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener, NearbyDiscoveryListener, ChatListAccessor, AppHomeListener {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -339,6 +340,11 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast);
 	}
 
+	// Implementation of `AppHomeListener`
+	public void backToHome() {
+		navigateToMainScreen();
+	}
+
 	/**
 	 * Show the fragment to display after configuration or node loading.
 	 */
@@ -394,12 +400,12 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	 * Navigates to a new fragment, replacing the current one in the designated container.
 	 * This method provides fine-grained control over back stack behavior and explicit fragment removal.
 	 *
-	 * @param fragment       The new Fragment to display.
-	 * @param fragmentTag    An optional tag for the new fragment, useful for later retrieval.
-	 * @param removeLast     If set to true, the currently displayed fragment in the container
-	 *                       will be explicitly removed and its entry popped from the back stack
-	 *                       before the new fragment is added. This ensures the previous fragment
-	 *                       is fully destroyed and not simply replaced.
+	 * @param fragment    The new Fragment to display.
+	 * @param fragmentTag An optional tag for the new fragment, useful for later retrieval.
+	 * @param removeLast  If set to true, the currently displayed fragment in the container
+	 *                    will be explicitly removed and its entry popped from the back stack
+	 *                    before the new fragment is added. This ensures the previous fragment
+	 *                    is fully destroyed and not simply replaced.
 	 */
 	public void navigateTo(Fragment fragment, String fragmentTag, boolean removeLast) {
 		checkNearbyApiPreConditions((unused) -> {

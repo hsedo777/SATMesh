@@ -14,7 +14,6 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import org.sedo.satmesh.MainActivity;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatListBinding;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
@@ -28,6 +27,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	private FragmentChatListBinding binding;
 	private ChatListAdapter chatListAdapter;
 	private DiscussionListener discussionListener;
+	private DiscussionMenuListener discussionMenuListener;
 	private NearbyDiscoveryListener nearbyDiscoveryListener;
 
 	/**
@@ -119,14 +119,16 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		});
 
 		binding.chatListAppBar.setOnMenuItemClickListener(item -> {
-			int id = item.getItemId();
-			if (id == R.id.action_search) {
-				((MainActivity) requireActivity()).navigateTo(SearchFragment.newInstance(chatListViewModel.getHostNodeId()), SearchFragment.TAG, true);
-				return true;
-			}
-			if (id == R.id.menu_known_nodes) {
-				((MainActivity) requireActivity()).navigateTo(KnownNodesFragment.newInstance(chatListViewModel.getHostNodeId()), KnownNodesFragment.TAG, true);
-				return true;
+			if (discussionMenuListener != null) {
+				int id = item.getItemId();
+				if (id == R.id.action_search) {
+					discussionMenuListener.moveToSearchFragment(chatListViewModel.getHostNodeId());
+					return true;
+				}
+				if (id == R.id.menu_known_nodes) {
+					discussionMenuListener.moveToKnownNodesFragment(chatListViewModel.getHostNodeId());
+					return true;
+				}
 			}
 			return false;
 		});
@@ -135,11 +137,14 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof DiscussionListener && context instanceof NearbyDiscoveryListener) {
+		if (context instanceof DiscussionListener && context instanceof NearbyDiscoveryListener
+				&& context instanceof DiscussionMenuListener) {
 			discussionListener = (DiscussionListener) context;
 			nearbyDiscoveryListener = (NearbyDiscoveryListener) context;
+			discussionMenuListener = (DiscussionMenuListener) context;
 		} else {
-			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener'");
+			throw new RuntimeException("The activity must implement interfaces : DiscoveryFragmentListener" +
+					", DiscussionListener and DiscussionMenuListener");
 		}
 	}
 
@@ -148,6 +153,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		super.onDetach();
 		discussionListener = null;
 		nearbyDiscoveryListener = null;
+		discussionMenuListener = null;
 	}
 
 	@Override

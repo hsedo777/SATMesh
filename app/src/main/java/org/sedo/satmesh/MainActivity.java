@@ -32,8 +32,11 @@ import org.sedo.satmesh.ui.ChatFragment;
 import org.sedo.satmesh.ui.ChatListAccessor;
 import org.sedo.satmesh.ui.ChatListFragment;
 import org.sedo.satmesh.ui.DiscussionListener;
+import org.sedo.satmesh.ui.DiscussionMenuListener;
+import org.sedo.satmesh.ui.KnownNodesFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryListener;
+import org.sedo.satmesh.ui.SearchFragment;
 import org.sedo.satmesh.ui.WelcomeFragment;
 import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
 import org.sedo.satmesh.utils.Constants;
@@ -41,7 +44,9 @@ import org.sedo.satmesh.utils.Constants;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener, DiscussionListener, NearbyDiscoveryListener, ChatListAccessor, AppHomeListener {
+public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener,
+		DiscussionListener, NearbyDiscoveryListener, ChatListAccessor, AppHomeListener,
+		DiscussionMenuListener {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -341,8 +346,24 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	// Implementation of `AppHomeListener`
+	@Override
 	public void backToHome() {
 		navigateToMainScreen();
+	}
+
+	// Implementation of `DiscussionMenuListener`
+	public void moveToSearchFragment(Long hostNodeId) {
+		if (hostNodeId == null) {
+			return;
+		}
+		navigateTo(SearchFragment.newInstance(hostNodeId), SearchFragment.TAG, true);
+	}
+
+	public void moveToKnownNodesFragment(Long hostNodeId) {
+		if (hostNodeId == null) {
+			return;
+		}
+		navigateTo(KnownNodesFragment.newInstance(hostNodeId), KnownNodesFragment.TAG, true);
 	}
 
 	/**

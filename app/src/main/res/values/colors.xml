@@ -45,6 +45,29 @@
 	<color name="node_state_unknown">#FFAAAAAA</color>
 
 	<color name="textLight">#AAAAAA</color>
+
+	<!-- Colors for welcome background -->
+	<color name="bg_welcome_1">#B2E9FC</color>
+	<color name="bg_welcome_2">#B1E9FC</color>
+	<color name="bg_welcome_3">#A5E2FC</color>
+	<color name="bg_welcome_4">#78CEE5</color>
+	<color name="bg_welcome_5">#92D7FD</color>
+	<color name="bg_welcome_6">#67B3CA</color>
+	<color name="bg_welcome_7">#63ADC4</color>
+	<color name="bg_welcome_8">#6BBAD0</color>
+	<color name="bg_welcome_9">#83CEFE</color>
+	<color name="bg_welcome_10">#81DCF2</color>
+	<color name="bg_welcome_11">#A1D9ED</color>
+	<color name="bg_welcome_12">#60A8BF</color>
+	<color name="bg_welcome_13">#5CA2B8</color>
+	<color name="bg_welcome_14">#9AD3E7</color>
+	<color name="bg_welcome_15">#579AB0</color>
+	<color name="bg_welcome_16">#5191A8</color>
+	<color name="bg_welcome_17">#75B1C6</color>
+	<color name="bg_welcome_18">#72C4DA</color>
+	<color name="bg_welcome_19">#A6DEF1</color>
+	<color name="bg_welcome_20">#6FBFD6</color>
+	<color name="bg_welcome_21">#ACE3F6</color>
 	<!--
 	<color name="">#</color>
 	-->

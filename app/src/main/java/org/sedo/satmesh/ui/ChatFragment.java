@@ -46,7 +46,7 @@ public class ChatFragment extends Fragment {
 	private static final String ARG_HOST_PREFIX = "host_node_";
 	private static final String ARG_REMOTE_PREFIX = "remote_node_";
 
-	private ChatListAccessor chatListAccessor;
+	private AppHomeListener homeListener;
 	private ChatViewModel viewModel;
 	private ChatAdapter adapter;
 	private Long messageIdToScrollTo = null;
@@ -238,7 +238,7 @@ public class ChatFragment extends Fragment {
 
 	private void setupToolbar() {
 		Toolbar toolbar = binding.chatToolbar;
-		toolbar.setNavigationOnClickListener(v -> backToChatList());
+		toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
 		// IMPROVED: Toolbar click listener for potential manual re-initiation or info display
 		toolbar.setOnClickListener(v -> {
@@ -417,7 +417,7 @@ public class ChatFragment extends Fragment {
 		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
-				backToChatList();
+				onBackPressed();
 			}
 		});
 	}
@@ -425,18 +425,18 @@ public class ChatFragment extends Fragment {
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof ChatListAccessor) {
-			chatListAccessor = (ChatListAccessor) context;
+		if (context instanceof AppHomeListener) {
+			homeListener = (AppHomeListener) context;
 		} else {
 			throw new RuntimeException("User of fragment ChatFragment must implement interface `ChatListAccessor`");
 		}
 	}
 
-	private void backToChatList() {
+	private void onBackPressed() {
 		if (currentActionMode != null)
 			currentActionMode.finish();
-		if (chatListAccessor != null) {
-			chatListAccessor.moveToChatList(true);
+		if (homeListener != null) {
+			homeListener.backToHome();
 		}
 	}
 

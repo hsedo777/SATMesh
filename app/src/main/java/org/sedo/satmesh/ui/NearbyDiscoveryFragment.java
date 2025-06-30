@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -33,6 +34,8 @@ public class NearbyDiscoveryFragment extends Fragment {
 	private FragmentNearbyDiscoveryBinding binding;
 	private String hostDeviceName;
 
+	private AppHomeListener homeListener;
+
 	public NearbyDiscoveryFragment() {
 		// Required public default constructor
 	}
@@ -48,10 +51,11 @@ public class NearbyDiscoveryFragment extends Fragment {
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof DiscussionListener) {
+		if (context instanceof DiscussionListener && context instanceof AppHomeListener) {
 			listener = (DiscussionListener) context;
+			homeListener = (AppHomeListener) context;
 		} else {
-			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener'");
+			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener' and `AppHomeListener`");
 		}
 	}
 
@@ -59,6 +63,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 	public void onDetach() {
 		super.onDetach();
 		listener = null;
+		homeListener = null;
 	}
 
 	@Override
@@ -136,6 +141,17 @@ public class NearbyDiscoveryFragment extends Fragment {
 		});
 		binding.nearbyNodesRecyclerView.setAdapter(adapter);
 		binding.nearbyTitle.setOnClickListener(v -> reload());
+
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				if (requireActivity().getSupportFragmentManager().getBackStackEntryCount() > 0) {
+					requireActivity().getSupportFragmentManager().popBackStack();
+				} else if (homeListener != null) {
+					homeListener.backToHome();
+				}
+			}
+		});
 	}
 
 	private void reload() {

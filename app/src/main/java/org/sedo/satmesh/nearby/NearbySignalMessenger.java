@@ -170,7 +170,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					newNode.setAddressName(deviceAddressName);
 					newNode.setLastSeen(System.currentTimeMillis());
 					newNode.setConnected(true);
-					nodeRepository.insert(newNode);
+					nodeRepository.insert(newNode, null);
 					Log.d(TAG, "New Node " + deviceAddressName + " inserted and marked as connected in DB.");
 				}
 			} catch (Exception e) {
@@ -617,7 +617,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Node newNode = new Node();
 				newNode.setAddressName(senderAddressName);
 				newNode.setLastSeen(System.currentTimeMillis());
-				nodeRepository.insert(newNode);
+				nodeRepository.insert(newNode, null);
 				Log.d(TAG, "New node " + senderAddressName + " inserted in DB upon message receipt.");
 			}
 

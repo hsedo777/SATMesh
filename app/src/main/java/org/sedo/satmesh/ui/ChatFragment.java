@@ -209,7 +209,7 @@ public class ChatFragment extends Fragment {
 				// Alert and close the fragment
 				Log.e(TAG, "onCreate() : failed to fetch nodes from arguments or nodes are null!");
 				Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
-				requireActivity().getOnBackPressedDispatcher().onBackPressed();
+				onBackPressed();
 				return false;
 			}
 			if (getArguments().containsKey(MESSAGE_ID_TO_SCROLL_KEY)) {

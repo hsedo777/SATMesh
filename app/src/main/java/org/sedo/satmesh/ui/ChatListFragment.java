@@ -51,7 +51,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
-				if (requireActivity().getSupportFragmentManager().getBackStackEntryCount() > 0) {
+				if (requireActivity().getSupportFragmentManager().getBackStackEntryCount() > 1) { // use 1 to count the current fragment
 					requireActivity().getSupportFragmentManager().popBackStack();
 				} else {
 					requireActivity().finish();

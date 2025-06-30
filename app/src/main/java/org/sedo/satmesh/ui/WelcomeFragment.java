@@ -26,7 +26,7 @@ public class WelcomeFragment extends Fragment {
 	private static final int MAX_LENGTH = 60;
 	private WelcomeViewModel viewModel;
 	private FragmentWelcomeBinding binding;
-	private OnWelcomeCompletedListener listener;
+	private OnWelcomeCompletedListener welcomeCompletedListener;
 
 	public WelcomeFragment() {
 		// Required empty public constructor
@@ -50,7 +50,7 @@ public class WelcomeFragment extends Fragment {
 		requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
-				WelcomeFragment.this.requireActivity().finish();
+				requireActivity().finish();
 			}
 		});
 	}
@@ -68,7 +68,8 @@ public class WelcomeFragment extends Fragment {
 		super.onViewCreated(view, savedInstanceState);
 		binding.nameEditText.addTextChangedListener(new TextWatcher() {
 			@Override
-			public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {}
+			public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+			}
 
 			@Override
 			public void onTextChanged(CharSequence charSequence, int start, int before, int count) {
@@ -76,20 +77,21 @@ public class WelcomeFragment extends Fragment {
 			}
 
 			@Override
-			public void afterTextChanged(Editable editable) {}
+			public void afterTextChanged(Editable editable) {
+			}
 		});
 
 		viewModel.getUserName().observe(getViewLifecycleOwner(),
 				e -> binding.continueButton.setEnabled(!e.isEmpty() && e.length() >= 2 && MAX_LENGTH >= e.length()));
 
-		binding.continueButton.setOnClickListener(unused -> listener.onWelcomeCompleted(viewModel.getUserName().getValue()));
+		binding.continueButton.setOnClickListener(unused -> welcomeCompletedListener.onWelcomeCompleted(viewModel.getUserName().getValue()));
 	}
 
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof OnWelcomeCompletedListener){
-			listener = (OnWelcomeCompletedListener)context;
+		if (context instanceof OnWelcomeCompletedListener) {
+			welcomeCompletedListener = (OnWelcomeCompletedListener) context;
 		} else {
 			throw new RuntimeException(context + " doesn't implement `OnWelcomeCompletedListener`");
 		}
@@ -98,10 +100,10 @@ public class WelcomeFragment extends Fragment {
 	@Override
 	public void onDetach() {
 		super.onDetach();
-		listener = null;
+		welcomeCompletedListener = null;
 	}
 
-	public interface OnWelcomeCompletedListener{
+	public interface OnWelcomeCompletedListener {
 		void onWelcomeCompleted(String username);
 	}
 }

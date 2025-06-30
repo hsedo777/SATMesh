@@ -1,3 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+	<color name="black">#FFFFFFFF</color>
+	<color name="white">#FF000000</color>
+
+	<color name="colorError">#CF6679</color>
+	<color name="colorOnError">#000000</color>
+	<color name="colorAlert">#FFB4AB</color>
+	<color name="colorOnAlert">@color/colorOnError</color>
+
+	<color name="primaryColor">#121212</color>
+	<color name="primaryColorDark">#0D0D0D</color>
+	<color name="colorOnPrimary">#FFFFFF</color>
+	<color name="colorOnPrimaryHint">#CCCCCC</color>
+
+	<color name="secondaryColor">#24515F</color>
+	<color name="colorOnSecondary">#EEEEEE</color>
+	<color name="colorOnSecondaryHint">#999999</color>
+
+	<!-- Button text, links… -->
+	<color name="buttonDisabledBackground">#444444</color>
+	<color name="buttonDisabledText">#888888</color>
+
+	<!-- Message exchange -->
+	<color name="messageSentBackground">#2E2E2E</color>
+	<color name="messageSentText">#FFFFFF</color>
+	<color name="selectedMessageBackground">#3A3A3A</color>
+
+	<color name="gradientStart">@color/secondaryColor</color>
+	<color name="gradientEnd">@color/primaryColor</color>
+
+	<color name="cardBackgroundColor">#1E1E1E</color>
+	<color name="cardBackgroundColor2">#2C2C2C</color>
+	<color name="cardBackgroundColor3">#383838</color>
+	<color name="cardText">#FFFFFF</color>
+	<color name="cardText2">#EEEEEE</color>
+	<color name="cardText3">#CCCCCC</color>
+
+	<color name="colorOutline">#5A5A5A</color>
+
+	<!-- Connection states -->
+	<color name="node_state_found">#2D2D2D</color>
+	<color name="node_state_connecting">#FFB74D</color>
+	<color name="node_state_connected">#81C784</color>
+	<color name="node_state_lost">#AA5555</color>
+	<color name="node_state_disconnected">#AAAAAA</color>
+	<color name="node_state_failed">#FF5350</color>
+	<color name="node_state_unknown">#666666</color>
+
+	<color name="textLight">#BBBBBB</color>
+
+	<!-- Welcome background variants (night mode) -->
+	<color name="bg_welcome_1">#224B5A</color>
+	<color name="bg_welcome_2">#214A59</color>
+	<color name="bg_welcome_3">#1E4453</color>
+	<color name="bg_welcome_4">#173A48</color>
+	<color name="bg_welcome_5">#1D4050</color>
+	<color name="bg_welcome_6">#14303B</color>
+	<color name="bg_welcome_7">#132E38</color>
+	<color name="bg_welcome_8">#163541</color>
+	<color name="bg_welcome_9">#1A3E4E</color>
+	<color name="bg_welcome_10">#17444B</color>
+	<color name="bg_welcome_11">#1C4048</color>
+	<color name="bg_welcome_12">#112A34</color>
+	<color name="bg_welcome_13">#102932</color>
+	<color name="bg_welcome_14">#193C47</color>
+	<color name="bg_welcome_15">#0F2630</color>
+	<color name="bg_welcome_16">#0D2430</color>
+	<color name="bg_welcome_17">#153541</color>
+	<color name="bg_welcome_18">#18414E</color>
+	<color name="bg_welcome_19">#204C5B</color>
+	<color name="bg_welcome_20">#1A3A48</color>
+	<color name="bg_welcome_21">#24515F</color>
+
 </resources>

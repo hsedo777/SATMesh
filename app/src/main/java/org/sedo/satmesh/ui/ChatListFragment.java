@@ -1,5 +1,7 @@
 package org.sedo.satmesh.ui;
 
+import static org.sedo.satmesh.utils.Constants.TAG_CHAT_LIST_FRAGMENT;
+
 import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
@@ -21,7 +23,7 @@ import org.sedo.satmesh.ui.data.ChatListItem;
 
 public class ChatListFragment extends Fragment implements ChatListAdapter.OnItemClickListener {
 
-	private static final String TAG = "ChatListFragment";
+	private static final String TAG = TAG_CHAT_LIST_FRAGMENT;
 	private static final String ARG_HOST_NODE_ID = "host_node_id";
 
 	private FragmentChatListBinding binding;

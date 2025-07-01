@@ -1,5 +1,7 @@
 package org.sedo.satmesh.ui;
 
+import static org.sedo.satmesh.utils.Constants.TAG_SEARCH_FRAGMENT;
+
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
@@ -27,7 +29,7 @@ import org.sedo.satmesh.ui.adapter.SearchMessageAdapter;
 
 public class SearchFragment extends Fragment {
 
-	public static final String TAG = "SearchFragment";
+	public static final String TAG = TAG_SEARCH_FRAGMENT;
 	private static final String HOST_NODE_ID_KEY = "host_node_id";
 
 	private FragmentSearchBinding binding;

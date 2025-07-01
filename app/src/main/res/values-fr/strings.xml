@@ -100,11 +100,13 @@
 	<string name="channel_description_network_events">Notifications pour la découverte de nœuds et les routes.</string>
 
 	<string name="notification_title_new_node_discovered">Nouveau nœud découvert</string>
+	<string name="notification_title_node_discovered">Nœud découvert</string>
 	<string name="notification_title_route_discovery_initiated">Découverte de route initiée</string>
 	<string name="notification_title_route_found">Route trouvée</string>
 	<string name="notification_title_route_not_found">Route non trouvée</string>
 
 	<string name="notification_content_new_node_discovered">Un nouveau nœud \'%s\' a été détecté à proximité.</string>
+	<string name="notification_content_node_discovered">Le nœud \'%s\' a été détecté à proximité.</string>
 	<string name="notification_content_route_discovery_initiated">Recherche d\'une route vers \'%s\'…</string>
 	<string name="notification_content_route_found">Route vers \'%s\' établie avec succès.</string>
 	<string name="notification_content_route_not_found">Impossible de trouver une route vers \'%s\'.</string>

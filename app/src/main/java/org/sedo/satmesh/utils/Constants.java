@@ -28,6 +28,7 @@ public class Constants {
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT = 1003;
 
 	public static final String ACTION_SHOW_SATMESH_NOTIFICATION = "org.sedo.satmesh.ACTION_SHOW_NOTIFICATION";
+	public static final String ACTION_LAUNCH_FROM_NOTIFICATION = "org.sedo.satmesh.LAUNCH_FROM_NOTIFICATION";
 	public static final String EXTRA_NOTIFICATION_TYPE = "notification_type";
 	public static final String EXTRA_NOTIFICATION_DATA_BUNDLE = "notification_data_bundle";
 

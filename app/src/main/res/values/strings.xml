@@ -99,11 +99,13 @@
 	<string name="channel_description_network_events">Notifications for node discovery and routes.</string>
 
 	<string name="notification_title_new_node_discovered">New Node Discovered</string>
+	<string name="notification_title_node_discovered">Node Discovered</string>
 	<string name="notification_title_route_discovery_initiated">Route Discovery Initiated</string>
 	<string name="notification_title_route_found">Route Found</string>
 	<string name="notification_title_route_not_found">Route Not Found</string>
 
 	<string name="notification_content_new_node_discovered">A new node \'%s\' has been detected nearby.</string>
+	<string name="notification_content_node_discovered">The node \'%s\' has been detected nearby.</string>
 	<string name="notification_content_route_discovery_initiated">Searching for a route to \'%s\'…</string>
 	<string name="notification_content_route_found">Route to \'%s\' successfully established.</string>
 	<string name="notification_content_route_not_found">Unable to find a route to \'%s\'.</string>

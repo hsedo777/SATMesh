@@ -19,5 +19,13 @@ public class Constants {
 
 	public static final int SIGNAL_PROTOCOL_DEVICE_ID = 1;
 
+	public static final String CHANNEL_ID_MESSAGES = "satmesh_messages_channel";
+	public static final String CHANNEL_ID_NETWORK_EVENTS = "satmesh_network_events_channel";
+
+	public static final int NOTIFICATION_ID_NEW_MESSAGE = 1000;
+	public static final int NOTIFICATION_ID_NEW_NODE_DISCOVERED = 1001;
+	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_INITIATED = 1002;
+	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT = 1003;
+
 	private Constants() {}
 }

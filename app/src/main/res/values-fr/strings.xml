@@ -92,6 +92,22 @@
 	<string name="label_last_seen_never">Jamais</string>
 	<string name="title_known_nodes">Nœuds connus</string>
 	<string name="no_known_nodes_message">Aucun nœud connu trouvé. Connectez-vous à d\'autres appareils pour les voir ici !</string>
+
+	<!-- Notifications -->
+	<string name="channel_name_messages">Messages de chat</string>
+	<string name="channel_description_messages">Notifications pour les nouveaux messages de chat.</string>
+	<string name="channel_name_network_events">Événements réseau</string>
+	<string name="channel_description_network_events">Notifications pour la découverte de nœuds et les routes.</string>
+
+	<string name="notification_title_new_node_discovered">Nouveau nœud découvert</string>
+	<string name="notification_title_route_discovery_initiated">Découverte de route initiée</string>
+	<string name="notification_title_route_found">Route trouvée</string>
+	<string name="notification_title_route_not_found">Route non trouvée</string>
+
+	<string name="notification_content_new_node_discovered">Un nouveau nœud \'%s\' a été détecté à proximité.</string>
+	<string name="notification_content_route_discovery_initiated">Recherche d\'une route vers \'%s\'…</string>
+	<string name="notification_content_route_found">Route vers \'%s\' établie avec succès.</string>
+	<string name="notification_content_route_not_found">Impossible de trouver une route vers \'%s\'.</string>
 	<!--
 	<string name=""></string>
 	-->

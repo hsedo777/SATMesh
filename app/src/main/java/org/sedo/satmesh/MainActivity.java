@@ -72,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 							android.Manifest.permission.READ_MEDIA_AUDIO,
 							android.Manifest.permission.RECORD_AUDIO,
 							android.Manifest.permission.VIBRATE,
+							android.Manifest.permission.POST_NOTIFICATIONS,
 					};
 		} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 			REQUIRED_PERMISSIONS =

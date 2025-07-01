@@ -329,16 +329,18 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	protected void sendNearbyMessageInternal(@NonNull NearbyMessageBody plainNearbyMessage, @NonNull String recipientAddressName,
 	                                         @NonNull BiConsumer<Payload, Boolean> transmissionCallback, @NonNull Consumer<Boolean> routeDiscoveryCallback) {
 		final Consumer<Boolean> finaleDiscoveryCallback = onSuccess -> {
-			if (onSuccess) {
-				executor.execute(() -> {
-					Node target = nodeRepository.findNodeSync(recipientAddressName);
-					if (target == null) {
-						Log.w(TAG, "Unable to locate, in DB, the node to which route discovery is initiated.");
-						return;
-					}
+			executor.execute(() -> {
+				Node target = nodeRepository.findNodeSync(recipientAddressName);
+				if (target == null) {
+					Log.w(TAG, "Unable to locate, in DB, the node to which route discovery is initiated.");
+					return;
+				}
+				if (onSuccess) {
 					notifyRouteDiscoveryInitTo(target);
-				});
-			}
+				} else {
+					notifyRouteDiscoveryResult(target, false);
+				}
+			});
 			routeDiscoveryCallback.accept(onSuccess);
 		};
 		nearbyManager.sendRoutableNearbyMessageInternal(plainNearbyMessage, recipientAddressName, transmissionCallback, finaleDiscoveryCallback);

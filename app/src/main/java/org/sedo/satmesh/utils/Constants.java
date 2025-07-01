@@ -27,5 +27,22 @@ public class Constants {
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_INITIATED = 1002;
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT = 1003;
 
-	private Constants() {}
+	public static final String ACTION_SHOW_SATMESH_NOTIFICATION = "org.sedo.satmesh.ACTION_SHOW_NOTIFICATION";
+	public static final String EXTRA_NOTIFICATION_TYPE = "notification_type";
+	public static final String EXTRA_NOTIFICATION_DATA_BUNDLE = "notification_data_bundle";
+
+	// Keys used to map notification data for new input message
+	public static final String MESSAGE_SENDER_NAME = "sender_name";
+	public static final String MESSAGE_SENDER_ADDRESS = "sender_address";
+	public static final String MESSAGE_CONTENT = "message_content";
+	public static final String MESSAGE_ID = "message_id";
+
+	// Keys used to map notification data for: new neighbor discovery, route discovery initiation
+	public static final String NODE_ADDRESS = "node_address";
+	public static final String NODE_DISPLAY_NAME = "node_display_name";
+	public static final String NODE_IS_NEW = "is_new";
+	public static final String ROUTE_IS_FOUND = "route_is_found";
+
+	private Constants() {
+	}
 }

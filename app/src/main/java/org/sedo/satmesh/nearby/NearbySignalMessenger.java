@@ -6,10 +6,13 @@ import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MES
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
 
 import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.connection.Payload;
@@ -29,11 +32,14 @@ import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.proto.RoutedMessage;
 import org.sedo.satmesh.proto.TextMessage;
+import org.sedo.satmesh.service.SATMeshCommunicationService;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.MessageRepository;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.ui.data.SignalKeyExchangeStateRepository;
+import org.sedo.satmesh.utils.Constants;
+import org.sedo.satmesh.utils.NotificationType;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.SignalProtocolAddress;
@@ -75,6 +81,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	private final NodeRepository nodeRepository;
 	private final SignalKeyExchangeStateRepository keyExchangeStateRepository;
 	private final ExecutorService executor;
+	private final Context applicationContext;
 
 	/**
 	 * Private constructor to enforce Singleton pattern.
@@ -90,6 +97,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		this.executor = Executors.newSingleThreadExecutor(); // Single thread for ordered message processing
 		this.nearbyRouteManager = new NearbyRouteManager(nearbyManager, signalManager, context, executor);
 		Log.d(TAG, "NearbySignalMessenger instance created with dependencies.");
+
+		applicationContext = context.getApplicationContext();
 
 		// Register this instance as a listener with NearbyManager
 		this.nearbyManager.addDeviceConnectionListener(this);
@@ -159,8 +168,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
 					node.setLastSeen(System.currentTimeMillis());
-					node.setConnected(true);
 					nodeRepository.update(node);
+					notifyNeighborDiscovery(node, false);
 					Log.d(TAG, "Node " + deviceAddressName + " marked as connected in DB.");
 				} else {
 					// Create a new node entity if it doesn't exist.
@@ -169,8 +178,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Node newNode = new Node();
 					newNode.setAddressName(deviceAddressName);
 					newNode.setLastSeen(System.currentTimeMillis());
-					newNode.setConnected(true);
-					nodeRepository.insert(newNode, null);
+					nodeRepository.insert(newNode, onSuccess -> {
+						if (onSuccess) {
+							notifyNeighborDiscovery(newNode, true);
+						}
+					});
 					Log.d(TAG, "New Node " + deviceAddressName + " inserted and marked as connected in DB.");
 				}
 			} catch (Exception e) {
@@ -195,7 +207,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Log.e(TAG, "Error updating node status on connection failed: " + e.getMessage(), e);
 			}
 		});
-		//messengerCallbacks.forEach(cb -> cb.onConnectionFailure(deviceAddressName, status));
 	}
 
 	// This method is called when Nearby Connections detects a disconnection.
@@ -317,7 +328,20 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 */
 	protected void sendNearbyMessageInternal(@NonNull NearbyMessageBody plainNearbyMessage, @NonNull String recipientAddressName,
 	                                         @NonNull BiConsumer<Payload, Boolean> transmissionCallback, @NonNull Consumer<Boolean> routeDiscoveryCallback) {
-		nearbyManager.sendRoutableNearbyMessageInternal(plainNearbyMessage, recipientAddressName, transmissionCallback, routeDiscoveryCallback);
+		final Consumer<Boolean> finaleDiscoveryCallback = onSuccess -> {
+			if (onSuccess) {
+				executor.execute(() -> {
+					Node target = nodeRepository.findNodeSync(recipientAddressName);
+					if (target == null) {
+						Log.w(TAG, "Unable to locate, in DB, the node to which route discovery is initiated.");
+						return;
+					}
+					notifyRouteDiscoveryInitTo(target);
+				});
+			}
+			routeDiscoveryCallback.accept(onSuccess);
+		};
+		nearbyManager.sendRoutableNearbyMessageInternal(plainNearbyMessage, recipientAddressName, transmissionCallback, finaleDiscoveryCallback);
 	}
 
 	/**
@@ -821,6 +845,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				final long finalPayloadId = payloadId;
 				messageRepository.insertMessage(message, success -> {
 					if (success) {
+						notifyMessageReceived(message, nodeRepository.findNodeSync(senderAddressName));
 						sendMessageAck(finalPayloadId, senderAddressName, true, newSuccess -> {
 							if (newSuccess) {
 								message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
@@ -911,7 +936,20 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Log.e(TAG, "Unable to locate the remote node at address: " + destinationAddressName);
 				return;
 			}
+			notifyRouteDiscoveryResult(remoteNode, true);
 			attemptResendFailedMessagesTo(remoteNode);
+		});
+	}
+
+	public void onRouteNotFound(@NonNull String destinationAddressName) {
+		executor.execute(() -> {
+			Log.d(TAG, "Handling route not found to destination: " + destinationAddressName);
+			Node remoteNode = nodeRepository.findNodeSync(destinationAddressName);
+			if (remoteNode == null) {
+				Log.e(TAG, "Unable to locate the remote node at address: " + destinationAddressName);
+				return;
+			}
+			notifyRouteDiscoveryResult(remoteNode, false);
 		});
 	}
 
@@ -920,5 +958,91 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 */
 	public NearbyRouteManager getNearbyRouteManager() {
 		return nearbyRouteManager;
+	}
+
+	/**
+	 * Dispatches a notification request to the {@link SATMeshCommunicationService}.
+	 * This method centralizes the logic for creating and sending the {@link Intent}
+	 * to initiate a notification display by the service.
+	 *
+	 * @param data A {@link Bundle} containing the specific data required for the notification.
+	 *             The content of this bundle depends on the {@code type} of notification.
+	 * @param type The {@link NotificationType} enum indicating which type of notification
+	 *             is to be displayed (e.g., new message, node discovery, route event).
+	 */
+	private void sendNotification(@NonNull Bundle data, @NonNull NotificationType type) {
+		Intent notificationIntent = new Intent(applicationContext, SATMeshCommunicationService.class);
+		notificationIntent.setAction(Constants.ACTION_SHOW_SATMESH_NOTIFICATION);
+		notificationIntent.putExtra(Constants.EXTRA_NOTIFICATION_TYPE, type.name());
+		notificationIntent.putExtra(Constants.EXTRA_NOTIFICATION_DATA_BUNDLE, data);
+
+		ContextCompat.startForegroundService(applicationContext, notificationIntent);
+	}
+
+	/**
+	 * Prepares and sends a notification request for a new message received.
+	 * This method constructs a data bundle with message-specific information
+	 * and delegates the sending to {@link #sendNotification(Bundle, NotificationType)}.
+	 *
+	 * @param message The {@link Message} object that was received.
+	 * @param sender  The {@link Node} object representing the sender of the message.
+	 */
+	private void notifyMessageReceived(@NonNull Message message, @NonNull Node sender) {
+		Bundle data = new Bundle();
+		data.putString(Constants.MESSAGE_SENDER_NAME, sender.getDisplayName());
+		data.putString(Constants.MESSAGE_SENDER_ADDRESS, sender.getAddressName());
+		data.putString(Constants.MESSAGE_CONTENT, message.getContent());
+		data.putLong(Constants.MESSAGE_ID, message.getId());
+
+		sendNotification(data, NotificationType.NEW_MESSAGE);
+	}
+
+	/**
+	 * Prepares and sends a notification request for a new neighbor node discovery.
+	 * This method bundles relevant neighbor information and delegates
+	 * the sending to {@link #sendNotification(Bundle, NotificationType)}.
+	 *
+	 * @param neighbor The {@link Node} object that was discovered.
+	 * @param isNew    A boolean indicating if the discovered neighbor is entirely new (first time seen).
+	 */
+	private void notifyNeighborDiscovery(@NonNull Node neighbor, boolean isNew) {
+		Bundle data = new Bundle();
+		data.putString(Constants.NODE_ADDRESS, neighbor.getAddressName());
+		data.putString(Constants.NODE_DISPLAY_NAME, neighbor.getDisplayName());
+		data.putBoolean(Constants.NODE_IS_NEW, isNew);
+
+		sendNotification(data, NotificationType.NEW_NODE_DISCOVERED);
+	}
+
+	/**
+	 * Prepares and sends a notification request indicating the initiation of a route discovery process.
+	 * This method bundles the target node's information and delegates
+	 * the sending to {@link #sendNotification(Bundle, NotificationType)}.
+	 *
+	 * @param target The {@link Node} object for which a route discovery has been initiated.
+	 */
+	private void notifyRouteDiscoveryInitTo(@NonNull Node target) {
+		Bundle data = new Bundle();
+		data.putString(Constants.NODE_ADDRESS, target.getAddressName());
+		data.putString(Constants.NODE_DISPLAY_NAME, target.getDisplayName());
+
+		sendNotification(data, NotificationType.ROUTE_DISCOVERY_INITIATED);
+	}
+
+	/**
+	 * Prepares and sends a notification request indicating the result of a route discovery.
+	 * This method bundles the target node's information and the discovery outcome,
+	 * then delegates the sending to {@link #sendNotification(Bundle, NotificationType)}.
+	 *
+	 * @param target The {@link Node} object for which the route discovery was performed.
+	 * @param found  A boolean indicating whether a route to the target node was successfully found.
+	 */
+	private void notifyRouteDiscoveryResult(@NonNull Node target, boolean found) {
+		Bundle data = new Bundle();
+		data.putString(Constants.NODE_ADDRESS, target.getAddressName());
+		data.putString(Constants.NODE_DISPLAY_NAME, target.getDisplayName());
+		data.putBoolean(Constants.ROUTE_IS_FOUND, found);
+
+		sendNotification(data, NotificationType.ROUTE_DISCOVERY_RESULT);
 	}
 }

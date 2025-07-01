@@ -706,6 +706,7 @@ public class NearbyManager {
 	public void onRouteNotFound(@NonNull String requestUuid, @NonNull String destinationAddressName, @NonNull RouteResponseMessage.Status finalStatus) {
 		Log.d(TAG, requestUuid + " " + destinationAddressName + " " + finalStatus);
 		NodeTransientStateRepository.getInstance().updateTransientNodeState(destinationAddressName, NodeState.ON_DISCONNECTED);
+		NearbySignalMessenger.getInstance().onRouteNotFound(destinationAddressName);
 	}
 
 	/**

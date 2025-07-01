@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.RingtoneManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
@@ -35,7 +36,7 @@ public class SATMeshCommunicationService extends Service {
 	public static final String ACTION_INITIALIZE_COMMUNICATION_MODULES = "org.sedo.satmesh.action.INITIALIZE_COMMUNICATION_MODULES";
 	public static final String ACTION_STOP_COMMUNICATION_MODULES = "org.sedo.satmesh.action.STOP_COMMUNICATION_MODULES";
 	private static final String TAG = "SATMeshCommService";
-	private static final String NOTIFICATION_CHANNEL_ID = "SatMesh_Communication_Channel";
+	private static final String NOTIFICATION_CHANNEL_ID = "SATMesh_Communication_Channel";
 	private static final int NOTIFICATION_ID = 101; // Unique ID for the foreground service notification
 	// Instances of communication managers
 	private NearbyManager nearbyManager;
@@ -56,7 +57,7 @@ public class SATMeshCommunicationService extends Service {
 		Log.d(TAG, "Service onCreate");
 
 		// Create the notification channel for Android Oreo and above
-		createNotificationChannel();
+		createNotificationChannels();
 
 		// Initialize the Executor for service operations
 		serviceExecutor = Executors.newSingleThreadExecutor();
@@ -74,7 +75,8 @@ public class SATMeshCommunicationService extends Service {
 	}
 
 	private synchronized boolean areCommunicationModulesInitialized() {
-		return signalManager != null && nearbyManager != null && nearbySignalMessenger != null;
+		return signalManager != null && nearbyManager != null && nearbySignalMessenger != null
+				&& nearbyManager.isDiscovering() && nearbyManager.isAdvertising();
 	}
 
 	@Override
@@ -172,7 +174,7 @@ public class SATMeshCommunicationService extends Service {
 	/**
 	 * Creates the notification channel for Android 8.0 (API 26) and higher.
 	 */
-	private void createNotificationChannel() {
+	private void createNotificationChannels() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			CharSequence name = getString(R.string.channel_name);
 			String description = getString(R.string.channel_description);
@@ -181,9 +183,33 @@ public class SATMeshCommunicationService extends Service {
 			NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
 			channel.setDescription(description);
 
+			// Messages channel
+			NotificationChannel messagesChannel = new NotificationChannel(
+					Constants.CHANNEL_ID_MESSAGES,
+					getString(R.string.channel_name_messages),
+					NotificationManager.IMPORTANCE_HIGH
+			);
+			messagesChannel.setDescription(getString(R.string.channel_description_messages));
+			messagesChannel.enableVibration(true);
+			messagesChannel.setVibrationPattern(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
+			messagesChannel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null);
+
+			// Network events channel
+			NotificationChannel networkEventsChannel = new NotificationChannel(
+					Constants.CHANNEL_ID_NETWORK_EVENTS,
+					getString(R.string.channel_name_network_events),
+					NotificationManager.IMPORTANCE_DEFAULT
+			);
+			networkEventsChannel.setDescription(getString(R.string.channel_description_network_events));
+			networkEventsChannel.enableVibration(true);
+			networkEventsChannel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null);
+
 			NotificationManager notificationManager = getSystemService(NotificationManager.class);
 			if (notificationManager != null) {
 				notificationManager.createNotificationChannel(channel);
+				notificationManager.createNotificationChannel(messagesChannel);
+				notificationManager.createNotificationChannel(networkEventsChannel);
+				Log.d(TAG, "The channels are created.");
 			}
 		}
 	}
@@ -261,7 +287,6 @@ public class SATMeshCommunicationService extends Service {
 					getApplicationContext(),
 					nearbyManager,
 					signalManager,
-					// Pass the database instance
 					hostNode // Pass the host node
 			);
 		}

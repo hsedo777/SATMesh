@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.view.ActionMode;
 import androidx.appcompat.widget.Toolbar;
@@ -88,9 +89,23 @@ public class ChatFragment extends Fragment {
 
 			int id = item.getItemId();
 			if (id == R.id.action_delete) {
-				Log.d(TAG, "Deleting " + selectedMessageIds.size() + " message(s)");
-				viewModel.deleteMessagesById(new ArrayList<>(selectedMessageIds));
-				mode.finish();
+				Log.d(TAG, "Attempting to delete " + selectedMessageIds.size() + " message(s)");
+				new AlertDialog.Builder(requireContext())
+						.setTitle(R.string.delete_messages_dialog_title)
+						.setMessage(R.string.delete_messages_dialog_message)
+						.setPositiveButton(R.string.delete_button_text, (dialog, which) -> {
+							Log.d(TAG, "Confirmation received. Deleting " + selectedMessageIds.size() + " message(s)");
+							viewModel.deleteMessagesById(new ArrayList<>(selectedMessageIds));
+							mode.finish();
+						})
+						.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+							Log.d(TAG, "Deletion cancelled by user.");
+							dialog.dismiss();
+							mode.finish();
+						})
+						.setIcon(android.R.drawable.ic_dialog_alert)
+						.show();
+
 				return true;
 			} else if (id == R.id.action_copy) {
 				StringBuilder copiedText = new StringBuilder();

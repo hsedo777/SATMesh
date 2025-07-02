@@ -68,6 +68,11 @@
 	<string name="you">Vous</string>
 	<string name="me">Moi</string>
 	<string name="chat_export_info">Discussion exportée dans %s</string>
+
+	<string name="delete_messages_dialog_title">Supprimer les messages ?</string>
+	<string name="delete_messages_dialog_message">Voulez-vous vraiment supprimer les messages sélectionnés ? Cette action ne peut pas être annulée.</string>
+	<string name="delete_button_text">Supprimer</string>
+
 	<!-- Menu -->
 	<string name="menu_settings">Paramètres</string>
 	<string name="menu_known_nodes">Nœuds connus</string>

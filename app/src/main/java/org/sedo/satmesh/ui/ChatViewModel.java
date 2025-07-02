@@ -373,18 +373,7 @@ public class ChatViewModel extends AndroidViewModel {
 			Log.d(TAG, "There is no payload ID bound to this message.");
 			return;
 		}
-		executor.execute(() -> {
-			if (!nearbySignalMessenger.hasSession(remoteNode.getAddressName())) {
-				Log.d(TAG, "Messages can't be marked read without secured session.");
-				return;
-			}
-			nearbySignalMessenger.sendMessageAck(message.getPayloadId(), remoteNode.getAddressName(), false, success -> {
-				if (success) {
-					message.setStatus(Message.MESSAGE_STATUS_READ);
-					messageRepository.updateMessage(message);
-				}
-			});
-		});
+		executor.execute(() -> nearbySignalMessenger.sendMessageAck(message.getPayloadId(), remoteNode.getAddressName(), false, null));
 	}
 
 	/**

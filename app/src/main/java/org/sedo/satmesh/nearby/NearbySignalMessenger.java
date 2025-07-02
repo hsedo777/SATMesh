@@ -489,38 +489,53 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 	/**
 	 * Sends a message acknowledgment (delivered or read) to a recipient.
+	 * If sending ack success, the message is put in the convenient state.
 	 *
 	 * @param originalPayloadId    The ID of the original message payload being acknowledged.
 	 * @param recipientAddressName The Signal Protocol address name of the message recipient.
 	 * @param delivered            True if it's a delivered ACK, false if it's a read ACK.
 	 * @param callback             Callback to notify the caller of the success/failure of sending the ACK.
 	 */
-	public void sendMessageAck(long originalPayloadId, @NonNull String recipientAddressName, boolean delivered, @NonNull Consumer<Boolean> callback) {
+	public void sendMessageAck(long originalPayloadId, @NonNull String recipientAddressName, boolean delivered, @Nullable Consumer<Boolean> callback) {
 		executor.execute(() -> {
+			Consumer<Boolean> finalCallback = callback != null ? callback : aBoolean -> {};
 			try {
 				if (!hasSession(recipientAddressName)) {
 					Log.w(TAG, "No active Signal session with " + recipientAddressName + " to send ACK. Skipping.");
-					callback.accept(false); // Notify failure
+					finalCallback.accept(false); // Notify failure
 					return;
 				}
 
 				MessageAck messageAck = MessageAck.newBuilder().setPayloadId(originalPayloadId).build();
 
-				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(delivered ? NearbyMessageBody.MessageType.MESSAGE_DELIVERED_ACK : NearbyMessageBody.MessageType.MESSAGE_READ_ACK).setEncryptedData(messageAck.toByteString()).build();
+				NearbyMessageBody messageBody = NearbyMessageBody
+						.newBuilder().setMessageType(
+								delivered ? NearbyMessageBody.MessageType.MESSAGE_DELIVERED_ACK : NearbyMessageBody.MessageType.MESSAGE_READ_ACK
+						)
+						.setEncryptedData(messageAck.toByteString()).build();
 
 				sendNearbyMessageInternal(messageBody, recipientAddressName, (payload, success) -> {
 					if (success) {
-						Log.d(TAG, (delivered ? "Delivered" : "Read") + " ACK sent for payload " + originalPayloadId + " to " + recipientAddressName);
+						executor.execute(() -> {
+							Message message = messageRepository.getMessageByPayloadIdSync(originalPayloadId);
+							if (message == null) {
+								Log.w(TAG, "Unable to identify the message.");
+								return;
+							}
+							message.setStatus(delivered ? Message.MESSAGE_STATUS_DELIVERED : Message.MESSAGE_STATUS_READ);
+							messageRepository.updateMessage(message, finalCallback);
+							Log.d(TAG, (delivered ? "Delivered" : "Read") + " ACK sent for payload " + originalPayloadId + " to " + recipientAddressName);
+						});
 					} else {
 						Log.e(TAG, "Failed to send " + (delivered ? "Delivered" : "Read") + " ACK for payload " + originalPayloadId + " to " + recipientAddressName);
+						finalCallback.accept(false);
 					}
-					callback.accept(success);
 				}, unused -> {
 				});
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error sending ACK for payload " + originalPayloadId + " to " + recipientAddressName, e);
-				callback.accept(false); // Notify failure
+				finalCallback.accept(false); // Notify failure
 			}
 		});
 	}
@@ -597,12 +612,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			List<Message> missingAck = messageRepository.getMessagesInStatusesFromSenderSync(remoteNode.getId(), Collections.singletonList(Message.MESSAGE_STATUS_PENDING));
 			if (missingAck != null && !missingAck.isEmpty()) {
 				for (Message message : missingAck) {
-					sendMessageAck(message.getPayloadId(), remoteNode.getAddressName(), true, success -> {
-						if (success) {
-							message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-							messageRepository.updateMessage(message);
-						}
-					});
+					sendMessageAck(message.getPayloadId(), remoteNode.getAddressName(), true, null);
 				}
 			}
 		});
@@ -811,24 +821,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						retransmitted.setStatus(Message.MESSAGE_STATUS_PENDING);
 						messageRepository.updateMessage(retransmitted, ok -> {
 							if (ok) {
-								if (oldStatus != Message.MESSAGE_STATUS_READ) {
-									// Send delivery ack
-									sendMessageAck(retransmitted.getPayloadId(), senderAddressName, true, onSuccess -> {
-										if (onSuccess) {
-											retransmitted.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-											messageRepository.updateMessage(retransmitted);
-										}
-									});
-								} else {
-									// This is a double message
-									// Send read ack
-									sendMessageAck(retransmitted.getPayloadId(), senderAddressName, false, onSuccess -> {
-										if (onSuccess) {
-											retransmitted.setStatus(Message.MESSAGE_STATUS_READ);
-											messageRepository.updateMessage(retransmitted);
-										}
-									});
-								}
+								sendMessageAck(retransmitted.getPayloadId(), senderAddressName, oldStatus != Message.MESSAGE_STATUS_READ, null);
 							}
 						});
 						return;
@@ -848,12 +841,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				messageRepository.insertMessage(message, success -> {
 					if (success) {
 						notifyMessageReceived(message, nodeRepository.findNodeSync(senderAddressName));
-						sendMessageAck(finalPayloadId, senderAddressName, true, newSuccess -> {
-							if (newSuccess) {
-								message.setStatus(Message.MESSAGE_STATUS_DELIVERED);
-								messageRepository.updateMessage(message);
-							}
-						});
+						sendMessageAck(finalPayloadId, senderAddressName, true, null);
 					}
 				});
 				break;
@@ -994,6 +982,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		data.putString(Constants.MESSAGE_SENDER_NAME, sender.getDisplayName());
 		data.putString(Constants.MESSAGE_SENDER_ADDRESS, sender.getAddressName());
 		data.putString(Constants.MESSAGE_CONTENT, message.getContent());
+		data.putLong(Constants.MESSAGE_PAYLOAD_ID, message.getPayloadId());
 		data.putLong(Constants.MESSAGE_ID, message.getId());
 
 		sendNotification(data, NotificationType.NEW_MESSAGE);

@@ -171,7 +171,7 @@ public class NearbyManager {
 			Log.d(TAG, "Endpoint found: " + info.getEndpointName() + " with ID: " + endpointId);
 
 			// Add to addressNameToEndpointId if not already present
-			addressNameToEndpointId.putIfAbsent(info.getEndpointName(), endpointId);
+			addressNameToEndpointId.put(info.getEndpointName(), endpointId);
 			ConnectionState state = endpointStates.get(endpointId);
 
 			// Check if this finding is really new

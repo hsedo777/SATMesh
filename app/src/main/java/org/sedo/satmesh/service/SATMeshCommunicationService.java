@@ -375,7 +375,7 @@ public class SATMeshCommunicationService extends Service {
 	private PendingIntent createMainActivityPendingIntent(@NonNull NotificationType notificationType, Bundle data, int requestCode) {
 		Intent intent = new Intent(getApplicationContext(), MainActivity.class);
 		intent.putExtras(data);
-		intent.putExtra(Constants.EXTRA_NOTIFICATION_TYPE, notificationType);
+		intent.putExtra(Constants.EXTRA_NOTIFICATION_TYPE, notificationType.name());
 		intent.setAction(Constants.ACTION_LAUNCH_FROM_NOTIFICATION);
 		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 

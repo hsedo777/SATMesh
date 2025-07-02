@@ -40,6 +40,7 @@ import org.sedo.satmesh.ui.SearchFragment;
 import org.sedo.satmesh.ui.WelcomeFragment;
 import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
 import org.sedo.satmesh.utils.Constants;
+import org.sedo.satmesh.utils.NotificationType;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -199,6 +200,12 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	@Override
+	protected void onNewIntent(@NonNull Intent intent) {
+		super.onNewIntent(intent);
+		handleIncomingIntent(intent);
+	}
+
+	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		ActivityMainBinding binding = ActivityMainBinding.inflate(getLayoutInflater());
@@ -207,6 +214,19 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		// Initialize database on the main thread ui
 		appDatabase = AppDatabase.getDB(getApplicationContext());
 
+		// Flag to check if the intent was handled by a specific notification action
+		boolean notificationHandled = false;
+		if (getIntent() != null) {
+			notificationHandled = handleIncomingIntent(getIntent());
+		}
+
+		// Only run default onCreate logic IF no specific notification intent was handled
+		if (!notificationHandled) {
+			defaultOnCreate(savedInstanceState);
+		}
+	}
+
+	private void defaultOnCreate(Bundle savedInstanceState) {
 		final Consumer<Void> showFragment;
 		Consumer<Void> showFragmentDefault = (unused) -> {
 			// Load host Node
@@ -247,6 +267,105 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		);
 
 		checkNearbyApiPreConditions(showFragment);
+	}
+
+	/**
+	 * Handles incoming Intents, specifically those originating from notifications.
+	 * This method is responsible for parsing the Intent and directing navigation
+	 * based on the notification type.
+	 *
+	 * @param intent The Intent received by the MainActivity.
+	 * @return true if the Intent was identified as a notification intent and handled, false otherwise.
+	 */
+	private boolean handleIncomingIntent(@Nullable Intent intent) {
+		if (intent == null) {
+			Log.d(TAG, "handleIncomingIntent: Intent is null.");
+			return false;
+		}
+		// Checks if the `Intent` is from notification
+		if (Constants.ACTION_LAUNCH_FROM_NOTIFICATION.equals(intent.getAction()) &&
+				intent.hasExtra(Constants.EXTRA_NOTIFICATION_TYPE)) {
+			Log.d(TAG, "Handling intent from notifications.");
+			appDatabase.getQueryExecutor().execute(() -> {
+				try {
+					NotificationType type = NotificationType.valueOf(intent.getStringExtra(Constants.EXTRA_NOTIFICATION_TYPE));
+					String addressName, displayName;
+					Node remoteNode;
+					switch (type) {
+						case NEW_MESSAGE:
+							String senderAddress = intent.getStringExtra(Constants.MESSAGE_SENDER_ADDRESS);
+							long messageId = intent.getLongExtra(Constants.MESSAGE_ID, -1L);
+							if (senderAddress == null) {
+								throw new NullPointerException("Missing sender address for NEW_MESSAGE notification.");
+							}
+							remoteNode = appDatabase.nodeDao().getNodeByAddressNameSync(senderAddress);
+							if (remoteNode == null) {
+								throw new NullPointerException("Unable to locate the remote node bound to the message with address: " + senderAddress);
+							}
+							runOnUiThread(() -> discussWith(remoteNode, false, messageId != -1L ? messageId : null));
+							break;
+						case NEW_NODE_DISCOVERED:
+							boolean isNew = intent.getBooleanExtra(Constants.NODE_IS_NEW, false);
+							addressName = intent.getStringExtra(Constants.NODE_ADDRESS);
+							if (addressName == null) {
+								throw new NullPointerException("Missing node address for NEW_NODE_DISCOVERED notification.");
+							}
+							if (isNew) {
+								// For new discovery, redirect to node discovery fragment, this is in favor of personal data exchange
+								runOnUiThread(() -> moveToDiscoveryView(false));
+							} else {
+								// For re-discovery, move to chat fragment
+								Node node = appDatabase.nodeDao().getNodeByAddressNameSync(addressName);
+								if (node == null) {
+									throw new NullPointerException("Undesirable behavior: the re-discovered node (address=" + addressName + ") is not found in DB.");
+								}
+								runOnUiThread(() -> discussWith(node, false, null));
+							}
+							break;
+						case ROUTE_DISCOVERY_INITIATED:
+							/*
+							 * We would add a new fragment to display the route discovery status.
+							 * Waiting that, we just execute the default behavior
+							 */
+							Log.d(TAG, "Handle ROUTE_DISCOVERY_INITIATED notification click for address: "
+									+ intent.getStringExtra(Constants.NODE_ADDRESS));
+							runOnUiThread(this::navigateToMainScreen);
+							break;
+						case ROUTE_DISCOVERY_RESULT:
+							boolean found = intent.getBooleanExtra(Constants.ROUTE_IS_FOUND, false);
+							addressName = intent.getStringExtra(Constants.NODE_ADDRESS);
+							displayName = intent.getStringExtra(Constants.NODE_DISPLAY_NAME);
+							if (addressName == null) {
+								throw new NullPointerException("Missing node address for ROUTE_DISCOVERY_RESULT notification.");
+							}
+							if (!found) {
+								Log.d(TAG, "Handle ROUTE_DISCOVERY_RESULT=false, for address=" + addressName);
+								String toastText = getString(R.string.notification_content_route_not_found, displayName != null ? displayName : addressName);
+								runOnUiThread(() -> {
+									navigateToMainScreen();
+									Toast.makeText(this, toastText, Toast.LENGTH_LONG).show();
+								});
+							} else {
+								// Else, open the discussion
+								remoteNode = appDatabase.nodeDao().getNodeByAddressNameSync(addressName);
+								if (remoteNode == null) {
+									throw new NullPointerException("Undesirable behavior: the remote node is not found in DB, ROUTE_DISCOVERY_RESULT=true.");
+								}
+								runOnUiThread(() -> discussWith(remoteNode, false, null));
+							}
+							break;
+					}
+				} catch (NullPointerException | IllegalArgumentException e) {
+					Log.w(TAG, "Unable to parse the notification's intent.", e);
+					runOnUiThread(this::navigateToMainScreen);
+				} catch (Exception e) {
+					Log.e(TAG, "Undesired behavior while parse the notification intent.", e);
+					runOnUiThread(this::navigateToMainScreen);
+				}
+			});
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -335,7 +454,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	// implementation of NearbyDiscoveryListener
-	public void moveToDiscoveryView(boolean removeLast, boolean addToBackStack) {
+	public void moveToDiscoveryView(boolean removeLast) {
 		String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName)), Constants.TAG_DISCOVERY_FRAGMENT, removeLast);
 	}
@@ -383,7 +502,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 				moveToChatList(false);
 			} else {
 				// There is no message, redirect user on discovery fragment
-				moveToDiscoveryView(true, false);
+				moveToDiscoveryView(true);
 			}
 		});
 	}

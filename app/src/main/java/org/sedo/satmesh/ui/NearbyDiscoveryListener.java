@@ -1,5 +1,5 @@
 package org.sedo.satmesh.ui;
 
 public interface NearbyDiscoveryListener {
-	void moveToDiscoveryView(boolean removeLast, boolean addToBackStack);
+	void moveToDiscoveryView(boolean removeLast);
 }

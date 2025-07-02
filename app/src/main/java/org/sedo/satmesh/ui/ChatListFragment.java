@@ -116,7 +116,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		});
 		binding.fabNodeDiscovery.setOnClickListener(view1 -> {
 			if (nearbyDiscoveryListener != null) {
-				nearbyDiscoveryListener.moveToDiscoveryView(false, true);
+				nearbyDiscoveryListener.moveToDiscoveryView(false);
 			}
 		});
 

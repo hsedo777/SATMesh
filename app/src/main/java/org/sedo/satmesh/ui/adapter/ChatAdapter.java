@@ -7,7 +7,6 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DiffUtil;
@@ -16,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Message;
+import org.sedo.satmesh.ui.UiUtils;
 import org.sedo.satmesh.utils.Utils;
 
 import java.util.Collections;
@@ -210,29 +210,7 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 
 		public void bind(@NonNull Message message) {
 			super.bind(message);
-			@DrawableRes int drawable;
-			switch (message.getStatus()) {
-				case Message.MESSAGE_STATUS_DELIVERED:
-					drawable = R.drawable.ic_message_status_delivered;
-					break;
-				case Message.MESSAGE_STATUS_PENDING:
-					drawable = R.drawable.ic_message_status_pending;
-					break;
-				case Message.MESSAGE_STATUS_READ:
-					drawable = R.drawable.ic_message_status_read;
-					break;
-				case Message.MESSAGE_STATUS_FAILED:
-					drawable = R.drawable.ic_message_status_failed;
-					break;
-				case Message.MESSAGE_STATUS_ROUTING:
-					drawable = R.drawable.ic_message_status_routing;
-					break;
-				case Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE:
-					drawable = R.drawable.ic_message_status_key_exchange;
-					break;
-				default:
-					drawable = -1;
-			}
+			int drawable = UiUtils.getMessageStatusIcon(message.getStatus());
 			if (drawable != -1) {
 				messageStatus.setImageDrawable(ContextCompat.getDrawable(itemView.getContext(), drawable));
 				messageStatus.setVisibility(View.VISIBLE);

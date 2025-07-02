@@ -222,6 +222,14 @@ public class Message {
 		this.recipientNodeId = recipientNodeId;
 	}
 
+	public boolean isDelivered() {
+		return status == MESSAGE_STATUS_DELIVERED;
+	}
+
+	public boolean isRead() {
+		return status == MESSAGE_STATUS_READ;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;

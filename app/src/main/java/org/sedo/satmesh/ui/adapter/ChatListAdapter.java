@@ -3,6 +3,7 @@ package org.sedo.satmesh.ui.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -12,6 +13,7 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.sedo.satmesh.R;
+import org.sedo.satmesh.ui.UiUtils;
 import org.sedo.satmesh.ui.data.ChatListItem;
 import org.sedo.satmesh.utils.Utils;
 
@@ -85,6 +87,7 @@ public class ChatListAdapter extends ListAdapter<ChatListItem, ChatListAdapter.C
 		private final TextView lastMessageTimestamp;
 		private final TextView unreadCountBadge;
 		private final View connectivityStatus;
+		private final ImageView lastMessageStatus;
 
 		public ChatListItemViewHolder(@NonNull View itemView, @NonNull OnItemClickCallback callback) {
 			super(itemView);
@@ -93,6 +96,7 @@ public class ChatListAdapter extends ListAdapter<ChatListItem, ChatListAdapter.C
 			lastMessageTimestamp = itemView.findViewById(R.id.tvLastMessageTime);
 			connectivityStatus = itemView.findViewById(R.id.tvConnectivityStatus);
 			unreadCountBadge = itemView.findViewById(R.id.tvUnreadCountBadge);
+			lastMessageStatus = itemView.findViewById(R.id.ivLastMessageStatus);
 
 			// Set click listener for the whole item
 			itemView.setOnClickListener(v -> {
@@ -107,7 +111,7 @@ public class ChatListAdapter extends ListAdapter<ChatListItem, ChatListAdapter.C
 		 *
 		 * @param item The ChatListItem object to bind.
 		 */
-		public void bind(ChatListItem item, long ignored) {
+		public void bind(ChatListItem item, long hostNodeId) {
 			remoteNodeDisplayName.setText(item.remoteNode.getNonNullName());
 			lastMessageContent.setText(item.lastMessage.getContent());
 			lastMessageTimestamp.setText(Utils.formatTimestamp(itemView.getContext(), item.lastMessage.getTimestamp()));
@@ -120,6 +124,16 @@ public class ChatListAdapter extends ListAdapter<ChatListItem, ChatListAdapter.C
 			}
 			unreadCountBadge.setText(String.valueOf(item.unreadCount));
 			unreadCountBadge.setVisibility(item.unreadCount != 0 ? View.VISIBLE : View.GONE);
+
+			// Check message status printing
+			if (Long.valueOf(hostNodeId).equals(item.lastMessage.getSenderNodeId()) && !item.lastMessage.isRead()
+					&& !item.lastMessage.isDelivered()) {
+				int drawable = UiUtils.getMessageStatusIcon(item.lastMessage.getStatus());
+				if (drawable != -1L) {
+					lastMessageStatus.setImageDrawable(ContextCompat.getDrawable(itemView.getContext(), drawable));
+					lastMessageStatus.setVisibility(View.VISIBLE);
+				}
+			}
 		}
 	}
 }

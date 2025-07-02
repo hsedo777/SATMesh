@@ -24,7 +24,7 @@
 			android:textColor="@color/cardText2"
 			android:textSize="18sp"
 			android:textStyle="bold"
-			app:layout_constraintEnd_toStartOf="@id/tvLastMessageTime"
+			app:layout_constraintEnd_toStartOf="@id/tvConnectivityStatus"
 			app:layout_constraintHorizontal_bias="0"
 			app:layout_constraintHorizontal_weight="1"
 			app:layout_constraintStart_toStartOf="parent"
@@ -54,18 +54,31 @@
 			app:layout_constraintTop_toTopOf="@id/tvRemoteNodeName"
 			tools:text="11:30 AM" />
 
+		<ImageView
+			android:id="@+id/ivLastMessageStatus"
+			android:layout_width="16dp"
+			android:layout_height="16dp"
+			android:contentDescription="@string/message_status"
+			android:src="@drawable/ic_message_status_failed"
+			android:visibility="gone"
+			app:layout_constraintBottom_toBottomOf="@id/tvLastMessageContent"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="@id/tvLastMessageContent"
+			tools:visibility="visible" />
+
 		<TextView
 			android:id="@+id/tvLastMessageContent"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
+			android:layout_marginStart="@dimen/space_xs"
 			android:layout_marginTop="@dimen/space_xs"
-			android:layout_marginEnd="@dimen/space_sm"
+			android:layout_marginEnd="@dimen/space_xs"
 			android:ellipsize="end"
-			android:maxLines="1"
+			android:maxLines="2"
 			android:textColor="@color/cardText2"
 			android:textSize="14sp"
 			app:layout_constraintEnd_toStartOf="@id/tvUnreadCountBadge"
-			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintStart_toEndOf="@id/ivLastMessageStatus"
 			app:layout_constraintTop_toBottomOf="@id/tvRemoteNodeName"
 			tools:text="Hey, are you there? I wanted to ask about the plan for tomorrow. Let me know." />
 

@@ -112,6 +112,7 @@ public class SATMeshCommunicationService extends Service {
 						stopSelf();
 						break;
 					case Constants.ACTION_SHOW_SATMESH_NOTIFICATION:
+						startForeground(NOTIFICATION_ID, buildNotification());
 						String notificationTypeString = intent.getStringExtra(Constants.EXTRA_NOTIFICATION_TYPE);
 						Bundle notificationData = intent.getBundleExtra(Constants.EXTRA_NOTIFICATION_DATA_BUNDLE);
 						if (notificationTypeString != null && notificationData != null) {
@@ -436,8 +437,8 @@ public class SATMeshCommunicationService extends Service {
 		String nodeAddress = data.getString(Constants.NODE_ADDRESS);
 		boolean isNew = data.getBoolean(Constants.NODE_IS_NEW);
 
-		if (nodeName == null || nodeAddress == null) {
-			Log.e(TAG, "Missing data for NEW_NODE_DISCOVERED notification: name=" + nodeName + ", address=" + nodeAddress);
+		if (nodeAddress == null) {
+			Log.e(TAG, "Missing data for NEW_NODE_DISCOVERED notification: name=" + nodeName + ", address is null");
 			return;
 		}
 
@@ -449,7 +450,7 @@ public class SATMeshCommunicationService extends Service {
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.CHANNEL_ID_NETWORK_EVENTS)
 				.setSmallIcon(R.drawable.ic_notification)
 				.setContentTitle(getString(title))
-				.setContentText(getString(content, nodeName))
+				.setContentText(getString(content, nodeName != null ? nodeName : nodeAddress))
 				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
 				.setContentIntent(pendingIntent)
 				.setAutoCancel(true);

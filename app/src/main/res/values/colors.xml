@@ -46,6 +46,14 @@
 
 	<color name="textLight">#AAAAAA</color>
 
+	<!-- Colors for alert dialog-->
+	<color name="dialogBackgroundColor">@color/white</color>
+	<color name="dialogTextColor">#212121</color>
+	<color name="dialogTitleColor">@color/black</color>
+	<color name="dialogTitleIconColor">#424242</color>
+	<color name="dialogButtonNegativeColor">#E53935</color>
+	<color name="dialogButtonNeutralColor">#9E9E9E</color>
+
 	<!-- Colors for welcome background -->
 	<color name="bg_welcome_1">#B2E9FC</color>
 	<color name="bg_welcome_2">#B1E9FC</color>

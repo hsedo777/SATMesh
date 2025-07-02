@@ -396,13 +396,37 @@ public class SATMeshCommunicationService extends Service {
 		String senderName = data.getString(Constants.MESSAGE_SENDER_NAME);
 		String messageContent = data.getString(Constants.MESSAGE_CONTENT);
 		String remoteNodeAddress = data.getString(Constants.MESSAGE_SENDER_ADDRESS);
+		long messageId = data.getLong(Constants.MESSAGE_ID, -1L);
+		long payloadId = data.getLong(Constants.MESSAGE_PAYLOAD_ID, 0L);
 
-		if (senderName == null || messageContent == null || remoteNodeAddress == null) {
+		if (senderName == null || messageContent == null || remoteNodeAddress == null || messageId == -1L
+				|| payloadId == 0L) {
 			Log.e(TAG, "Missing data for NEW_MESSAGE notification: senderName=" + senderName + ", content=" + messageContent + ", address=" + remoteNodeAddress);
 			return;
 		}
 
-		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.NEW_MESSAGE, data, Constants.NOTIFICATION_ID_NEW_MESSAGE);
+		int notificationId = Constants.NOTIFICATION_ID_NEW_MESSAGE;
+
+		// Prepare the action
+		Intent markAsReadIntent = new Intent(getApplicationContext(), MarkAsReadReceiver.class);
+		markAsReadIntent.setAction(Constants.ACTION_MARK_AS_READ);
+		markAsReadIntent.putExtras(data);
+		markAsReadIntent.putExtra(Constants.NOTIFICATION_ID, notificationId);
+
+		PendingIntent markAsReadPendingIntent = PendingIntent.getBroadcast(
+				getApplicationContext(),
+				notificationId,
+				markAsReadIntent,
+				PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+		);
+
+		NotificationCompat.Action markAsReadAction = new NotificationCompat.Action.Builder(
+				null,
+				getApplicationContext().getString(R.string.action_mark_as_read),
+				markAsReadPendingIntent
+		).build();
+
+		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.NEW_MESSAGE, data, notificationId);
 
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.CHANNEL_ID_MESSAGES)
 				.setSmallIcon(R.drawable.ic_notification)
@@ -410,7 +434,8 @@ public class SATMeshCommunicationService extends Service {
 				.setContentText(messageContent)
 				.setPriority(NotificationCompat.PRIORITY_HIGH)
 				.setContentIntent(pendingIntent)
-				.setAutoCancel(true);
+				.setAutoCancel(true)
+				.addAction(markAsReadAction);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
 			builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
@@ -419,7 +444,7 @@ public class SATMeshCommunicationService extends Service {
 
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {
-			notificationManager.notify(Constants.NOTIFICATION_ID_NEW_MESSAGE, builder.build());
+			notificationManager.notify(notificationId, builder.build());
 			Log.d(TAG, "New message notification shown for " + senderName);
 		} catch (SecurityException e) {
 			Log.w(TAG, "User has cancelled notification post permission", e);

@@ -27,7 +27,7 @@
 	<!-- Required for recording audio -->
 	<uses-permission android:name="android.permission.RECORD_AUDIO" /> <!-- For shake-to-advertise -->
 	<uses-permission android:name="android.permission.VIBRATE" />
-	<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
@@ -71,6 +71,7 @@
 			android:exported="false"
 			android:foregroundServiceType="connectedDevice"
 			tools:targetApi="34" />
+
 		<receiver
 			android:name=".service.BootReceiver"
 			android:enabled="true"
@@ -78,6 +79,13 @@
 			<intent-filter>
 				<action android:name="android.intent.action.BOOT_COMPLETED" />
 				<category android:name="android.intent.category.DEFAULT" />
+			</intent-filter>
+		</receiver>
+		<receiver
+			android:name=".service.MarkAsReadReceiver"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="org.sedo.satmesh.action.MARK_AS_READ" />
 			</intent-filter>
 		</receiver>
 	</application>

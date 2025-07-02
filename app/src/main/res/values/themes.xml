@@ -11,6 +11,9 @@
 		<!-- Surfaces (cards, sheets…) -->
 		<item name="colorSurface">@color/secondaryColor</item>
 		<item name="colorOnSurface">@color/colorOnSecondary</item>
+
+		<item name="materialAlertDialogTheme">@style/AlertDialog.SATMesh</item>
+		<item name="alertDialogTheme">@style/AlertDialog.SATMesh</item>
 	</style>
 
 	<style name="Theme.SATMesh" parent="Base.Theme.SATMesh" />

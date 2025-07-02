@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
 	<style name="Widget.SATMesh.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
 		<item name="android:textColorHint">@color/colorOnPrimary</item>
 		<item name="hintTextColor">@color/colorOnPrimaryHint</item>
@@ -21,8 +22,7 @@
 		<item name="android:paddingEnd">12dp</item>
 	</style>
 
-	<style name="Widget.SATMesh.TextInputEditText.Home" parent="Widget.SATMesh.TextInputEditText">
-	</style>
+	<style name="Widget.SATMesh.TextInputEditText.Home" parent="Widget.SATMesh.TextInputEditText"></style>
 
 	<style name="Widget.SATMesh.Button" parent="Widget.Material3.Button">
 		<item name="backgroundTint">@color/button_background_tint</item>
@@ -43,5 +43,39 @@
 		<item name="boxStrokeWidth">1dp</item>
 		<item name="boxStrokeWidthFocused">2dp</item>
 		<item name="android:padding">4dp</item>
+	</style>
+
+	<!-- About alert dialog -->
+	<style name="AlertDialog.SATMesh" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+		<item name="android:background">@color/dialogBackgroundColor</item>
+		<item name="materialAlertDialogTitleIconStyle">@style/AlertDialog.SATMesh.TitleIconStyle</item>
+
+		<item name="android:textColorAlertDialogListItem">@color/dialogTextColor</item>
+		<item name="android:textColor">@color/dialogTextColor</item>
+		<item name="materialAlertDialogTitleTextStyle">@style/AlertDialog.SATMesh.TitleTextStyle</item>
+
+		<item name="buttonBarPositiveButtonStyle">@style/AlertDialog.SATMesh.PositiveButton</item>
+		<item name="buttonBarNegativeButtonStyle">@style/AlertDialog.SATMesh.NegativeButton</item>
+		<item name="buttonBarNeutralButtonStyle">@style/AlertDialog.SATMesh.NeutralButton</item>
+	</style>
+
+	<style name="AlertDialog.SATMesh.TitleTextStyle" parent="MaterialAlertDialog.Material3.Title.Text">
+		<item name="android:textColor">@color/dialogTitleColor</item>
+	</style>
+
+	<style name="AlertDialog.SATMesh.TitleIconStyle" parent="MaterialAlertDialog.Material3.Title.Icon">
+		<item name="tint">@color/dialogTitleIconColor</item>
+	</style>
+
+	<style name="AlertDialog.SATMesh.PositiveButton" parent="Widget.Material3.Button.TextButton.Dialog">
+		<item name="android:textColor">@color/dialogTextColor</item>
+	</style>
+
+	<style name="AlertDialog.SATMesh.NegativeButton" parent="Widget.Material3.Button.TextButton.Dialog">
+		<item name="android:textColor">@color/dialogButtonNegativeColor</item>
+	</style>
+
+	<style name="AlertDialog.SATMesh.NeutralButton" parent="Widget.Material3.Button.TextButton.Dialog">
+		<item name="android:textColor">@color/dialogButtonNeutralColor</item>
 	</style>
 </resources>

@@ -214,6 +214,16 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		// Initialize database on the main thread ui
 		appDatabase = AppDatabase.getDB(getApplicationContext());
 
+		// Location service checker
+		settingsLauncher = registerForActivityResult(
+				new ActivityResultContracts.StartActivityForResult(),
+				result -> {
+					// On setting activity ended
+					Log.d(TAG, "Back from location setting settings.");
+					checkNearbyApiPreConditions(defaultOnCreate(savedInstanceState));
+				}
+		);
+
 		// Flag to check if the intent was handled by a specific notification action
 		boolean notificationHandled = false;
 		if (getIntent() != null) {
@@ -226,7 +236,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		}
 	}
 
-	private void defaultOnCreate(Bundle savedInstanceState) {
+	private Consumer<Void>  defaultOnCreate(Bundle savedInstanceState) {
 		final Consumer<Void> showFragment;
 		Consumer<Void> showFragmentDefault = (unused) -> {
 			// Load host Node
@@ -256,17 +266,8 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		} else {
 			showFragment = showFragmentDefault;
 		}
-		// Location service checker
-		settingsLauncher = registerForActivityResult(
-				new ActivityResultContracts.StartActivityForResult(),
-				result -> {
-					// On setting activity ended
-					Log.d(TAG, "Back from location setting settings.");
-					checkNearbyApiPreConditions(showFragment);
-				}
-		);
-
 		checkNearbyApiPreConditions(showFragment);
+		return showFragment;
 	}
 
 	/**

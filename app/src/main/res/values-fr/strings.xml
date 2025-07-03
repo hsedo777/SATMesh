@@ -117,6 +117,8 @@
 	<string name="notification_content_route_found">Route vers \'%s\' établie avec succès.</string>
 	<string name="notification_content_route_not_found">Impossible de trouver une route vers \'%s\'.</string>
 
+	<string name="notification_summary_title_route_discovery">Découverte de route</string>
+
 	<!-- Notification buttons -->
 	<string name="action_mark_as_read">Marquer comme lu</string>
 	<string name="new_messages_from_sender">%s de %s</string>

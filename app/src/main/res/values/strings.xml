@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
 	<string name="app_name">SATMesh</string>
 	<string name="welcome_title">Welcome!</string>
@@ -115,6 +116,8 @@
 	<string name="notification_content_route_discovery_initiated">Searching for a route to \'%s\'…</string>
 	<string name="notification_content_route_found">Route to \'%s\' successfully established.</string>
 	<string name="notification_content_route_not_found">Unable to find a route to \'%s\'.</string>
+
+	<string name="notification_summary_title_route_discovery">Route Discovery</string>
 
 	<!-- Notification buttons -->
 	<string name="action_mark_as_read">Mark as Read</string>

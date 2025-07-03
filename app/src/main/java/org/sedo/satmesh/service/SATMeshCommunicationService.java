@@ -623,29 +623,31 @@ public class SATMeshCommunicationService extends Service {
 	 */
 	private void showRouteDiscoveryInitiatedNotification(@NonNull Bundle data) {
 		String targetAddress = data.getString(Constants.NODE_ADDRESS);
-		String targetDisplayName = data.getString(Constants.NODE_DISPLAY_NAME);
+		String displayName = data.getString(Constants.NODE_DISPLAY_NAME);
 
 		if (targetAddress == null) {
 			Log.e(TAG, "Missing data for ROUTE_DISCOVERY_INITIATED notification: address is null.");
 			return;
 		}
 
-		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.ROUTE_DISCOVERY_INITIATED,
-				data, Constants.NOTIFICATION_ID_ROUTE_DISCOVERY_INITIATED);
+		String groupKey = Constants.GROUP_ROUTE_DISCOVERY_KEY;
+		GroupData groupData = idProvider.addGroup(groupKey, groupKey.hashCode());
+		int notificationId = idProvider.nextId();
 
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.CHANNEL_ID_NETWORK_EVENTS)
-				.setSmallIcon(R.drawable.ic_notification)
-				.setContentTitle(getString(R.string.notification_title_route_discovery_initiated))
-				.setContentText(getString(R.string.notification_content_route_discovery_initiated, targetDisplayName != null ? targetDisplayName : targetAddress))
-				.setPriority(NotificationCompat.PRIORITY_LOW)
-				.setContentIntent(pendingIntent)
-				.setAutoCancel(true);
+		NotificationCompat.Builder builder = childBuilder(NotificationType.ROUTE_DISCOVERY_INITIATED, Constants.CHANNEL_ID_NETWORK_EVENTS, data, notificationId, groupKey,
+				groupData, getString(R.string.notification_title_route_discovery_initiated),
+				getString(R.string.notification_content_route_discovery_initiated,
+						displayName != null ? displayName : targetAddress), NotificationCompat.PRIORITY_LOW);
 
 		// No sound/vibration for low priority on older APIs unless explicitly set here
 
+		String title = getString(R.string.notification_summary_title_route_discovery);
+		NotificationCompat.Builder summaryBuilder = summaryBuilder(Constants.CHANNEL_ID_NETWORK_EVENTS, groupKey, title, title, groupData);
+
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {
-			notificationManager.notify(Constants.NOTIFICATION_ID_ROUTE_DISCOVERY_INITIATED, builder.build());
+			notificationManager.notify(notificationId, builder.build());
+			notificationManager.notify(groupData.id, summaryBuilder.build());
 			Log.d(TAG, "Route discovery initiated notification shown for " + targetAddress);
 		} catch (SecurityException e) {
 			Log.w(TAG, "User has cancelled notification post permission", e);

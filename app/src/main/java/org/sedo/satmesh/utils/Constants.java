@@ -2,6 +2,7 @@ package org.sedo.satmesh.utils;
 
 public class Constants {
 
+	// Start : DO NOT ALTER ANY ON THESE CONSTANTS
 	// SharedPreferences Keys
 	public static final String PREFS_FILE_NAME = "SatMeshPrefs";
 	// Keys for host node
@@ -9,6 +10,7 @@ public class Constants {
 	public static final String PREF_KEY_HOST_NODE_ID = "host_node_id";
 	public static final String NODE_ADDRESS_NAME_PREFIX = "satmesh-";
 	public static final String PREF_KEY_HOST_ADDRESS_NAME = "host_address_name";
+	// End : DO NOT ALTER ANY ON THESE CONSTANTS
 
 	// Fragment Tags
 	public static final String TAG_WELCOME_FRAGMENT = "WelcomeFragment";
@@ -27,7 +29,6 @@ public class Constants {
 	public static final String NOTIFICATION_ID = "org.sedo.satmesh.extra.NOTIFICATION_ID";
 	public static final String NOTIFICATION_GROUP_ID = "org.sedo.satmesh.extra.NOTIFICATION_GROUP_ID";
 	public static final String NOTIFICATION_GROUP_KEY = "org.sedo.satmesh.extra.NOTIFICATION_GROUP_KEY";
-	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_INITIATED = 1002;
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT = 1003;
 
 	public static final String ACTION_SHOW_SATMESH_NOTIFICATION = "org.sedo.satmesh.action.ACTION_SHOW_NOTIFICATION";

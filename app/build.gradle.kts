@@ -73,6 +73,8 @@ dependencies {
     implementation(libs.protobuf.javalite)
     // Signal Protocol
     implementation(libs.libsignal.protocol.java)
+    // Preferences
+    implementation(libs.androidx.preference)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

@@ -13,6 +13,7 @@ roomCompiler = "2.7.2"
 roomRuntime = "2.7.2"
 sqlcipherAndroid = "4.9.0"
 protobuf = "3.10.0"
+androidxPreference = "1.2.1"
 
 [libraries]
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
@@ -29,6 +30,7 @@ play-services-nearby = { module = "com.google.android.gms:play-services-nearby",
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf"  }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
+androidx-preference = { group = "androidx.preference", name = "preference", version.ref = "androidxPreference" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

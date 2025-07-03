@@ -15,13 +15,13 @@ import org.sedo.satmesh.utils.Constants;
  *
  * @author hovozounkou
  */
-public class MarkAsReadReceiver extends BroadcastReceiver {
+public class MessageBroadcastReceiver extends BroadcastReceiver {
 
-	private static final String TAG = "MarkAsReadReceiver";
+	private static final String TAG = "MessageBroadcastReceiver";
 
 	@Override
 	public void onReceive(Context context, Intent intent) {
-		if (intent != null && Constants.ACTION_MARK_AS_READ.equals(intent.getAction())) {
+		if (intent != null && Constants.ACTION_BROADCAST_MASSAGE_NOTIFICATION.equals(intent.getAction())) {
 			long messageId = intent.getLongExtra(Constants.MESSAGE_ID, -1L);
 			long payloadId = intent.getLongExtra(Constants.MESSAGE_PAYLOAD_ID, 0L);
 			int notificationId = intent.getIntExtra(Constants.NOTIFICATION_ID, -1);

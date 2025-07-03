@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.RingtoneManager;
@@ -29,6 +30,9 @@ import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Constants;
 import org.sedo.satmesh.utils.NotificationType;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -42,18 +46,21 @@ public class SATMeshCommunicationService extends Service {
 	private static final String TAG = "SATMeshCommService";
 	private static final String NOTIFICATION_CHANNEL_ID = "SATMesh_Communication_Channel";
 	private static final int NOTIFICATION_ID = 101; // Unique ID for the foreground service notification
+	private final NotificationIdProvider idProvider;
 	// Instances of communication managers
 	private NearbyManager nearbyManager;
 	private SignalManager signalManager;
 	private NearbySignalMessenger nearbySignalMessenger;
-
 	// Database and SharedPreferences
 	private AppDatabase appDatabase;
 	private SharedPreferences sharedPreferences;
 	private ExecutorService serviceExecutor; // Executor for internal service operations
-
 	// Host node state and communication modules state
 	private Node hostNode;
+
+	public SATMeshCommunicationService() {
+		idProvider = new NotificationIdProvider();
+	}
 
 	@Override
 	public void onCreate() {
@@ -399,22 +406,26 @@ public class SATMeshCommunicationService extends Service {
 		long messageId = data.getLong(Constants.MESSAGE_ID, -1L);
 		long payloadId = data.getLong(Constants.MESSAGE_PAYLOAD_ID, 0L);
 
-		if (senderName == null || messageContent == null || remoteNodeAddress == null || messageId == -1L
-				|| payloadId == 0L) {
+		if (senderName == null || messageContent == null || remoteNodeAddress == null
+				|| messageId == -1L || payloadId == 0L) {
 			Log.e(TAG, "Missing data for NEW_MESSAGE notification: senderName=" + senderName + ", content=" + messageContent + ", address=" + remoteNodeAddress);
 			return;
 		}
 
-		int notificationId = Constants.NOTIFICATION_ID_NEW_MESSAGE;
+		GroupData summary = idProvider.addGroup(remoteNodeAddress, remoteNodeAddress.hashCode());
+		int notificationId = idProvider.nextId();
 
-		// Prepare the action
-		Intent markAsReadIntent = new Intent(getApplicationContext(), MarkAsReadReceiver.class);
-		markAsReadIntent.setAction(Constants.ACTION_MARK_AS_READ);
+		Context context = getApplicationContext();
+		// Prepare the individual notification
+		Intent markAsReadIntent = new Intent(context, MessageBroadcastReceiver.class);
+		markAsReadIntent.setAction(Constants.ACTION_BROADCAST_MASSAGE_NOTIFICATION);
+		markAsReadIntent.addCategory(Constants.CATEGORY_MARK_AS_READ);
 		markAsReadIntent.putExtras(data);
 		markAsReadIntent.putExtra(Constants.NOTIFICATION_ID, notificationId);
+		markAsReadIntent.putExtra(Constants.NOTIFICATION_GROUP_ID, summary.id);
 
 		PendingIntent markAsReadPendingIntent = PendingIntent.getBroadcast(
-				getApplicationContext(),
+				context,
 				notificationId,
 				markAsReadIntent,
 				PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
@@ -422,19 +433,21 @@ public class SATMeshCommunicationService extends Service {
 
 		NotificationCompat.Action markAsReadAction = new NotificationCompat.Action.Builder(
 				null,
-				getApplicationContext().getString(R.string.action_mark_as_read),
+				context.getString(R.string.action_mark_as_read),
 				markAsReadPendingIntent
 		).build();
 
 		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.NEW_MESSAGE, data, notificationId);
 
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.CHANNEL_ID_MESSAGES)
+		NotificationCompat.Builder builder = new NotificationCompat.Builder(context, Constants.CHANNEL_ID_MESSAGES)
 				.setSmallIcon(R.drawable.ic_notification)
 				.setContentTitle(senderName)
 				.setContentText(messageContent)
 				.setPriority(NotificationCompat.PRIORITY_HIGH)
 				.setContentIntent(pendingIntent)
 				.setAutoCancel(true)
+				.setGroup(remoteNodeAddress)
+				.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
 				.addAction(markAsReadAction);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -442,9 +455,26 @@ public class SATMeshCommunicationService extends Service {
 			builder.setVibrate(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
 		}
 
+		String title = context.getString(R.string.new_messages_from_sender,
+				context.getResources().getQuantityString(R.plurals.new_message_count, summary.childrenCount, summary.childrenCount),
+				senderName);
+		NotificationCompat.Builder summaryNotificationBuilder =
+				new NotificationCompat.Builder(context, Constants.CHANNEL_ID_MESSAGES)
+						.setSmallIcon(R.drawable.ic_notification)
+						.setContentTitle(senderName)
+						.setPriority(NotificationCompat.PRIORITY_HIGH)
+						.setAutoCancel(true)
+						.setStyle(new NotificationCompat.InboxStyle()
+								.setSummaryText(title)
+								//.setBigContentTitle(context.getString(R.string.new_messages_from_sender, "", senderName))
+						)
+						.setGroup(remoteNodeAddress)
+						.setGroupSummary(true);
+
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {
 			notificationManager.notify(notificationId, builder.build());
+			notificationManager.notify(summary.id, summaryNotificationBuilder.build());
 			Log.d(TAG, "New message notification shown for " + senderName);
 		} catch (SecurityException e) {
 			Log.w(TAG, "User has cancelled notification post permission", e);
@@ -588,6 +618,72 @@ public class SATMeshCommunicationService extends Service {
 			Log.d(TAG, "Route discovery result notification shown for " + targetAddress + ": " + (found ? "Success" : "Failure"));
 		} catch (SecurityException e) {
 			Log.w(TAG, "User has cancelled notification post permission", e);
+		}
+	}
+
+	private static class NotificationIdProvider {
+
+		private static final int INITIAL_ID = 10;
+
+		private final Map<String, GroupData> groups;
+		private int nextId;
+
+		public NotificationIdProvider() {
+			groups = new HashMap<>();
+			nextId = INITIAL_ID;
+		}
+
+		@NonNull
+		public synchronized GroupData addGroup(@NonNull String group, int groupId) {
+			if (groups.containsKey(group)) {
+				GroupData gd = Objects.requireNonNull(groups.get(group));
+				gd.childrenCount++;
+				return gd;
+			}
+			int finalGroup;
+			if (groupId >= INITIAL_ID && groupId <= nextId) {
+				// This value is already used, change it
+				finalGroup = nextId();
+			} else {
+				finalGroup = groupId;
+			}
+			GroupData data = new GroupData(finalGroup);
+			groups.put(group, data);
+			return data;
+		}
+
+		public synchronized void removeGroup(@NonNull String group) {
+			groups.remove(group);
+			if (groups.isEmpty()) {
+				nextId = INITIAL_ID;
+			}
+		}
+
+		public synchronized int nextId() {
+			return nextId++;
+		}
+	}
+
+	private static class GroupData {
+		public final int id;
+		public int childrenCount;
+
+		public GroupData(int id) {
+			this.id = id;
+			childrenCount = 1;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			GroupData groupData = (GroupData) o;
+			return id == groupData.id && childrenCount == groupData.childrenCount;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(id, childrenCount);
 		}
 	}
 }

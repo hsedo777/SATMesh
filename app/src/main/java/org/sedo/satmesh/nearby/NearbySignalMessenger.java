@@ -324,10 +324,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	}
 
 	/**
-	 * Delegated method to {@link NearbyManager#sendRoutableNearbyMessageInternal(NearbyMessageBody, String, BiConsumer, Consumer)}
+	 * Delegated method to {@code NearbyManager#sendRoutableNearbyMessageInternal(...)}
 	 */
 	protected void sendNearbyMessageInternal(@NonNull NearbyMessageBody plainNearbyMessage, @NonNull String recipientAddressName,
-	                                         @NonNull BiConsumer<Payload, Boolean> transmissionCallback, @NonNull Consumer<Boolean> routeDiscoveryCallback) {
+	                                         @NonNull BiConsumer<Payload, Boolean> transmissionCallback,
+	                                         @Nullable BiConsumer<Payload, Boolean> routeTransmissionCallback,
+	                                         @Nullable Consumer<Boolean> routeDiscoveryCallback) {
 		final Consumer<Boolean> finaleDiscoveryCallback = onSuccess -> {
 			executor.execute(() -> {
 				Node target = nodeRepository.findNodeSync(recipientAddressName);
@@ -341,9 +343,13 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					notifyRouteDiscoveryResult(target, false);
 				}
 			});
-			routeDiscoveryCallback.accept(onSuccess);
+			if (routeDiscoveryCallback != null) {
+				routeDiscoveryCallback.accept(onSuccess);
+			}
 		};
-		nearbyManager.sendRoutableNearbyMessageInternal(plainNearbyMessage, recipientAddressName, transmissionCallback, finaleDiscoveryCallback);
+		final BiConsumer<Payload, Boolean> finalRouteCallback = routeTransmissionCallback != null ? routeTransmissionCallback : (p, s) -> {
+		};
+		nearbyManager.sendRoutableNearbyMessageInternal(plainNearbyMessage, recipientAddressName, transmissionCallback, finalRouteCallback, finaleDiscoveryCallback);
 	}
 
 	/**
@@ -359,8 +365,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Message msg = messageRepository.getMessageByIdSync(messageDbId);
 				if (msg != null) {
 					msg.setStatus(status);
-					if (payloadId != null && payloadId != 0L) {
-						msg.setPayloadId(payloadId); // Set the Nearby Payload ID
+					if (payloadId != null && payloadId != 0L && (msg.getPayloadId() == null || msg.getPayloadId() == 0L)) {
+						msg.setPayloadId(payloadId); // Set the Nearby Payload ID, only if the value is not previously defined
 					}
 					messageRepository.updateMessage(msg);
 					Log.d(TAG, "Message ID " + messageDbId + " status updated to " + status + ".");
@@ -437,6 +443,18 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		});
 	}
 
+	private void consumeSendingEncryptedTextMessage(Payload payload, Boolean success, int messageStatusOnSuccess, long messageDbId, String recipientAddressName, TextMessage textMessage) {
+		if (success) {
+			Log.d(TAG, "TextMessage sent successfully to " + recipientAddressName + ". Payload ID: " + payload.getId());
+			// Update message in DB with sent status and payload ID. Set status pending to message ack
+			updateMessageStatus(messageDbId, messageStatusOnSuccess, payload.getId());
+		} else {
+			Log.e(TAG, "Failed to send TextMessage to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
+			// Update message in DB with failed status
+			updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId());
+		}
+	}
+
 	/**
 	 * Sends an encrypted message to a specific remote device.
 	 * Before calling this method, the message should already be stored in the database
@@ -468,17 +486,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(ENCRYPTED_MESSAGE).setEncryptedData(textMessage.toByteString()).build();
 
 				// Send the wrapped message
-				sendNearbyMessageInternal(messageBody, recipientAddressName, (payload, success) -> {
-					if (success) {
-						Log.d(TAG, "TextMessage sent successfully to " + recipientAddressName + ". Payload ID: " + payload.getId());
-						// Update message in DB with sent status and payload ID. Set status pending to message ack
-						updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_PENDING, payload.getId());
-					} else {
-						Log.e(TAG, "Failed to send TextMessage to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
-						// Update message in DB with failed status
-						updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId());
-					}
-				}, initiated -> updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId()));
+				sendNearbyMessageInternal(messageBody, recipientAddressName,
+						(payload, success) -> consumeSendingEncryptedTextMessage(payload, success, Message.MESSAGE_STATUS_DELIVERED, messageDbId, recipientAddressName, textMessage),
+						(payload, success) -> consumeSendingEncryptedTextMessage(payload, success, Message.MESSAGE_STATUS_ROUTING, messageDbId, recipientAddressName, textMessage),
+						initiated -> updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId()));
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error encrypting or sending TextMessage to " + recipientAddressName, e);
@@ -498,7 +509,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 */
 	public void sendMessageAck(long originalPayloadId, @NonNull String recipientAddressName, boolean delivered, @Nullable Consumer<Boolean> callback) {
 		executor.execute(() -> {
-			Consumer<Boolean> finalCallback = callback != null ? callback : aBoolean -> {};
+			Consumer<Boolean> finalCallback = callback != null ? callback : aBoolean -> {
+			};
 			try {
 				if (!hasSession(recipientAddressName)) {
 					Log.w(TAG, "No active Signal session with " + recipientAddressName + " to send ACK. Skipping.");
@@ -530,8 +542,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						Log.e(TAG, "Failed to send " + (delivered ? "Delivered" : "Read") + " ACK for payload " + originalPayloadId + " to " + recipientAddressName);
 						finalCallback.accept(false);
 					}
-				}, unused -> {
-				});
+				}, null, null);
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error sending ACK for payload " + originalPayloadId + " to " + recipientAddressName, e);
@@ -561,13 +572,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					} else {
 						Log.e(TAG, "Failed to send PersonalInfo to " + recipientAddressName);
 					}
-				}, success -> {
-					if (success) {
-						Log.d(TAG, "PersonalInfo sending in wait for route discovery, recipient=" + recipientAddressName);
-					} else {
-						Log.e(TAG, "Failed to send PersonalInfo to " + recipientAddressName + ", unable to search for route.");
-					}
-				});
+				}, null, null);
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error sending PersonalInfo to " + recipientAddressName, e);

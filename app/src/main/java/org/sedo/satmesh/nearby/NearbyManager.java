@@ -305,16 +305,11 @@ public class NearbyManager {
 	}
 
 	@NonNull
-	private List<String> getAllAddressNameOf(int status) {
+	protected List<String> getConnectedEndpointsAddressNames() {
 		return endpointStates.values().stream().
-				filter(connectionState -> connectionState.status == status)
+				filter(connectionState -> connectionState.status == NearbyManager.STATUS_CONNECTED)
 				.map(connectionState -> connectionState.addressName)
 				.collect(Collectors.toList());
-	}
-
-	@NonNull
-	protected List<String> getConnectedEndpointsAddressNames() {
-		return getAllAddressNameOf(STATUS_CONNECTED);
 	}
 
 	/**
@@ -553,8 +548,11 @@ public class NearbyManager {
 	 * @param recipientAddressName         The {@code SignalProtocolAddress.name} of the final recipient.
 	 * @param transmissionCallback         A {@link BiConsumer} callback that receives the {@link Payload}
 	 *                                     (or {@code null} if direct transmission failed or route not found)
-	 *                                     and a boolean indicating success ({@code true}) or failure ({@code false})
-	 *                                     of the attempt to send the message to the next hop (direct connection or first hop of route).
+	 *                                     and a boolean indicating success ({@code true}) or failure ({@code false}).
+	 * @param routeTransmissionCallback    A {@link BiConsumer} callback that receives the {@link Payload}
+	 *                                     (or {@code null} if the attempt to send the message to the next
+	 *                                     hop (direct connection or first hop of route). So it is used only if
+	 *                                     the message is put on a route.
 	 * @param onDiscoveryInitiatedCallback An optional {@link Consumer} callback that is invoked to
 	 *                                     inform the caller if route discovery was initiated ({@code true})
 	 *                                     or not needed/failed to initiate ({@code false}). This callback
@@ -563,6 +561,7 @@ public class NearbyManager {
 	protected void sendRoutableNearbyMessageInternal(@NonNull NearbyMessageBody plainMessageBody,
 	                                                 @NonNull String recipientAddressName,
 	                                                 @NonNull BiConsumer<Payload, Boolean> transmissionCallback,
+	                                                 @NonNull BiConsumer<Payload, Boolean> routeTransmissionCallback,
 	                                                 @Nullable Consumer<Boolean> onDiscoveryInitiatedCallback) {
 		executorService.execute(() -> {
 			final String endpointId = getLinkedEndpointId(recipientAddressName);
@@ -574,11 +573,11 @@ public class NearbyManager {
 					if (routeAndUsage == null || routeAndUsage.routeEntry == null) {
 						Log.d(TAG, "No route found. Init route discovery.");
 						nearbyRouteManager.initiateRouteDiscovery(recipientAddressName,
-								unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback),
+								unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, routeTransmissionCallback),
 								onDiscoveryInitiatedCallback);
 					} else {
 						// There is a valid active route
-						nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, transmissionCallback);
+						nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, routeTransmissionCallback);
 					}
 				} catch (Exception e) {
 					Log.e(TAG, "Handling route for message transmission failed.", e);

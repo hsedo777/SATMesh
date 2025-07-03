@@ -5,8 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-import androidx.core.app.NotificationManagerCompat;
-
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.utils.Constants;
 
@@ -32,9 +30,11 @@ public class MessageBroadcastReceiver extends BroadcastReceiver {
 					NearbySignalMessenger.getInstance().sendMessageAck(payloadId, remoteAddressName, false, onSuccess -> {
 						if (onSuccess) {
 							if (notificationId != -1) {
-								NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-								notificationManager.cancel(notificationId);
-								Log.d(TAG, "Notification ID " + notificationId + " dismissed.");
+								Intent serviceIntent = new Intent(context, SATMeshCommunicationService.class);
+								serviceIntent.putExtras(intent); // Transfer required data from the current intent to service intent
+								serviceIntent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
+								context.startService(serviceIntent);
+								Log.d(TAG, "Notification ID " + notificationId + " dismissing request sent to the service.");
 							}
 						}
 					});

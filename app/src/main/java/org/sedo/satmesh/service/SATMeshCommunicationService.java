@@ -593,7 +593,7 @@ public class SATMeshCommunicationService extends Service {
 		int title = isNew ? R.string.notification_title_new_node_discovered : R.string.notification_title_node_discovered;
 		int content = isNew ? R.string.notification_content_new_node_discovered : R.string.notification_content_node_discovered;
 		NotificationCompat.Builder builder = childBuilder(NotificationType.NEW_NODE_DISCOVERED, Constants.CHANNEL_ID_NETWORK_EVENTS,
-				data, notificationId, groupKey,summary, getString(title), getString(content, nodeName != null ? nodeName : nodeAddress),
+				data, notificationId, groupKey, summary, getString(title), getString(content, nodeName != null ? nodeName : nodeAddress),
 				NotificationCompat.PRIORITY_DEFAULT);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -712,18 +712,37 @@ public class SATMeshCommunicationService extends Service {
 		}
 	}
 
+	/**
+	 * Manages unique integer IDs for both individual notifications and notification groups (summaries).
+	 * It ensures that notification IDs do not conflict and that group IDs are consistently managed.
+	 *
+	 * @author hovozounkou
+	 */
 	private static class NotificationIdProvider {
 
-		private static final int INITIAL_ID = 10;
+		private static final int INITIAL_ID = 10; // Starting point for sequential notification IDs.
 
-		private final Map<String, GroupData> groups;
-		private volatile int nextId;
+		private final Map<String, GroupData> groups; // Stores GroupData objects mapped by their group key
+		private volatile int nextId; // The next available sequential ID for a notification.
 
+		/**
+		 * Initializes a new NotificationIdProvider.
+		 */
 		public NotificationIdProvider() {
 			groups = new ConcurrentHashMap<>();
 			nextId = INITIAL_ID;
 		}
 
+		/**
+		 * Adds or updates a notification group and returns its associated GroupData.
+		 * If the group already exists, its child count is incremented. If it's a new group,
+		 * it attempts to use the provided {@code groupId} as its unique ID.
+		 * If {@code groupId} conflicts with an already allocated sequential ID, a new sequential ID is used.
+		 *
+		 * @param group   The unique string key for the group.
+		 * @param groupId A proposed integer ID for the group, typically derived from its unique key.
+		 * @return The {@code GroupData} object for the specified group, including its stable ID and child count.
+		 */
 		@NonNull
 		public synchronized GroupData addGroup(@NonNull String group, int groupId) {
 			if (groups.containsKey(group)) {
@@ -743,6 +762,12 @@ public class SATMeshCommunicationService extends Service {
 			return data;
 		}
 
+		/**
+		 * Removes a notification group from tracking.
+		 * If no groups remain, the sequential ID counter (`nextId`) is reset.
+		 *
+		 * @param group The unique string key of the group to remove.
+		 */
 		public synchronized void removeGroup(@NonNull String group) {
 			groups.remove(group);
 			if (groups.isEmpty()) {
@@ -750,6 +775,14 @@ public class SATMeshCommunicationService extends Service {
 			}
 		}
 
+		/**
+		 * Decrements the child count for a specified notification group.
+		 * If the child count reaches zero, the group is removed, and its corresponding
+		 * summary notification is cancelled from the system notification bar.
+		 *
+		 * @param groupKey The unique string key of the group.
+		 * @param context  The application context, used to access {@link NotificationManagerCompat}.
+		 */
 		public synchronized void decreaseGroupChildrenCount(@NonNull String groupKey, Context context) {
 			GroupData groupData = groups.get(groupKey);
 			if (groupData != null) {
@@ -762,6 +795,14 @@ public class SATMeshCommunicationService extends Service {
 			}
 		}
 
+		/**
+		 * Generates a unique integer ID for a notification.
+		 * This method ensures that the generated ID does not conflict with any
+		 * currently used group notification IDs, nor any used notification ID
+		 * for an individual notification.
+		 *
+		 * @return A unique integer ID suitable for a notification.
+		 */
 		public synchronized int nextId() {
 			Set<Integer> ids = groups.values().stream().map(groupData -> groupData.id).collect(Collectors.toSet());
 			int next = nextId;
@@ -773,13 +814,31 @@ public class SATMeshCommunicationService extends Service {
 		}
 	}
 
+	/**
+	 * Represents the data for a notification group, tracking its unique ID
+	 * and the number of child notifications within it.
+	 *
+	 * @author hovozounkou
+	 */
 	private static class GroupData {
+		/**
+		 * The unique integer ID assigned to this notification group.
+		 * This ID is used for the group summary notification.
+		 */
 		public final int id;
+		/**
+		 * The current count of individual (child) notifications belonging to this group.
+		 */
 		public int childrenCount;
 
+		/**
+		 * Constructs a new GroupData instance.
+		 *
+		 * @param id The unique ID for this group.
+		 */
 		public GroupData(int id) {
 			this.id = id;
-			childrenCount = 1;
+			childrenCount = 1; // Initialize with 1 child as it's typically created when the first child arrives
 		}
 
 		@Override

@@ -30,11 +30,13 @@ import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Constants;
 import org.sedo.satmesh.utils.NotificationType;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class SATMeshCommunicationService extends Service {
 
@@ -45,7 +47,7 @@ public class SATMeshCommunicationService extends Service {
 	public static final String ACTION_STOP_COMMUNICATION_MODULES = "org.sedo.satmesh.action.STOP_COMMUNICATION_MODULES";
 	private static final String TAG = "SATMeshCommService";
 	private static final String NOTIFICATION_CHANNEL_ID = "SATMesh_Communication_Channel";
-	private static final int NOTIFICATION_ID = 101; // Unique ID for the foreground service notification
+	private static final int NOTIFICATION_ID = 1; // Unique ID for the foreground service notification
 	private final NotificationIdProvider idProvider;
 	// Instances of communication managers
 	private NearbyManager nearbyManager;
@@ -148,6 +150,21 @@ public class SATMeshCommunicationService extends Service {
 							}
 						} else {
 							Log.w(TAG, "Notification Intent missing type or data bundle.");
+						}
+						break;
+					case Constants.ACTION_NOTIFICATION_DISMISSED:
+						if (intent.hasExtra(Constants.NOTIFICATION_ID) && intent.hasExtra(Constants.NOTIFICATION_GROUP_ID)
+								&& intent.hasExtra(Constants.NOTIFICATION_GROUP_KEY)) {
+							int notificationId = intent.getIntExtra(Constants.NOTIFICATION_ID, -1);
+							int groupId = intent.getIntExtra(Constants.NOTIFICATION_GROUP_ID, -1);
+							String groupKey = Objects.requireNonNull(intent.getStringExtra(Constants.NOTIFICATION_GROUP_KEY));
+							if (groupId == notificationId) {
+								// The group notification is already dismissed
+								idProvider.removeGroup(groupKey);
+							} else {
+								// Dismiss on child element
+								idProvider.decreaseGroupChildrenCount(groupKey, getApplicationContext());
+							}
 						}
 						break;
 					default:
@@ -415,18 +432,32 @@ public class SATMeshCommunicationService extends Service {
 		GroupData summary = idProvider.addGroup(remoteNodeAddress, remoteNodeAddress.hashCode());
 		int notificationId = idProvider.nextId();
 
+		Bundle common = new Bundle();
+		common.putInt(Constants.NOTIFICATION_ID, notificationId);
+		common.putInt(Constants.NOTIFICATION_GROUP_ID, summary.id);
+		common.putString(Constants.NOTIFICATION_GROUP_KEY, remoteNodeAddress);
+
 		Context context = getApplicationContext();
+		// Common dismiss intents
+		Intent dismissIntent = new Intent(context, NotificationDismissReceiver.class);
+		dismissIntent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
+		dismissIntent.putExtras(common);
+
+		Intent summaryDismissIntent = new Intent(context, NotificationDismissReceiver.class);
+		summaryDismissIntent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
+		summaryDismissIntent.putExtras(common);
+		summaryDismissIntent.putExtra(Constants.NOTIFICATION_ID, summary.id); // Redefine ID
+
 		// Prepare the individual notification
 		Intent markAsReadIntent = new Intent(context, MessageBroadcastReceiver.class);
 		markAsReadIntent.setAction(Constants.ACTION_BROADCAST_MASSAGE_NOTIFICATION);
 		markAsReadIntent.addCategory(Constants.CATEGORY_MARK_AS_READ);
 		markAsReadIntent.putExtras(data);
-		markAsReadIntent.putExtra(Constants.NOTIFICATION_ID, notificationId);
-		markAsReadIntent.putExtra(Constants.NOTIFICATION_GROUP_ID, summary.id);
+		markAsReadIntent.putExtras(common);
 
 		PendingIntent markAsReadPendingIntent = PendingIntent.getBroadcast(
 				context,
-				notificationId,
+				idProvider.nextId(),
 				markAsReadIntent,
 				PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
 		);
@@ -448,16 +479,22 @@ public class SATMeshCommunicationService extends Service {
 				.setAutoCancel(true)
 				.setGroup(remoteNodeAddress)
 				.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
-				.addAction(markAsReadAction);
+				.addAction(markAsReadAction)
+				.setDeleteIntent(PendingIntent.getBroadcast(context, idProvider.nextId(), dismissIntent,
+						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
+				;
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
 			builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
 			builder.setVibrate(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
 		}
+		PendingIntent summaryPendingIntent = PendingIntent.getBroadcast(context, idProvider.nextId(),
+				summaryDismissIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
 		String title = context.getString(R.string.new_messages_from_sender,
 				context.getResources().getQuantityString(R.plurals.new_message_count, summary.childrenCount, summary.childrenCount),
 				senderName);
+
 		NotificationCompat.Builder summaryNotificationBuilder =
 				new NotificationCompat.Builder(context, Constants.CHANNEL_ID_MESSAGES)
 						.setSmallIcon(R.drawable.ic_notification)
@@ -465,11 +502,12 @@ public class SATMeshCommunicationService extends Service {
 						.setPriority(NotificationCompat.PRIORITY_HIGH)
 						.setAutoCancel(true)
 						.setStyle(new NotificationCompat.InboxStyle()
-								.setSummaryText(title)
+										.setSummaryText(title)
 								//.setBigContentTitle(context.getString(R.string.new_messages_from_sender, "", senderName))
 						)
 						.setGroup(remoteNodeAddress)
-						.setGroupSummary(true);
+						.setGroupSummary(true)
+						.setDeleteIntent(summaryPendingIntent);
 
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {
@@ -626,10 +664,10 @@ public class SATMeshCommunicationService extends Service {
 		private static final int INITIAL_ID = 10;
 
 		private final Map<String, GroupData> groups;
-		private int nextId;
+		private volatile int nextId;
 
 		public NotificationIdProvider() {
-			groups = new HashMap<>();
+			groups = new ConcurrentHashMap<>();
 			nextId = INITIAL_ID;
 		}
 
@@ -659,8 +697,26 @@ public class SATMeshCommunicationService extends Service {
 			}
 		}
 
+		public synchronized void decreaseGroupChildrenCount(@NonNull String groupKey, Context context) {
+			GroupData groupData = groups.get(groupKey);
+			if (groupData != null) {
+				groupData.childrenCount--;
+				if (groupData.childrenCount == 0) {
+					removeGroup(groupKey);
+					NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+					notificationManager.cancel(groupData.id);
+				}
+			}
+		}
+
 		public synchronized int nextId() {
-			return nextId++;
+			Set<Integer> ids = groups.values().stream().map(groupData -> groupData.id).collect(Collectors.toSet());
+			int next = nextId;
+			while (ids.contains(next)) {
+				next++;
+			}
+			nextId = next + 1;
+			return next;
 		}
 	}
 

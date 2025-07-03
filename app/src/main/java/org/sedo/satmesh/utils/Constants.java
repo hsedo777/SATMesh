@@ -24,13 +24,14 @@ public class Constants {
 
 	public static final String NOTIFICATION_ID = "org.sedo.satmesh.extra.NOTIFICATION_ID";
 	public static final String NOTIFICATION_GROUP_ID = "org.sedo.satmesh.extra.NOTIFICATION_GROUP_ID";
+	public static final String NOTIFICATION_GROUP_KEY = "org.sedo.satmesh.extra.NOTIFICATION_GROUP_KEY";
 	public static final int NOTIFICATION_ID_NEW_NODE_DISCOVERED = 1001;
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_INITIATED = 1002;
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT = 1003;
 
-	public static final String ACTION_SHOW_SATMESH_NOTIFICATION = "org.sedo.satmesh.ACTION_SHOW_NOTIFICATION";
-	public static final String ACTION_LAUNCH_FROM_NOTIFICATION = "org.sedo.satmesh.LAUNCH_FROM_NOTIFICATION";
-	public static final String ACTION_BROADCAST_MASSAGE_NOTIFICATION = "org.sedo.satmesh.BROADCAST_MASSAGE_NOTIFICATION";
+	public static final String ACTION_SHOW_SATMESH_NOTIFICATION = "org.sedo.satmesh.action.ACTION_SHOW_NOTIFICATION";
+	public static final String ACTION_LAUNCH_FROM_NOTIFICATION = "org.sedo.satmesh.action.LAUNCH_FROM_NOTIFICATION";
+	public static final String ACTION_BROADCAST_MASSAGE_NOTIFICATION = "org.sedo.satmesh.action.BROADCAST_MASSAGE_NOTIFICATION";
 	public static final String ACTION_NOTIFICATION_DISMISSED = "org.sedo.satmesh.action.NOTIFICATION_DISMISSED";
 	public static final String CATEGORY_MARK_AS_READ = "org.sedo.satmesh.action.MARK_AS_READ";
 	public static final String EXTRA_NOTIFICATION_TYPE = "notification_type";

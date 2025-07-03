@@ -662,39 +662,34 @@ public class SATMeshCommunicationService extends Service {
 	 * @param data The Bundle containing the target node's address, display name, and route found status.
 	 */
 	private void showRouteDiscoveryResultNotification(@NonNull Bundle data) {
-		String targetAddress = data.getString(Constants.NODE_ADDRESS);
-		String targetDisplayName = data.getString(Constants.NODE_DISPLAY_NAME);
+		String address = data.getString(Constants.NODE_ADDRESS);
+		String displayName = data.getString(Constants.NODE_DISPLAY_NAME);
 		boolean found = data.getBoolean(Constants.ROUTE_IS_FOUND);
 
-		if (targetAddress == null) {
+		if (address == null) {
 			Log.e(TAG, "Missing data for ROUTE_DISCOVERY_RESULT notification: address is null");
 			return;
 		}
 
-		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.ROUTE_DISCOVERY_RESULT,
-				data, Constants.NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT);
+		String groupKey = Constants.GROUP_ROUTE_DISCOVERY_KEY; // Same group as for route initiation
+		GroupData groupData = idProvider.addGroup(groupKey, groupKey.hashCode());
+		int notificationId = idProvider.nextId();
 
 		String title;
 		String content;
 		int priority;
-
 		if (found) {
 			title = getString(R.string.notification_title_route_found);
-			content = getString(R.string.notification_content_route_found, targetDisplayName != null ? targetDisplayName : targetAddress);
+			content = getString(R.string.notification_content_route_found, displayName != null ? displayName : address);
 			priority = NotificationCompat.PRIORITY_DEFAULT;
 		} else {
 			title = getString(R.string.notification_title_route_not_found);
-			content = getString(R.string.notification_content_route_not_found, targetDisplayName != null ? targetDisplayName : targetAddress);
+			content = getString(R.string.notification_content_route_not_found, displayName != null ? displayName : address);
 			priority = NotificationCompat.PRIORITY_HIGH; // More urgent for failure
 		}
 
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.CHANNEL_ID_NETWORK_EVENTS)
-				.setSmallIcon(R.drawable.ic_notification)
-				.setContentTitle(title)
-				.setContentText(content)
-				.setPriority(priority)
-				.setContentIntent(pendingIntent)
-				.setAutoCancel(true);
+		NotificationCompat.Builder builder = childBuilder(NotificationType.ROUTE_DISCOVERY_RESULT, Constants.CHANNEL_ID_NETWORK_EVENTS, data, notificationId, groupKey,
+				groupData, title, content, priority);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
 			if (found) {
@@ -705,10 +700,14 @@ public class SATMeshCommunicationService extends Service {
 			}
 		}
 
+		String summaryTitle = getString(R.string.notification_summary_title_route_discovery);
+		NotificationCompat.Builder summaryBuilder = summaryBuilder(Constants.CHANNEL_ID_NETWORK_EVENTS, groupKey, summaryTitle, summaryTitle, groupData);
+
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {
-			notificationManager.notify(Constants.NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT, builder.build()); // Fixed ID, updates previous
-			Log.d(TAG, "Route discovery result notification shown for " + targetAddress + ": " + (found ? "Success" : "Failure"));
+			notificationManager.notify(notificationId, builder.build());
+			notificationManager.notify(groupData.id, summaryBuilder.build());
+			Log.d(TAG, "Route discovery result notification shown for " + address + ": " + (found ? "Success" : "Failure"));
 		} catch (SecurityException e) {
 			Log.w(TAG, "User has cancelled notification post permission", e);
 		}

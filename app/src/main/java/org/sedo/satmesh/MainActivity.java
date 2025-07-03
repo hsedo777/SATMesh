@@ -236,7 +236,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		}
 	}
 
-	private Consumer<Void>  defaultOnCreate(Bundle savedInstanceState) {
+	private Consumer<Void> defaultOnCreate(Bundle savedInstanceState) {
 		final Consumer<Void> showFragment;
 		Consumer<Void> showFragmentDefault = (unused) -> {
 			// Load host Node
@@ -364,6 +364,12 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 					runOnUiThread(this::navigateToMainScreen);
 				}
 			});
+			// Process notification dismissing
+			Intent serviceIntent = new Intent(this, SATMeshCommunicationService.class);
+			serviceIntent.putExtras(intent); // Transfer required data from the current intent to service intent
+			serviceIntent.putExtra(Constants.NOTIFICATION_ID, intent.getIntExtra(Constants.NOTIFICATION_GROUP_ID, -1)); // Make sure it is the notification group that is canceled
+			serviceIntent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
+			startService(serviceIntent);
 			return true;
 		}
 		return false;

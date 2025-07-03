@@ -436,6 +436,41 @@ public class SATMeshCommunicationService extends Service {
 	}
 
 	/**
+	 * Builds a {@link NotificationCompat.Builder} for a group summary notification.
+	 * This summary notification acts as the collapsed view for a stack of individual notifications
+	 * belonging to the same group.
+	 *
+	 * @param channelId    The ID of the notification channel this summary notification will use.
+	 * @param groupKey     The unique string key that identifies the group of notifications.
+	 *                     All individual notifications belonging to this group must use the same groupKey.
+	 * @param contentTitle The main title displayed on the collapsed summary notification.
+	 * @param summaryText  The summary text displayed within the InboxStyle when the notification is expanded.
+	 *                     This typically provides a count or a brief overview of the notifications in the group.
+	 * @param groupData    A GroupData object containing the unique integer ID for this group summary
+	 *                     and its current children count. The {@code groupData.id} is used as the notification ID
+	 *                     for the summary itself and for its associated dismiss {@link PendingIntent}.
+	 * @return A configured NotificationCompat.Builder instance for the group summary notification.
+	 */
+	private NotificationCompat.Builder summaryBuilder(@NonNull String channelId, @NonNull String groupKey,
+	                                                  @Nullable String contentTitle, @Nullable String summaryText,
+	                                                  @NonNull GroupData groupData) {
+		Intent summaryDismissIntent = new Intent(this, NotificationDismissReceiver.class);
+		putDismissData(summaryDismissIntent, groupData.id, groupData.id, groupKey);
+
+		return new NotificationCompat.Builder(this, channelId)
+				.setSmallIcon(R.drawable.ic_notification)
+				.setPriority(NotificationCompat.PRIORITY_HIGH)
+				.setGroupSummary(true)
+				.setGroup(groupKey)
+				.setAutoCancel(true)
+				.setContentTitle(contentTitle)
+				.setStyle(new NotificationCompat.InboxStyle()
+						.setSummaryText(summaryText))
+				.setDeleteIntent(PendingIntent.getBroadcast(this, idProvider.nextId(),
+						summaryDismissIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+	}
+
+	/**
 	 * Displays a notification for a new message received.
 	 * Extracts message details from the provided data bundle and constructs the notification.
 	 *
@@ -462,9 +497,6 @@ public class SATMeshCommunicationService extends Service {
 		// Dismiss intents for child notification
 		Intent dismissIntent = new Intent(context, NotificationDismissReceiver.class);
 		putDismissData(dismissIntent, notificationId, summary.id, remoteNodeAddress);
-
-		Intent summaryDismissIntent = new Intent(context, NotificationDismissReceiver.class);
-		putDismissData(dismissIntent, summary.id, summary.id, remoteNodeAddress);
 
 		// Prepare the individual notification
 		Intent markAsReadIntent = new Intent(context, MessageBroadcastReceiver.class);
@@ -505,26 +537,11 @@ public class SATMeshCommunicationService extends Service {
 			builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
 			builder.setVibrate(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
 		}
-		PendingIntent summaryPendingIntent = PendingIntent.getBroadcast(context, idProvider.nextId(),
-				summaryDismissIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-		String title = context.getString(R.string.new_messages_from_sender,
-				context.getResources().getQuantityString(R.plurals.new_message_count, summary.childrenCount, summary.childrenCount),
+		String title = getString(R.string.new_messages_from_sender,
+				getResources().getQuantityString(R.plurals.new_message_count, summary.childrenCount, summary.childrenCount),
 				senderName);
-
-		NotificationCompat.Builder summaryNotificationBuilder =
-				new NotificationCompat.Builder(context, Constants.CHANNEL_ID_MESSAGES)
-						.setSmallIcon(R.drawable.ic_notification)
-						.setContentTitle(senderName)
-						.setPriority(NotificationCompat.PRIORITY_HIGH)
-						.setAutoCancel(true)
-						.setStyle(new NotificationCompat.InboxStyle()
-										.setSummaryText(title)
-								//.setBigContentTitle(context.getString(R.string.new_messages_from_sender, "", senderName))
-						)
-						.setGroup(remoteNodeAddress)
-						.setGroupSummary(true)
-						.setDeleteIntent(summaryPendingIntent);
+		NotificationCompat.Builder summaryNotificationBuilder = summaryBuilder(Constants.CHANNEL_ID_MESSAGES, remoteNodeAddress, senderName, title, summary);
 
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {
@@ -582,18 +599,9 @@ public class SATMeshCommunicationService extends Service {
 			builder.setVibrate(new long[]{100, 200, 300});
 		}
 
-		Intent summaryDismissIntent = new Intent(context, NotificationDismissReceiver.class);
-		putDismissData(summaryDismissIntent, summary.id, summary.id, groupKey);
-		NotificationCompat.Builder summaryBuilder = new NotificationCompat.Builder(context, Constants.CHANNEL_ID_NETWORK_EVENTS)
-				.setSmallIcon(R.drawable.ic_notification)
-				.setContentTitle(getString(R.string.notification_title_node_discovery))
-				.setPriority(NotificationCompat.PRIORITY_HIGH)
-				.setDeleteIntent(PendingIntent.getBroadcast(context, idProvider.nextId(), summaryDismissIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
-				.setGroupSummary(true)
-				.setGroup(groupKey)
-				.setStyle(new NotificationCompat.InboxStyle()
-						.setSummaryText(getResources().getQuantityString(R.plurals.node_count, summary.childrenCount, summary.childrenCount)))
-				.setAutoCancel(true);
+		NotificationCompat.Builder summaryBuilder = summaryBuilder(Constants.CHANNEL_ID_NETWORK_EVENTS, groupKey,
+				getString(R.string.notification_title_node_discovery),
+				getResources().getQuantityString(R.plurals.node_count, summary.childrenCount, summary.childrenCount), summary);
 
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {

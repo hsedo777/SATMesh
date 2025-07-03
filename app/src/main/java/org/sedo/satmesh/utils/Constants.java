@@ -21,11 +21,12 @@ public class Constants {
 
 	public static final String CHANNEL_ID_MESSAGES = "satmesh_messages_channel";
 	public static final String CHANNEL_ID_NETWORK_EVENTS = "satmesh_network_events_channel";
+	public static final String GROUP_NODE_DISCOVERY_KEY = "org.sedo.satmesh.group.GROUP_NODE_DISCOVERY";
+	public static final String GROUP_ROUTE_DISCOVERY_KEY = "org.sedo.satmesh.group.GROUP_ROUTE_DISCOVERY";
 
 	public static final String NOTIFICATION_ID = "org.sedo.satmesh.extra.NOTIFICATION_ID";
 	public static final String NOTIFICATION_GROUP_ID = "org.sedo.satmesh.extra.NOTIFICATION_GROUP_ID";
 	public static final String NOTIFICATION_GROUP_KEY = "org.sedo.satmesh.extra.NOTIFICATION_GROUP_KEY";
-	public static final int NOTIFICATION_ID_NEW_NODE_DISCOVERED = 1001;
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_INITIATED = 1002;
 	public static final int NOTIFICATION_ID_ROUTE_DISCOVERY_RESULT = 1003;
 

@@ -411,6 +411,31 @@ public class SATMeshCommunicationService extends Service {
 	}
 
 	/**
+	 * Adds relevant notification dismissal data as extras to an Intent.
+	 * This method is typically used to prepare an Intent that will be sent to a BroadcastReceiver
+	 * (e.g., {@link NotificationDismissReceiver}) when a notification is dismissed by the user or the system.
+	 * This method also set default action to the Intent to value {@link Constants#ACTION_NOTIFICATION_DISMISSED}
+	 *
+	 * @param intent         The Intent to which the dismissal data will be added. This Intent should
+	 *                       be the one used to create the PendingIntent for the notification's deleteIntent.
+	 * @param notificationId The unique ID of the specific notification being dismissed.
+	 *                       If this Intent is for a group summary notification's deleteIntent,
+	 *                       this should be the ID of the summary notification.
+	 * @param groupId        The ID of the notification group (summary notification's ID) to which the
+	 *                       dismissed notification belongs. This is useful for managing grouped notifications
+	 *                       when a child notification is dismissed, or for confirmation if the group summary
+	 *                       itself is dismissed.
+	 * @param groupKey       The unique string key representing the notification group.
+	 *                       This helps identify which entity the dismissal relates to.
+	 */
+	private void putDismissData(@NonNull Intent intent, int notificationId, int groupId, @NonNull String groupKey) {
+		intent.putExtra(Constants.NOTIFICATION_ID, notificationId);
+		intent.putExtra(Constants.NOTIFICATION_GROUP_ID, groupId);
+		intent.putExtra(Constants.NOTIFICATION_GROUP_KEY, groupKey);
+		intent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
+	}
+
+	/**
 	 * Displays a notification for a new message received.
 	 * Extracts message details from the provided data bundle and constructs the notification.
 	 *
@@ -425,35 +450,28 @@ public class SATMeshCommunicationService extends Service {
 
 		if (senderName == null || messageContent == null || remoteNodeAddress == null
 				|| messageId == -1L || payloadId == 0L) {
-			Log.e(TAG, "Missing data for NEW_MESSAGE notification: senderName=" + senderName + ", content=" + messageContent + ", address=" + remoteNodeAddress);
+			Log.e(TAG, "Missing data for NEW_MESSAGE notification: senderName=" + senderName
+					+ ", content=" + messageContent + ", address=" + remoteNodeAddress);
 			return;
 		}
 
 		GroupData summary = idProvider.addGroup(remoteNodeAddress, remoteNodeAddress.hashCode());
 		int notificationId = idProvider.nextId();
 
-		Bundle common = new Bundle();
-		common.putInt(Constants.NOTIFICATION_ID, notificationId);
-		common.putInt(Constants.NOTIFICATION_GROUP_ID, summary.id);
-		common.putString(Constants.NOTIFICATION_GROUP_KEY, remoteNodeAddress);
-
 		Context context = getApplicationContext();
-		// Common dismiss intents
+		// Dismiss intents for child notification
 		Intent dismissIntent = new Intent(context, NotificationDismissReceiver.class);
-		dismissIntent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
-		dismissIntent.putExtras(common);
+		putDismissData(dismissIntent, notificationId, summary.id, remoteNodeAddress);
 
 		Intent summaryDismissIntent = new Intent(context, NotificationDismissReceiver.class);
-		summaryDismissIntent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
-		summaryDismissIntent.putExtras(common);
-		summaryDismissIntent.putExtra(Constants.NOTIFICATION_ID, summary.id); // Redefine ID
+		putDismissData(dismissIntent, summary.id, summary.id, remoteNodeAddress);
 
 		// Prepare the individual notification
 		Intent markAsReadIntent = new Intent(context, MessageBroadcastReceiver.class);
-		markAsReadIntent.setAction(Constants.ACTION_BROADCAST_MASSAGE_NOTIFICATION);
-		markAsReadIntent.addCategory(Constants.CATEGORY_MARK_AS_READ);
 		markAsReadIntent.putExtras(data);
-		markAsReadIntent.putExtras(common);
+		putDismissData(dismissIntent, notificationId, summary.id, remoteNodeAddress);
+		markAsReadIntent.setAction(Constants.ACTION_BROADCAST_MASSAGE_NOTIFICATION); // Rewrite action
+		markAsReadIntent.addCategory(Constants.CATEGORY_MARK_AS_READ);
 
 		PendingIntent markAsReadPendingIntent = PendingIntent.getBroadcast(
 				context,
@@ -481,8 +499,7 @@ public class SATMeshCommunicationService extends Service {
 				.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
 				.addAction(markAsReadAction)
 				.setDeleteIntent(PendingIntent.getBroadcast(context, idProvider.nextId(), dismissIntent,
-						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
-				;
+						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
 			builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
@@ -535,8 +552,16 @@ public class SATMeshCommunicationService extends Service {
 			return;
 		}
 
+		String groupKey = Constants.GROUP_NODE_DISCOVERY_KEY;
+		GroupData summary = idProvider.addGroup(groupKey, groupKey.hashCode());
+		int notificationId = idProvider.nextId();
+
+		Context context = getApplicationContext();
+		Intent dismissIntent = new Intent(context, NotificationDismissReceiver.class);
+		putDismissData(dismissIntent, notificationId, summary.id, groupKey);
+
 		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.NEW_NODE_DISCOVERED,
-				data, Constants.NOTIFICATION_ID_NEW_NODE_DISCOVERED);
+				data, notificationId);
 
 		int title = isNew ? R.string.notification_title_new_node_discovered : R.string.notification_title_node_discovered;
 		int content = isNew ? R.string.notification_content_new_node_discovered : R.string.notification_content_node_discovered;
@@ -546,6 +571,10 @@ public class SATMeshCommunicationService extends Service {
 				.setContentText(getString(content, nodeName != null ? nodeName : nodeAddress))
 				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
 				.setContentIntent(pendingIntent)
+				.setDeleteIntent(PendingIntent.getBroadcast(context, idProvider.nextId(), dismissIntent,
+						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
+				.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
+				.setGroup(groupKey)
 				.setAutoCancel(true);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -553,9 +582,23 @@ public class SATMeshCommunicationService extends Service {
 			builder.setVibrate(new long[]{100, 200, 300});
 		}
 
+		Intent summaryDismissIntent = new Intent(context, NotificationDismissReceiver.class);
+		putDismissData(summaryDismissIntent, summary.id, summary.id, groupKey);
+		NotificationCompat.Builder summaryBuilder = new NotificationCompat.Builder(context, Constants.CHANNEL_ID_NETWORK_EVENTS)
+				.setSmallIcon(R.drawable.ic_notification)
+				.setContentTitle(getString(R.string.notification_title_node_discovery))
+				.setPriority(NotificationCompat.PRIORITY_HIGH)
+				.setDeleteIntent(PendingIntent.getBroadcast(context, idProvider.nextId(), summaryDismissIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
+				.setGroupSummary(true)
+				.setGroup(groupKey)
+				.setStyle(new NotificationCompat.InboxStyle()
+						.setSummaryText(getResources().getQuantityString(R.plurals.node_count, summary.childrenCount, summary.childrenCount)))
+				.setAutoCancel(true);
+
 		NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 		try {
-			notificationManager.notify(Constants.NOTIFICATION_ID_NEW_NODE_DISCOVERED, builder.build());
+			notificationManager.notify(notificationId, builder.build());
+			notificationManager.notify(summary.id, summaryBuilder.build());
 			Log.d(TAG, "New node discovered notification shown for " + nodeName);
 		} catch (SecurityException e) {
 			Log.w(TAG, "User has cancelled notification post permission", e);

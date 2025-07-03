@@ -392,16 +392,21 @@ public class SATMeshCommunicationService extends Service {
 	 *
 	 * @param data        A {@link Bundle} containing any extra data to be passed to the {@link MainActivity}.
 	 *                    This bundle will be set as the extras of the {@link Intent}.
-	 * @param requestCode A unique request code for this PendingIntent. This helps differentiate
-	 *                    between multiple {@code PendingIntent}s from the application, especially when
-	 *                    they might lead to different actions or views within the MainActivity.
+	 * @param requestCode A unique request code for this PendingIntent. It is also interpreted as the ID of
+	 *                    notification to which the returned {@code PendingIntent} is to bind.
+	 *                    This helps differentiate between multiple {@code PendingIntent}s from the
+	 *                    application, especially when they might lead to different actions or views
+	 *                    within the MainActivity.
+	 * @param groupId     The ID of the notification group the individual notification belongs to.
+	 * @param groupKey    The string key identifying the notification group the individual notification belongs to.
 	 * @return A {@link PendingIntent} configured to open {@link MainActivity} with the specified data.
 	 */
-	private PendingIntent createMainActivityPendingIntent(@NonNull NotificationType notificationType, @NonNull Bundle data, int requestCode) {
+	private PendingIntent createMainActivityPendingIntent(@NonNull NotificationType notificationType, @NonNull Bundle data, int requestCode, int groupId, @NonNull String groupKey) {
 		Intent intent = new Intent(getApplicationContext(), MainActivity.class);
 		intent.putExtras(data);
+		putDismissData(intent, requestCode, groupId, groupKey);
 		intent.putExtra(Constants.EXTRA_NOTIFICATION_TYPE, notificationType.name());
-		intent.setAction(Constants.ACTION_LAUNCH_FROM_NOTIFICATION);
+		intent.setAction(Constants.ACTION_LAUNCH_FROM_NOTIFICATION); // Rewrite the action
 		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
 		// FLAG_IMMUTABLE is required for API 31+
@@ -492,7 +497,7 @@ public class SATMeshCommunicationService extends Service {
 		Intent dismissIntent = new Intent(this, NotificationDismissReceiver.class);
 		putDismissData(dismissIntent, notificationId, groupData.id, groupKey);
 
-		PendingIntent pendingIntent = createMainActivityPendingIntent(notificationType, pendingIntentData, notificationId);
+		PendingIntent pendingIntent = createMainActivityPendingIntent(notificationType, pendingIntentData, notificationId, groupData.id, groupKey);
 
 		return new NotificationCompat.Builder(this, channelId)
 				.setSmallIcon(R.drawable.ic_notification)

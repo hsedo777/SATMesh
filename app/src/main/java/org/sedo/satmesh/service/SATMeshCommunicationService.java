@@ -397,7 +397,7 @@ public class SATMeshCommunicationService extends Service {
 	 *                    they might lead to different actions or views within the MainActivity.
 	 * @return A {@link PendingIntent} configured to open {@link MainActivity} with the specified data.
 	 */
-	private PendingIntent createMainActivityPendingIntent(@NonNull NotificationType notificationType, Bundle data, int requestCode) {
+	private PendingIntent createMainActivityPendingIntent(@NonNull NotificationType notificationType, @NonNull Bundle data, int requestCode) {
 		Intent intent = new Intent(getApplicationContext(), MainActivity.class);
 		intent.putExtras(data);
 		intent.putExtra(Constants.EXTRA_NOTIFICATION_TYPE, notificationType.name());
@@ -471,6 +471,39 @@ public class SATMeshCommunicationService extends Service {
 	}
 
 	/**
+	 * Builds a {@code NotificationCompat.Builder} for an individual (child) notification within a group.
+	 * This notification will be stacked under a group summary notification.
+	 *
+	 * @param notificationType  The type of notification, used for handling its action.
+	 * @param channelId         The ID of the notification channel.
+	 * @param pendingIntentData Data to be included in the PendingIntent that launches the main activity when clicked.
+	 * @param notificationId    The unique ID for this specific individual notification.
+	 * @param groupKey          The string key identifying the notification group it belongs to.
+	 * @param groupData         A GroupData object containing the group's ID and current child count.
+	 * @param contentTitle      The title of the individual notification.
+	 * @param contentText       The main text content of the individual notification (e.g., message preview).
+	 * @param priority          The priority level for this notification.
+	 * @return A configured NotificationCompat.Builder for the child notification.
+	 */
+	private NotificationCompat.Builder childBuilder(@NonNull NotificationType notificationType, @NonNull String channelId,
+	                                                @NonNull Bundle pendingIntentData, int notificationId,
+	                                                @NonNull String groupKey, @NonNull GroupData groupData,
+	                                                @Nullable String contentTitle, @Nullable String contentText, int priority) {
+		Intent dismissIntent = new Intent(this, NotificationDismissReceiver.class);
+		putDismissData(dismissIntent, notificationId, groupData.id, groupKey);
+
+		PendingIntent pendingIntent = createMainActivityPendingIntent(notificationType, pendingIntentData, notificationId);
+
+		return new NotificationCompat.Builder(this, channelId)
+				.setSmallIcon(R.drawable.ic_notification)
+				.setContentTitle(contentTitle).setContentText(contentText)
+				.setPriority(priority).setContentIntent(pendingIntent).setAutoCancel(true)
+				.setGroup(groupKey).setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
+				.setDeleteIntent(PendingIntent.getBroadcast(this, idProvider.nextId(), dismissIntent,
+						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+	}
+
+	/**
 	 * Displays a notification for a new message received.
 	 * Extracts message details from the provided data bundle and constructs the notification.
 	 *
@@ -493,20 +526,15 @@ public class SATMeshCommunicationService extends Service {
 		GroupData summary = idProvider.addGroup(remoteNodeAddress, remoteNodeAddress.hashCode());
 		int notificationId = idProvider.nextId();
 
-		Context context = getApplicationContext();
-		// Dismiss intents for child notification
-		Intent dismissIntent = new Intent(context, NotificationDismissReceiver.class);
-		putDismissData(dismissIntent, notificationId, summary.id, remoteNodeAddress);
-
 		// Prepare the individual notification
-		Intent markAsReadIntent = new Intent(context, MessageBroadcastReceiver.class);
+		Intent markAsReadIntent = new Intent(this, MessageBroadcastReceiver.class);
 		markAsReadIntent.putExtras(data);
-		putDismissData(dismissIntent, notificationId, summary.id, remoteNodeAddress);
+		putDismissData(markAsReadIntent, notificationId, summary.id, remoteNodeAddress);
 		markAsReadIntent.setAction(Constants.ACTION_BROADCAST_MASSAGE_NOTIFICATION); // Rewrite action
 		markAsReadIntent.addCategory(Constants.CATEGORY_MARK_AS_READ);
 
 		PendingIntent markAsReadPendingIntent = PendingIntent.getBroadcast(
-				context,
+				this,
 				idProvider.nextId(),
 				markAsReadIntent,
 				PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
@@ -514,24 +542,13 @@ public class SATMeshCommunicationService extends Service {
 
 		NotificationCompat.Action markAsReadAction = new NotificationCompat.Action.Builder(
 				null,
-				context.getString(R.string.action_mark_as_read),
+				getString(R.string.action_mark_as_read),
 				markAsReadPendingIntent
 		).build();
 
-		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.NEW_MESSAGE, data, notificationId);
-
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(context, Constants.CHANNEL_ID_MESSAGES)
-				.setSmallIcon(R.drawable.ic_notification)
-				.setContentTitle(senderName)
-				.setContentText(messageContent)
-				.setPriority(NotificationCompat.PRIORITY_HIGH)
-				.setContentIntent(pendingIntent)
-				.setAutoCancel(true)
-				.setGroup(remoteNodeAddress)
-				.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
-				.addAction(markAsReadAction)
-				.setDeleteIntent(PendingIntent.getBroadcast(context, idProvider.nextId(), dismissIntent,
-						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+		NotificationCompat.Builder builder = childBuilder(NotificationType.NEW_MESSAGE, Constants.CHANNEL_ID_MESSAGES, data, notificationId,
+				remoteNodeAddress, summary, senderName, messageContent, NotificationCompat.PRIORITY_HIGH)
+				.addAction(markAsReadAction);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
 			builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
@@ -573,26 +590,11 @@ public class SATMeshCommunicationService extends Service {
 		GroupData summary = idProvider.addGroup(groupKey, groupKey.hashCode());
 		int notificationId = idProvider.nextId();
 
-		Context context = getApplicationContext();
-		Intent dismissIntent = new Intent(context, NotificationDismissReceiver.class);
-		putDismissData(dismissIntent, notificationId, summary.id, groupKey);
-
-		PendingIntent pendingIntent = createMainActivityPendingIntent(NotificationType.NEW_NODE_DISCOVERED,
-				data, notificationId);
-
 		int title = isNew ? R.string.notification_title_new_node_discovered : R.string.notification_title_node_discovered;
 		int content = isNew ? R.string.notification_content_new_node_discovered : R.string.notification_content_node_discovered;
-		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.CHANNEL_ID_NETWORK_EVENTS)
-				.setSmallIcon(R.drawable.ic_notification)
-				.setContentTitle(getString(title))
-				.setContentText(getString(content, nodeName != null ? nodeName : nodeAddress))
-				.setPriority(NotificationCompat.PRIORITY_DEFAULT)
-				.setContentIntent(pendingIntent)
-				.setDeleteIntent(PendingIntent.getBroadcast(context, idProvider.nextId(), dismissIntent,
-						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
-				.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
-				.setGroup(groupKey)
-				.setAutoCancel(true);
+		NotificationCompat.Builder builder = childBuilder(NotificationType.NEW_NODE_DISCOVERED, Constants.CHANNEL_ID_NETWORK_EVENTS,
+				data, notificationId, groupKey,summary, getString(title), getString(content, nodeName != null ? nodeName : nodeAddress),
+				NotificationCompat.PRIORITY_DEFAULT);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
 			builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));

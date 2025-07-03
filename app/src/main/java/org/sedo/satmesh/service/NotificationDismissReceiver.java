@@ -3,10 +3,7 @@ package org.sedo.satmesh.service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.util.Log;
-
-import androidx.core.content.ContextCompat;
 
 import org.sedo.satmesh.utils.Constants;
 
@@ -21,12 +18,7 @@ public class NotificationDismissReceiver extends BroadcastReceiver {
 			Intent serviceIntent = new Intent(context, SATMeshCommunicationService.class);
 			serviceIntent.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
 			serviceIntent.putExtras(intent);
-			// Start the service appropriately based on Android version
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-				ContextCompat.startForegroundService(context, serviceIntent);
-			} else {
-				context.startService(serviceIntent);
-			}
+			context.startService(serviceIntent);
 		}
 	}
 }

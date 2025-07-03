@@ -85,7 +85,14 @@
 			android:name=".service.MessageBroadcastReceiver"
 			android:exported="false">
 			<intent-filter>
-				<action android:name="org.sedo.satmesh.action.MARK_AS_READ" />
+				<action android:name="org.sedo.satmesh.action.BROADCAST_MASSAGE_NOTIFICATION" />
+			</intent-filter>
+		</receiver>
+		<receiver
+			android:name=".service.NotificationDismissReceiver"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="org.sedo.satmesh.action.NOTIFICATION_DISMISSED" />
 			</intent-filter>
 		</receiver>
 	</application>

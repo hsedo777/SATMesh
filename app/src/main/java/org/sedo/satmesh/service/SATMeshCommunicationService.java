@@ -160,7 +160,7 @@ public class SATMeshCommunicationService extends Service {
 							String groupKey = Objects.requireNonNull(intent.getStringExtra(Constants.NOTIFICATION_GROUP_KEY));
 							if (groupId == notificationId) {
 								// The group notification is already dismissed
-								idProvider.removeGroup(groupKey);
+								idProvider.removeGroup(groupKey, getApplicationContext());
 							} else {
 								// Dismiss on child element
 								idProvider.decreaseGroupChildrenCount(groupKey, getApplicationContext());
@@ -772,12 +772,18 @@ public class SATMeshCommunicationService extends Service {
 		 * Removes a notification group from tracking.
 		 * If no groups remain, the sequential ID counter (`nextId`) is reset.
 		 *
-		 * @param group The unique string key of the group to remove.
+		 * @param group   The unique string key of the group to remove.
+		 * @param context The application context, used to access {@link NotificationManagerCompat}.
 		 */
-		public synchronized void removeGroup(@NonNull String group) {
-			groups.remove(group);
+		public synchronized void removeGroup(@NonNull String group, Context context) {
+			GroupData data = groups.remove(group);
 			if (groups.isEmpty()) {
 				nextId = INITIAL_ID;
+			}
+			if (data != null) {
+				// Ensure the bound notification is really cancelled
+				NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+				notificationManager.cancel(data.id);
 			}
 		}
 
@@ -794,9 +800,7 @@ public class SATMeshCommunicationService extends Service {
 			if (groupData != null) {
 				groupData.childrenCount--;
 				if (groupData.childrenCount == 0) {
-					removeGroup(groupKey);
-					NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-					notificationManager.cancel(groupData.id);
+					removeGroup(groupKey, context);
 				}
 			}
 		}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string-array name="pref_theme_entries">
+		<item>Clair</item>
+		<item>Sombre</item>
+		<item>Par défaut du système</item>
+	</string-array>
+
+	<string-array name="pref_font_size_entries">
+		<item>Petite</item>
+		<item>Normale</item>
+		<item>Grande</item>
+		<item>Très Grande</item>
+	</string-array>
+</resources>

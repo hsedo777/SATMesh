@@ -131,6 +131,21 @@
 	<string name="action_mark_all_as_read">Mark all as read</string>
 	<string name="multiple_new_messages_summary">Tap to see messages</string>
 
+	<!-- Preferences -->
+	<string name="pref_header_display">Display Preferences</string>
+	<string name="pref_header_profile_info">Profile Information</string>
+
+	<string name="pref_title_theme">Theme</string>
+	<string name="pref_key_theme" translatable="false">theme_preference</string>
+	<string name="pref_title_font_size">Chat Font Size</string>
+	<string name="pref_key_font_size" translatable="false">font_size_preference</string>
+
+	<string name="pref_title_username">Username</string>
+	<string name="pref_key_username" translatable="false">username_preference</string>
+	<string name="default_username">MyNode</string>
+	<string name="pref_title_node_id">Node ID</string>
+	<string name="pref_key_node_id" translatable="false">node_id_preference</string>
+	<string name="node_id_copied_to_clipboard">Node ID copied to clipboard</string>
 	<!--
 	<string name=""></string>
 	-->

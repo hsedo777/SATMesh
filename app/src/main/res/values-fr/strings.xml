@@ -131,6 +131,17 @@
 	<string name="action_mark_all_as_read">Marquer tous comme lus</string>
 	<string name="multiple_new_messages_summary">Taper pour ouvrir</string>
 
+	<!-- Preferences -->
+	<string name="pref_header_display">Préférences d\'affichage</string>
+	<string name="pref_header_profile_info">Informations du profil</string>
+
+	<string name="pref_title_theme">Thème</string>
+	<string name="pref_title_font_size">Taille de police du chat</string>
+
+	<string name="pref_title_username">Nom d\'utilisateur</string>
+	<string name="default_username">Mon Nœud</string>
+	<string name="pref_title_node_id">Votre ID de nœud</string>
+	<string name="node_id_copied_to_clipboard">ID du nœud copié dans le presse-papiers</string>
 	<!--
 	<string name=""></string>
 	-->

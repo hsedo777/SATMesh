@@ -82,7 +82,7 @@
 			</intent-filter>
 		</receiver>
 		<receiver
-			android:name=".service.MarkAsReadReceiver"
+			android:name=".service.MessageBroadcastReceiver"
 			android:exported="false">
 			<intent-filter>
 				<action android:name="org.sedo.satmesh.action.MARK_AS_READ" />

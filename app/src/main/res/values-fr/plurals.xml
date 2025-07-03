@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<plurals name="new_message_count">
+		<item quantity="one">%d message</item>
+		<item quantity="many">%d messages</item>
+		<item quantity="other">%d messages</item>
+	</plurals>
+</resources>

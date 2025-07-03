@@ -117,6 +117,10 @@
 
 	<!-- Notification buttons -->
 	<string name="action_mark_as_read">Mark as Read</string>
+	<string name="new_messages_from_sender">%s from %s</string>
+	<string name="action_mark_all_as_read">Mark all as read</string>
+	<string name="multiple_new_messages_summary">Tap to see messages</string>
+
 	<!--
 	<string name=""></string>
 	-->

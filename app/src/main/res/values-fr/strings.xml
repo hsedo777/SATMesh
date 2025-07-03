@@ -106,6 +106,7 @@
 
 	<string name="notification_title_new_node_discovered">Nouveau nœud découvert</string>
 	<string name="notification_title_node_discovered">Nœud découvert</string>
+	<string name="notification_title_node_discovery">Découverte de nœud</string>
 	<string name="notification_title_route_discovery_initiated">Découverte de route initiée</string>
 	<string name="notification_title_route_found">Route trouvée</string>
 	<string name="notification_title_route_not_found">Route non trouvée</string>

@@ -5,4 +5,10 @@
 		<item quantity="many">%d messages</item>
 		<item quantity="other">%d messages</item>
 	</plurals>
+
+	<plurals name="node_count">
+		<item quantity="one">%d nœud découvert</item>
+		<item quantity="many">%d nœuds découverts</item>
+		<item quantity="other">%d nœuds découverts</item>
+	</plurals>
 </resources>

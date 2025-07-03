@@ -105,6 +105,7 @@
 
 	<string name="notification_title_new_node_discovered">New Node Discovered</string>
 	<string name="notification_title_node_discovered">Node Discovered</string>
+	<string name="notification_title_node_discovery">Node Discovery</string>
 	<string name="notification_title_route_discovery_initiated">Route Discovery Initiated</string>
 	<string name="notification_title_route_found">Route Found</string>
 	<string name="notification_title_route_not_found">Route Not Found</string>

@@ -4,4 +4,9 @@
 		<item quantity="one">%d message</item>
 		<item quantity="other">%d messages</item>
 	</plurals>
+
+	<plurals name="node_count">
+		<item quantity="one">%d node discovered</item>
+		<item quantity="other">%d nodes discovered</item>
+	</plurals>
 </resources>

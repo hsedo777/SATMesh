@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto">
+
+	<PreferenceCategory
+		android:title="@string/pref_header_display"
+		app:iconSpaceReserved="false">
+
+		<ListPreference
+			android:defaultValue="system_default"
+			android:entries="@array/pref_theme_entries"
+			android:entryValues="@array/pref_theme_values"
+			android:key="@string/pref_key_theme"
+			android:title="@string/pref_title_theme"
+			app:useAdminData="false" />
+
+		<ListPreference
+			android:defaultValue="normal"
+			android:entries="@array/pref_font_size_entries"
+			android:entryValues="@array/pref_font_size_values"
+			android:key="@string/pref_key_font_size"
+			android:title="@string/pref_title_font_size"
+			app:useAdminData="false" />
+
+	</PreferenceCategory>
+
+	<PreferenceCategory
+		android:title="@string/pref_header_profile_info"
+		app:iconSpaceReserved="false">
+
+		<EditTextPreference
+			android:defaultValue="@string/default_username"
+			android:key="@string/pref_key_username"
+			android:selectAllOnFocus="true"
+			android:singleLine="true"
+			android:title="@string/pref_title_username"
+			app:useAdminData="false" />
+
+		<Preference
+			android:key="@string/pref_key_node_id"
+			android:selectable="true"
+			android:title="@string/pref_title_node_id"
+			app:useAdminData="false" />
+
+	</PreferenceCategory>
+
+</PreferenceScreen>

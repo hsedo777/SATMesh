@@ -31,6 +31,8 @@ public class DataLog {
 	private static Context appContext; // Application context for file operations
 	private static String localNodeUuid; // UUID of the local node, included in logs for context
 
+	private DataLog(){}
+
 	/**
 	 * Initializes the DataLog manager. This method must be called once at the application's startup.
 	 * It sets up the logging directory and creates/opens the log file for appending.
@@ -169,6 +171,7 @@ public class DataLog {
 		INIT_BY_REMOTE, // Connection attempt initiated by the remote node (onConnectionInitiated callback).
 		ACCEPT,         // Connection request from a remote node has been accepted by this node.
 		REJECT,         // Connection request from a remote node has been rejected by this node.
-		DISCONNECT      // An existing connection with a remote node has been disconnected (onDisconnected callback).
+		DISCONNECT,     // An existing connection with a remote node has been disconnected (onDisconnected callback).
+		FAILED,         // Connection attempt failed
 	}
 }

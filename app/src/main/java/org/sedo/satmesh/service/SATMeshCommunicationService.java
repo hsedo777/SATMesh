@@ -28,6 +28,7 @@ import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Constants;
+import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.NotificationType;
 
 import java.util.Map;
@@ -318,6 +319,7 @@ public class SATMeshCommunicationService extends Service {
 			Log.e(TAG, "Host node is null. Cannot initialize communication managers.");
 			return;
 		}
+		DataLog.init(getApplicationContext(), hostNode.getAddressName());
 		// Reset node connection state
 		new NodeRepository(getApplicationContext()).setAllNodesDisconnected();
 		if (nearbyManager == null) {
@@ -380,6 +382,7 @@ public class SATMeshCommunicationService extends Service {
 		}
 		signalManager = null;
 		new NodeRepository(getApplicationContext()).setAllNodesDisconnected();
+		DataLog.close();
 		Log.i(TAG, "Communication modules stopped.");
 	}
 

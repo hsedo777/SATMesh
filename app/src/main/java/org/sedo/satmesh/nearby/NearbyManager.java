@@ -28,6 +28,7 @@ import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
+import org.sedo.satmesh.utils.DataLog;
 
 import java.util.List;
 import java.util.Map;
@@ -115,6 +116,7 @@ public class NearbyManager {
 			if (state != null) {
 				Log.d(TAG, "Receiving connection in state=" + state);
 			}
+			DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.INIT_BY_REMOTE, connectionInfo.getEndpointName(), endpointId, null, null);
 			Log.d(TAG, "Connection initiated with: " + endpointId + " Name: " + connectionInfo.getEndpointName());
 			putState(endpointId, connectionInfo.getEndpointName(), STATUS_INITIATED_FROM_REMOTE, NodeState.ON_CONNECTING);
 			addressNameToEndpointId.put(connectionInfo.getEndpointName(), endpointId); // Keep track of pending connections
@@ -140,7 +142,7 @@ public class NearbyManager {
 				deviceConnectionListeners.forEach(listener -> listener.onDeviceConnected(endpointId, remoteAddressName));
 			} else {
 				Log.e(TAG, "Connection failed with: " + remoteAddressName + " (EndpointId: " + endpointId + "). Status: " + result.getStatus().getStatusMessage());
-				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(remoteAddressName, result.getStatus()));
+				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(endpointId, remoteAddressName, result.getStatus()));
 				// If connection failed reset in found state, then the host device can request connection again
 				putState(endpointId, remoteAddressName, STATUS_FOUND, NodeState.ON_ENDPOINT_FOUND);
 			}
@@ -160,7 +162,7 @@ public class NearbyManager {
 				deviceConnectionListeners.forEach(l -> l.onDeviceDisconnected(endpointId, deviceAddress));
 			} else {
 				// Notify as a connection failed, as it never truly completed.
-				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(deviceAddress, Status.RESULT_CANCELED));
+				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(endpointId, deviceAddress, Status.RESULT_CANCELED));
 			}
 		}
 	};
@@ -201,6 +203,7 @@ public class NearbyManager {
 			// Remove from relevant maps if it's not a currently connected endpoint
 			// If it's connected, the onDisconnected callback will handle it.
 			if (state.status == STATUS_CONNECTED) {
+				DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.LOST, state.addressName, endpointId, null, "but still connected");
 				return;
 			}
 			endpointStates.remove(endpointId);
@@ -759,10 +762,11 @@ public class NearbyManager {
 		/**
 		 * Called when a connection attempt fails or is disconnected prematurely.
 		 *
+		 * @param endpointId        The Nearby Connections endpoint ID.
 		 * @param deviceAddressName The Signal address name of the device.
 		 * @param status            The status of the connection failure.
 		 */
-		void onConnectionFailed(String deviceAddressName, Status status);
+		void onConnectionFailed(@NonNull String endpointId, String deviceAddressName, Status status);
 
 		/**
 		 * Called when a device explicitly disconnects (or is lost).

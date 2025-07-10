@@ -38,6 +38,7 @@ import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.ui.data.SignalKeyExchangeStateRepository;
 import org.sedo.satmesh.utils.Constants;
+import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.NotificationType;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.NoSessionException;
@@ -171,6 +172,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					nodeRepository.update(node);
 					notifyNeighborDiscovery(node, false);
 					Log.d(TAG, "Node " + deviceAddressName + " marked as connected in DB.");
+					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, deviceAddressName, endpointId, node.getDisplayName(), "connected to an old node");
 				} else {
 					// Create a new node entity if it doesn't exist.
 					// This covers cases where a device is connected but not yet explicitly "discovered"
@@ -184,6 +186,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						}
 					});
 					Log.d(TAG, "New Node " + deviceAddressName + " inserted and marked as connected in DB.");
+					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, deviceAddressName, endpointId, null, "connected to a new node");
 				}
 			} catch (Exception e) {
 				Log.e(TAG, "Error updating/inserting node status on device connected: " + e.getMessage(), e);
@@ -193,15 +196,18 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 	// This method is called when Nearby Connections fails to establish a connection.
 	@Override
-	public void onConnectionFailed(String deviceAddressName, Status status) {
+	public void onConnectionFailed(@NonNull String endpointId, String deviceAddressName, Status status) {
 		Log.e(TAG, "Connection failed for " + deviceAddressName + " with status: " + status);
 		executor.execute(() -> {
 			try {
 				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
+					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.FAILED, deviceAddressName, endpointId, node.getDisplayName(), "status=" + status);
 					node.setConnected(false); // Mark as disconnected
 					nodeRepository.update(node);
 					Log.d(TAG, "Node " + deviceAddressName + " marked as disconnected in DB on connection failed.");
+				} else {
+					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.FAILED, deviceAddressName, endpointId, null, "status=" + status + ", node not found in DB");
 				}
 			} catch (Exception e) {
 				Log.e(TAG, "Error updating node status on connection failed: " + e.getMessage(), e);
@@ -217,9 +223,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			try {
 				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
+					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.DISCONNECT, deviceAddressName, endpointId, node.getDisplayName(), null);
 					node.setConnected(false); // Mark as disconnected
 					nodeRepository.update(node);
 					Log.d(TAG, "Node " + deviceAddressName + " marked as disconnected in DB.");
+				} else {
+					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.DISCONNECT, deviceAddressName, endpointId, null, "node not found in DB");
 				}
 			} catch (Exception e) {
 				Log.e(TAG, "Error updating node status on device disconnected: " + e.getMessage(), e);
@@ -232,15 +241,17 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * Decides whether to initiate a connection based on the current connection state.
 	 *
 	 * @param endpointId   The ID of the discovered endpoint.
-	 * @param endpointName The Signal Protocol address name of the discovered endpoint.
+	 * @param endpointAddressName The Signal Protocol address name of the discovered endpoint.
 	 */
-	public void onEndpointFound(@NonNull String endpointId, @NonNull String endpointName) {
-		Log.i(TAG, "Attempting to request connection to " + endpointName + " (ID: " + endpointId + ")");
+	public void onEndpointFound(@NonNull String endpointId, @NonNull String endpointAddressName) {
+		Log.i(TAG, "Attempting to request connection to " + endpointAddressName + " (ID: " + endpointId + ")");
 		/*
 		 * The actual connection success/failure will be handled by
 		 * the onConnectionResult callback in NearbyManager's ConnectionLifecycleCallback.
 		 */
-		nearbyManager.requestConnection(endpointId, endpointName);
+		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.FOUND, endpointAddressName, endpointId, null, null);
+		nearbyManager.requestConnection(endpointId, endpointAddressName);
+		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.INIT_BY_HOST, endpointAddressName, endpointId, null, null);
 	}
 
 	/**
@@ -248,22 +259,24 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * This method primarily serves for logging and potentially notifying other components,
 	 * as NearbyManager's own onDisconnected callback handles active connections.
 	 *
-	 * @param endpointId   The ID of the lost endpoint.
-	 * @param endpointName The Signal Protocol address name of the lost endpoint.
+	 * @param endpointId        The ID of the lost endpoint.
+	 * @param deviceAddressName The Signal Protocol address name of the lost endpoint.
 	 */
-	public void onEndpointLost(@NonNull String endpointId, @NonNull String endpointName) {
-		Log.d(TAG, "handleEndpointLost: Lost " + endpointName + " (ID: " + endpointId + ")");
+	public void onEndpointLost(@NonNull String endpointId, @NonNull String deviceAddressName) {
+		Log.d(TAG, "handleEndpointLost: Lost " + deviceAddressName + " (ID: " + endpointId + ")");
 		/*
 		 * This method is primarily for notification and logging that a discovered endpoint is no
 		 * longer available. The NearbyManager's internal mechanisms.
 		 * But, we need to set the node connected state to false
 		 */
 		executor.execute(() -> {
-			Node remote = nodeRepository.findNodeSync(endpointName);
+			Node remote = nodeRepository.findNodeSync(deviceAddressName);
 			if (remote == null) {
+				DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.LOST, deviceAddressName, endpointId, null, "node not found in DB");
 				Log.w(TAG, "onEndpointLost: unable to locate the lost node.");
 				return;
 			}
+			DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.LOST, deviceAddressName, endpointId, remote.getDisplayName(), null);
 			remote.setConnected(false);
 			nodeRepository.update(remote);
 		});

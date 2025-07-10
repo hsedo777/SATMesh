@@ -941,7 +941,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		notificationIntent.putExtra(Constants.EXTRA_NOTIFICATION_TYPE, type.name());
 		notificationIntent.putExtra(Constants.EXTRA_NOTIFICATION_DATA_BUNDLE, data);
 
-		ContextCompat.startForegroundService(applicationContext, notificationIntent);
+		applicationContext.startService(notificationIntent);
 	}
 
 	/**

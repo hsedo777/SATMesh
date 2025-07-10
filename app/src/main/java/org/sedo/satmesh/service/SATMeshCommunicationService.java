@@ -121,7 +121,6 @@ public class SATMeshCommunicationService extends Service {
 						stopSelf();
 						break;
 					case Constants.ACTION_SHOW_SATMESH_NOTIFICATION:
-						startForeground(NOTIFICATION_ID, buildNotification());
 						String notificationTypeString = intent.getStringExtra(Constants.EXTRA_NOTIFICATION_TYPE);
 						Bundle notificationData = intent.getBundleExtra(Constants.EXTRA_NOTIFICATION_DATA_BUNDLE);
 						if (notificationTypeString != null && notificationData != null) {

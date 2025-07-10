@@ -152,13 +152,12 @@ public class SATMeshCommunicationService extends Service {
 						}
 						break;
 					case Constants.ACTION_NOTIFICATION_DISMISSED:
-						if (intent.hasExtra(Constants.NOTIFICATION_ID) && intent.hasExtra(Constants.NOTIFICATION_GROUP_ID)
-								&& intent.hasExtra(Constants.NOTIFICATION_GROUP_KEY)) {
+						if (intent.hasExtra(Constants.NOTIFICATION_GROUP_KEY)) {
 							int notificationId = intent.getIntExtra(Constants.NOTIFICATION_ID, -1);
 							int groupId = intent.getIntExtra(Constants.NOTIFICATION_GROUP_ID, -1);
 							String groupKey = Objects.requireNonNull(intent.getStringExtra(Constants.NOTIFICATION_GROUP_KEY));
-							if (groupId == notificationId) {
-								// The group notification is already dismissed
+							if (groupId == notificationId) {// even if it is `-1 == -1`, accept to allow group's notification dismissing by group key
+								// Ensure the group's notification is dismissed
 								idProvider.removeGroup(groupKey, getApplicationContext());
 							} else {
 								// Dismiss on child element

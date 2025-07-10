@@ -71,6 +71,8 @@
 
 	<string name="delete_messages_dialog_title">Supprimer les messages ?</string>
 	<string name="delete_messages_dialog_message">Voulez-vous vraiment supprimer les messages sélectionnés ? Cette action ne peut pas être annulée.</string>
+	<string name="clear_chat_dialog_title">Effacer la discussion?</string>
+	<string name="clear_chat_dialog_message">Voulez-vous vraiment effacer la discussion ? Cette action ne peut pas être annulée.</string>
 	<string name="delete_button_text">Supprimer</string>
 
 	<!-- Menu -->

@@ -282,7 +282,21 @@ public class ChatFragment extends Fragment {
 		toolbar.setOnMenuItemClickListener(menuItem -> {
 			int itemId = menuItem.getItemId();
 			if (itemId == R.id.action_clear_chat) {
-				viewModel.clearChat();
+				new AlertDialog.Builder(requireContext())
+						.setTitle(R.string.clear_chat_dialog_title)
+						.setMessage(R.string.clear_chat_dialog_message)
+						.setPositiveButton(R.string.delete_button_text, (dialog, which) -> {
+							Node remote = viewModel.getRemoteNodeLiveData().getValue();
+							String with = remote == null ? "unknown" : remote.getAddressName();
+							Log.d(TAG, "Confirmation received. Clearing chat with " + with);
+							viewModel.clearChat();
+						})
+						.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+							Log.d(TAG, "Chat clearing cancelled by user.");
+							dialog.dismiss();
+						})
+						.setIcon(android.R.drawable.ic_dialog_alert)
+						.show();
 				return true;
 			} else if (itemId == R.id.action_export_chat) {
 				String result = viewModel.exportChatMessages();

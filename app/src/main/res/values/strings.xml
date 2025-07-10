@@ -71,6 +71,8 @@
 
 	<string name="delete_messages_dialog_title">Delete messages?</string>
 	<string name="delete_messages_dialog_message">Are you sure you want to delete the selected messages? This action cannot be undone.</string>
+	<string name="clear_chat_dialog_title">Clear chat?</string>
+	<string name="clear_chat_dialog_message">Are you sure you want to clear this chat? This action cannot be undone.</string>
 	<string name="delete_button_text">Delete</string>
 
 	<!-- Menu -->

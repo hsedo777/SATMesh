@@ -33,6 +33,7 @@ import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatBinding;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
+import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.ui.adapter.ChatAdapter;
 
 import java.util.ArrayList;
@@ -250,6 +251,7 @@ public class ChatFragment extends Fragment {
 			requireActivity().getOnBackPressedDispatcher().onBackPressed();
 			return false; // Indicate failure
 		}
+		NearbySignalMessenger.getInstance().setCurrentRemote(remoteNode);
 		return true; // Indicate success
 	}
 
@@ -525,6 +527,7 @@ public class ChatFragment extends Fragment {
 	public void onDestroyView() {
 		super.onDestroyView();
 		binding = null; // Clear binding
+		NearbySignalMessenger.getInstance().setCurrentRemote(null);
 	}
 
 	// Implémentation of OnMessageLongClickListener

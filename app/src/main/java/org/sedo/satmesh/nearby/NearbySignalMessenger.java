@@ -12,7 +12,6 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.connection.Payload;
@@ -82,6 +81,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	private final SignalKeyExchangeStateRepository keyExchangeStateRepository;
 	private final ExecutorService executor;
 	private final Context applicationContext;
+	private Node currentRemote;
 
 	/**
 	 * Private constructor to enforce Singleton pattern.
@@ -926,6 +926,29 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	}
 
 	/**
+	 * Sets the remote node the user is currently interact with.
+	 */
+	public void setCurrentRemote(@Nullable Node currentRemote) {
+		this.currentRemote = currentRemote;
+		if (currentRemote != null) {
+			dismissNotificationFor(currentRemote);
+		}
+	}
+
+	/**
+	 * Dismiss discussion message's notification actually displayed about a specific remote node.
+	 *
+	 * @param remoteNode the node about which to dismiss all message notifications.
+	 */
+	private void dismissNotificationFor(@NonNull Node remoteNode) {
+		// Dismiss discussion message notifications
+		Intent dismissMessages = new Intent(applicationContext, SATMeshCommunicationService.class);
+		dismissMessages.putExtra(Constants.NOTIFICATION_GROUP_KEY, remoteNode.getAddressName());
+		dismissMessages.setAction(Constants.ACTION_NOTIFICATION_DISMISSED);
+		applicationContext.startService(dismissMessages);
+	}
+
+	/**
 	 * Dispatches a notification request to the {@link SATMeshCommunicationService}.
 	 * This method centralizes the logic for creating and sending the {@link Intent}
 	 * to initiate a notification display by the service.
@@ -953,6 +976,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param sender  The {@link Node} object representing the sender of the message.
 	 */
 	private void notifyMessageReceived(@NonNull Message message, @NonNull Node sender) {
+		if (currentRemote != null && Objects.equals(currentRemote.getAddressName(), sender.getAddressName())) {
+			// User is currently in interaction with de the remote, node. Don't sent notification
+			return;
+		}
 		Bundle data = new Bundle();
 		data.putString(Constants.MESSAGE_SENDER_NAME, sender.getDisplayName());
 		data.putString(Constants.MESSAGE_SENDER_ADDRESS, sender.getAddressName());

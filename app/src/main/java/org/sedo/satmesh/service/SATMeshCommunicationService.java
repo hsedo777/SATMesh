@@ -162,7 +162,7 @@ public class SATMeshCommunicationService extends Service {
 								idProvider.removeGroup(groupKey, getApplicationContext());
 							} else {
 								// Dismiss on child element
-								idProvider.decreaseGroupChildrenCount(groupKey, getApplicationContext());
+								idProvider.decreaseGroupChildrenCount(groupKey, getApplicationContext(), notificationId);
 							}
 						}
 						break;
@@ -796,12 +796,15 @@ public class SATMeshCommunicationService extends Service {
 		 * @param groupKey The unique string key of the group.
 		 * @param context  The application context, used to access {@link NotificationManagerCompat}.
 		 */
-		public synchronized void decreaseGroupChildrenCount(@NonNull String groupKey, Context context) {
+		public synchronized void decreaseGroupChildrenCount(@NonNull String groupKey, Context context, int notificationId) {
 			GroupData groupData = groups.get(groupKey);
 			if (groupData != null) {
 				groupData.childrenCount--;
 				if (groupData.childrenCount == 0) {
 					removeGroup(groupKey, context);
+				} else {
+					NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+					notificationManager.cancel(notificationId);
 				}
 			}
 		}

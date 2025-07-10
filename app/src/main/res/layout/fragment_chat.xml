@@ -81,7 +81,7 @@
 					android:background="@null"
 					android:gravity="top|start"
 					android:imeOptions="actionSend"
-					android:inputType="textMultiLine"
+					android:inputType="textCapSentences|textMultiLine"
 					android:hint="@string/message_hint"
 					android:maxLines="4"
 					android:minLines="1"

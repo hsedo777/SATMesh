@@ -320,7 +320,14 @@ public class ChatViewModel extends AndroidViewModel {
 			 * and combine with transient and persistent states for robust check.
 			 */
 			boolean isSessionSecure = nearbySignalMessenger.hasSession(currentRemoteNode.getAddressName());
-			message.setStatus(isSessionSecure ? Message.MESSAGE_STATUS_PENDING : Message.MESSAGE_STATUS_FAILED);
+			if (!isSessionSecure){
+				/*
+				 * Initiate key exchange if no session. This is a crucial change.
+				 * The actual message will be sent after session is established.
+				 */
+				nearbySignalMessenger.handleInitialKeyExchange(currentRemoteNode.getAddressName());
+			}
+			message.setStatus(isSessionSecure ? Message.MESSAGE_STATUS_PENDING : Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE);
 
 			messageRepository.insertMessage(message, success -> {
 				if (success) {
@@ -331,8 +338,7 @@ public class ChatViewModel extends AndroidViewModel {
 							.build();
 					nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text, message.getId());
 				} else {
-					message.setStatus(Message.MESSAGE_STATUS_FAILED);
-					messageRepository.updateMessage(message);
+					// Damageable
 					uiMessage.postValue(getApplication().getString(R.string.error_message_persistence_failed));
 				}
 			});

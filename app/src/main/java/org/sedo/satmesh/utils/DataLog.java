@@ -172,6 +172,6 @@ public class DataLog {
 		ACCEPT,         // Connection request from a remote node has been accepted by this node.
 		REJECT,         // Connection request from a remote node has been rejected by this node.
 		DISCONNECT,     // An existing connection with a remote node has been disconnected (onDisconnected callback).
-		FAILED,         // Connection attempt failed
+		FAILED,         // Connection attempt failed (e.g., onConnectionResult with a FAILED status).
 	}
 }

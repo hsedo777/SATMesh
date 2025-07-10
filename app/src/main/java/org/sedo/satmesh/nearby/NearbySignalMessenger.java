@@ -856,7 +856,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			case MESSAGE_READ_ACK:
 				MessageAck readAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
 				// Update status of the original message in DB
-				updateMessageStatus(null, Message.MESSAGE_STATUS_DELIVERED, readAck.getPayloadId(), null);
+				updateMessageStatus(null, Message.MESSAGE_STATUS_READ, readAck.getPayloadId(), null);
 				Log.d(TAG, "Received Read ACK for payload " + readAck.getPayloadId() + " from " + senderAddressName);
 				break;
 			case PERSONAL_INFO:

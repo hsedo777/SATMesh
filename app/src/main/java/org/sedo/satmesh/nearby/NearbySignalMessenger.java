@@ -432,7 +432,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				keyExchangeState = keyExchangeStateRepository.getByRemoteAddressSync(remoteAddressName);
 
 				// Checks if there is an old sent of the PreKeyBundle to the same remote device
-				if (keyExchangeState != null && keyExchangeState.getLastOurSentAttempt() != null
+				if (hasSession(remoteAddressName) && keyExchangeState != null && keyExchangeState.getLastOurSentAttempt() != null
 						&& System.currentTimeMillis() - keyExchangeState.getLastOurSentAttempt() < DEBOUNCE_TIME_MS) {
 					Log.d(TAG, "You have already sent recently your PreKeyBundle to device: " + remoteAddressName);
 					return;

@@ -31,12 +31,15 @@ import org.sedo.satmesh.proto.RoutedMessageBody;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeRepository.NodeCallback;
+import org.sedo.satmesh.utils.DataLog;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
 import org.whispersystems.libsignal.protocol.PreKeySignalMessage;
 import org.whispersystems.libsignal.protocol.SignalMessage;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
@@ -83,6 +86,44 @@ public class NearbyRouteManager {
 		this.executor = executor;
 	}
 
+	// Helper method for data collection
+
+	/**
+	 * Creates a map of routing event parameters, including only non-null values.
+	 * This helper method simplifies the creation of the 'params' map for the logRouteEvent function.
+	 * It uses predefined static keys from DataLog (e.g., PARAM_SOURCE_NODE_UUID).
+	 *
+	 * @param destNodeUuid        The UUID of the destination node. Can be null.
+	 * @param interactingNodeUuid The UUID of the neighbor involved in the event. Can be null.
+	 * @param statusOrReason      The status or reason for the event (e.g., "ROUTE_FOUND", "NO_ROUTE_FOUND"). Can be null.
+	 * @param hops                The number of hops (as a String). Can be null.
+	 * @return A {@code Map<String, String>} containing only the non-null parameters.
+	 */
+	private static Map<String, String> params(
+			String destNodeUuid,
+			String interactingNodeUuid,
+			String statusOrReason,
+			String hops) {
+
+		Map<String, String> map = new HashMap<>();
+
+		// Only add parameters to the map if their values are not null
+		if (destNodeUuid != null) {
+			map.put(DataLog.PARAM_DEST_NODE_UUID, destNodeUuid);
+		}
+		if (interactingNodeUuid != null) {
+			map.put(DataLog.PARAM_INTERACTING_NODE_UUID, interactingNodeUuid);
+		}
+		if (statusOrReason != null) {
+			map.put(DataLog.PARAM_STATUS_OR_REASON, statusOrReason);
+		}
+		if (hops != null) {
+			map.put(DataLog.PARAM_HOPS, hops);
+		}
+
+		return map;
+	}
+
 	/**
 	 * Helper method to send a RouteRequestMessage.
 	 * This method runs on an execution thread.
@@ -117,6 +158,8 @@ public class NearbyRouteManager {
 							BroadcastStatusEntry broadcastStatus = new BroadcastStatusEntry(messageBody.getUuid(), node.getId());
 							broadcastStatus.setPendingResponseInProgress(false); // Default to false
 							broadcastStatusEntryDao.insert(broadcastStatus);
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_REQ_RELAYED, messageBody.getUuid(),
+									params(messageBody.getDestinationNodeId(), recipientAddressName, null, null));
 							Log.d(TAG, "BroadcastStatusEntry created for request " + messageBody.getUuid() + " to neighbor " + node.getId());
 						};
 						Node node = nodeRepository.findNodeSync(recipientAddressName);
@@ -277,6 +320,8 @@ public class NearbyRouteManager {
 			if (sentToNeighborsCount == 0) {
 				Log.w(TAG, "Route request " + requestUuid + " initiated, but no neighbors to broadcast to. Discovery might fail.");
 				routeRequestEntryDao.deleteByRequestUuid(requestUuid);
+			} else {
+				DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_REQ_INIT, requestUuid, params(destinationNodeAddressName, null, null, null));
 			}
 		});
 	}
@@ -309,7 +354,14 @@ public class NearbyRouteManager {
 					.setExchange(false)
 					.setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
 
-			nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, sendingCallback);
+			BiConsumer<Payload, Boolean> sendingCallbackWrapper = (payload, aBoolean) -> {
+				if (aBoolean) {
+					DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, messageBody.getRequestUuid(),
+							params(null, recipientAddressName, messageBody.getStatus().name(), String.valueOf(messageBody.getHopCount())));
+				}
+				sendingCallback.accept(payload, aBoolean);
+			};
+			nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, sendingCallbackWrapper);
 		} catch (Exception e) {
 			Log.e(TAG, "Error building or sending RouteResponseMessage to " + recipientAddressName + ": " + e.getMessage(), e);
 			sendingCallback.accept(null, false);
@@ -371,6 +423,9 @@ public class NearbyRouteManager {
 
 						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
 							if (success) {
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+										params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+												String.valueOf(routeRequest.getRemainingHops())));
 								Log.d(TAG, "Sent REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
 							} else {
 								Log.e(TAG, "Failed to send REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
@@ -391,6 +446,9 @@ public class NearbyRouteManager {
 								.build();
 						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
 							if (success) {
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+										params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+												String.valueOf(routeRequest.getRemainingHops())));
 								Log.d(TAG, "Sent ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
 							} else {
 								Log.e(TAG, "Failed to send ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
@@ -410,6 +468,9 @@ public class NearbyRouteManager {
 								.build();
 						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
 							if (success) {
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+										params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+												String.valueOf(routeRequest.getRemainingHops())));
 								Log.d(TAG, "Sent TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
 							} else {
 								Log.e(TAG, "Failed to send TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
@@ -426,6 +487,9 @@ public class NearbyRouteManager {
 								.build();
 						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
 							if (success) {
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+										params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+												String.valueOf(routeRequest.getRemainingHops())));
 								Log.d(TAG, "Sent MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
 							} else {
 								Log.e(TAG, "Failed to send MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
@@ -468,11 +532,16 @@ public class NearbyRouteManager {
 										.build();
 								sendRouteResponseMessage(resolvedSenderAddressName, responseMessage, (payload, success) -> {
 									if (success) {
+										DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+												params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+														String.valueOf(routeRequest.getRemainingHops())));
 										Log.d(TAG, "Sent NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " (no relays) to " + resolvedSenderAddressName);
 									} else {
 										Log.e(TAG, "Failed to send NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
 									}
 								});
+								// Drop the new mapping from database
+								routeRequestEntryDao.deleteByRequestUuid(routeRequest.getUuid());
 							} else {
 								Log.d(TAG, "Route request " + routeRequest.getUuid() + " relayed to " + sentToNeighborsCount + " neighbors. New hops: " + newRemainingHops);
 							}
@@ -588,6 +657,8 @@ public class NearbyRouteManager {
 					// 2.
 					RouteRequestEntry routeRequestEntry = routeRequestEntryDao.getRequestByUuid(requestUuid);
 					if (routeRequestEntry == null) {
+						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_LATE, requestUuid,
+								params(null, resolvedSenderAddressName, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 						Log.w(TAG, "RouteResponseMessage with UUID " + requestUuid + " received, but no corresponding RouteRequestEntry found. Ignoring response.");
 						return;
 					}
@@ -615,20 +686,28 @@ public class NearbyRouteManager {
 					boolean isOriginalSource = (previousHopLocalId == null);
 					Node previousHopNode = previousHopLocalId != null ? nodeRepository.findNodeSync(previousHopLocalId) : null;
 
-					// --- Internal helper function for common error/completion sequences ---
+					// Internal helper function for common error/completion sequences
 					// This function simplifies the logic for handling various failure scenarios
 					// where a response needs to be forwarded or the source needs to be notified.
 					Consumer<RouteResponseMessage.Status> handleCompletionSequence = (finalStatus) -> {
-						broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid);
-						Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid);
+						if (broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid) != 0) {
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, requestUuid,
+									params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid);
+						}
 
-						routeRequestEntryDao.deleteByRequestUuid(requestUuid);
-						Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid);
+						if (routeRequestEntryDao.deleteByRequestUuid(requestUuid) != 0) {
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.REQUEST_ENTRY_DEL, requestUuid,
+									params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid);
+						}
 
 						if (isOriginalSource) {
 							// Notify the higher layer that the route could not be found.
 							nearbyManager.onRouteNotFound(requestUuid, destinationNodeAddressName, finalStatus);
 							Log.d(TAG, "Notified NearbyManager.onRouteNotFound for UUID " + requestUuid + " with status: " + finalStatus);
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_FAILED, requestUuid,
+									params(null, null, finalStatus.name() , String.valueOf(routeResponse.getHopCount())));
 						} else {
 							if (previousHopNode == null) {
 								Log.e(TAG, "Failed to retrieve previous hop node " + previousHopLocalId + " for forwarding response for UUID " + requestUuid);
@@ -648,9 +727,13 @@ public class NearbyRouteManager {
 						}
 					};
 
+					DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_RCVD, requestUuid,
+							params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 					// 4. If status == ROUTE_FOUND:
 					if (responseStatus == RouteResponseMessage.Status.ROUTE_FOUND) {
 						routeRequestEntryDao.deleteByRequestUuid(requestUuid);
+						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.REQUEST_ENTRY_DEL, requestUuid,
+								params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 						Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid + " (ROUTE_FOUND)");
 
 						// 4.b.
@@ -661,6 +744,9 @@ public class NearbyRouteManager {
 						newRouteEntry.setHopCount(routeResponse.getHopCount());
 						newRouteEntry.setPreviousHopLocalId(previousHopLocalId);
 						routeEntryDao.insert(newRouteEntry);
+
+						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_ENTRY_ADD, requestUuid,
+								params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 						Log.d(TAG, "RouteEntry created for UUID: " + requestUuid + " with destination " + destinationNodeAddressName + ", next hop " + resolvedSenderAddressName);
 
 						// 4.c.
@@ -672,12 +758,16 @@ public class NearbyRouteManager {
 
 						// 4.d.
 						broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid);
+						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, routeResponse.getRequestUuid(),
+								params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 						Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid + " (ROUTE_FOUND)");
 
 						// 4.e.
 						if (isOriginalSource) {
 							// The route is established. Use a dedicated method NearbyManager.onRouteFound
 							nearbyManager.onRouteFound(destinationNodeAddressName, newRouteEntry);
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_FOUND, requestUuid,
+									params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 							Log.d(TAG, "Notified NearbyManager.onRouteFound for UUID " + requestUuid + " to " + destinationNodeAddressName);
 						} else {
 							// 4.f.
@@ -698,6 +788,8 @@ public class NearbyRouteManager {
 						// 5.a.
 						broadcastStatus.setPendingResponseInProgress(true); // Mark as processed for this neighbor
 						broadcastStatusEntryDao.update(broadcastStatus);
+						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_RCVD, routeResponse.getRequestUuid(),
+								params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 						Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " updated to isPendingResponseInProgress=true.");
 
 						// 5.b.
@@ -720,6 +812,8 @@ public class NearbyRouteManager {
 						// 6. Status in (NO_ROUTE_FOUND, TTL_EXPIRED, MAX_HOPS_REACHED)
 						// 6.a
 						broadcastStatusEntryDao.delete(requestUuid, broadcastStatus.getNeighborNodeLocalId());
+						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, routeResponse.getRequestUuid(),
+								params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
 						Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " deleted (failure).");
 
 						// 6.b.

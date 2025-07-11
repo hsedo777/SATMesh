@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Manages the logging of performance and behavior data for the SATMesh application
@@ -21,17 +22,24 @@ import java.util.Locale;
  */
 public class DataLog {
 
+	// Route discovery map' keys
+	public static final String PARAM_INTERACTING_NODE_UUID = "interactingNodeUuid";
+	public static final String PARAM_STATUS_OR_REASON = "statusOrReason";
+	public static final String PARAM_HOPS = "hops";
+	public static final String PARAM_ADDITIONAL_INFO = "additionalInfo";
+	public static final String PARAM_SOURCE_NODE_UUID = "sourceNodeUuid";
+	public static final String PARAM_DEST_NODE_UUID = "destNodeUuid";
 	private static final String TAG = "DataLog";
 	// Log File Configuration
 	private static final String LOG_FILE_DIR_NAME = "satmesh_logs";
 	private static final String LOG_FILE_BASE_NAME = "data_log_";
 	private static final String LOG_FILE_EXTENSION = ".txt";
-
 	private static FileWriter writer;
 	private static Context appContext; // Application context for file operations
 	private static String localNodeUuid; // UUID of the local node, included in logs for context
 
-	private DataLog(){}
+	private DataLog() {
+	}
 
 	/**
 	 * Initializes the DataLog manager. This method must be called once at the application's startup.
@@ -125,12 +133,78 @@ public class DataLog {
 	}
 
 	/**
+	 * Logs an event related to the routing process.
+	 * This method automatically adds a timestamp and the local node's UUID.
+	 * <p>
+	 * The log entry format is:
+	 * [TIMESTAMP_MS] ROUTING [LOCAL_NODE_UUID] [EVENT_TYPE] [REQUEST_UUID] [SOURCE_NODE_UUID] [DEST_NODE_UUID] [INTERACTING_NODE_UUID] [STATUS_OR_REASON] [HOPS] [ADDITIONAL_INFO]
+	 * All optional fields will be logged as an empty string "" if not provided in the 'params' map or are not applicable.
+	 * </p>
+	 *
+	 * @param eventType   The specific {@link RouteDiscoveryEvent} that occurred. Required.
+	 * @param requestUuid The UUID of the route request. Use null or empty string if not applicable.
+	 * @param params      A map containing additional key-value pairs for specific event details.
+	 * Use predefined static keys from LogToFileManager (e.g., PARAM_SOURCE_NODE_UUID).
+	 * <br>Common parameters:
+	 * - {@link #PARAM_INTERACTING_NODE_UUID} (String): UUID of the neighbor involved.
+	 * - {@link #PARAM_STATUS_OR_REASON} (String): Status or reason for the event (e.g., "ROUTE_FOUND", "NO_ROUTE_FOUND").
+	 * - {@link #PARAM_HOPS} (String): Number of hops (e.g., "1", "3").
+	 * - {@link #PARAM_ADDITIONAL_INFO} (String): Any extra, event-specific details.
+	 * - {@link #PARAM_SOURCE_NODE_UUID} (String): UUID of the original source node (ONLY for initiator node).
+	 * - {@link #PARAM_DEST_NODE_UUID} (String): UUID of the destination node for the request or route entry.
+	 */
+	public static synchronized void logRouteEvent(
+			RouteDiscoveryEvent eventType,
+			String requestUuid,
+			Map<String, String> params) {
+
+		// Log an error to Logcat and return if DataLog is not properly initialized or eventType is null
+		if (writer == null || localNodeUuid == null || eventType == null) {
+			Log.w(TAG, "DataLog not initialized or eventType is null. Skipping logRouteEvent for type: "
+					+ (eventType != null ? eventType.name() : "NULL_EVENT_TYPE"));
+			return;
+		}
+
+		long timestamp = System.currentTimeMillis(); // Automatically generated timestamp
+
+		String safeRequestUuid = requestUuid != null ? requestUuid : "";
+		String sourceNodeUuid = getParam(params, PARAM_SOURCE_NODE_UUID);
+		String destNodeUuid = getParam(params, PARAM_DEST_NODE_UUID);
+		String interactingNodeUuid = getParam(params, PARAM_INTERACTING_NODE_UUID);
+		String statusOrReason = getParam(params, PARAM_STATUS_OR_REASON);
+		String hops = getParam(params, PARAM_HOPS);
+		String additionalInfo = getParam(params, PARAM_ADDITIONAL_INFO);
+
+		// Construct the log line according to the specified format
+		String logLine = String.format(
+				Locale.US, // Use US locale for consistent number formatting
+				"%d ROUTING %s %s %s %s %s %s %s %s \"%s\"",
+				timestamp,
+				localNodeUuid,
+				eventType.name(), // Convert enum to its String name
+				safeRequestUuid,
+				sourceNodeUuid,
+				destNodeUuid,
+				interactingNodeUuid,
+				statusOrReason,
+				hops,
+				additionalInfo
+		);
+
+		writeLogToFile(logLine);
+	}
+
+	private static synchronized String getParam(Map<String, String> params, String key) {
+		return (params != null && params.containsKey(key)) ? params.get(key) : "";
+	}
+
+	/**
 	 * Internal helper method to perform the actual writing of a log entry to the file.
 	 * This method ensures thread-safety for file write operations.
 	 *
 	 * @param logEntry The formatted string representing the log entry to write.
 	 */
-	private static void writeLogToFile(String logEntry) {
+	private static synchronized void writeLogToFile(String logEntry) {
 		if (writer != null) {
 			try {
 				writer.append(logEntry).append("\n"); // Append the log line followed by a newline character
@@ -173,5 +247,88 @@ public class DataLog {
 		REJECT,         // Connection request from a remote node has been rejected by this node.
 		DISCONNECT,     // An existing connection with a remote node has been disconnected (onDisconnected callback).
 		FAILED,         // Connection attempt failed (e.g., onConnectionResult with a FAILED status).
+	}
+
+	/**
+	 * Represents the various types of events that can occur during the route discovery
+	 * process within the SATMesh routing module.
+	 * These events are intended to be used for detailed logging and analysis
+	 * of the routing algorithm's behavior and performance.
+	 *
+	 * @author hovozounkou
+	 */
+	public enum RouteDiscoveryEvent {
+		/**
+		 * Indicates that the local node has initiated a new route request
+		 * towards a specific destination. This is the starting point of a route search.
+		 */
+		ROUTE_REQ_INIT,
+
+		/**
+		 * Indicates that the local node has received a route request message
+		 * and has relayed it to one or more of its neighbors. This covers
+		 * both relaying requests received from other nodes and sending
+		 * initial requests to immediate neighbors.
+		 */
+		ROUTE_REQ_RELAYED,
+
+		/**
+		 * Indicates that the local node has generated and sent a route response message
+		 * (either positive or negative) back to a previous hop.
+		 */
+		ROUTE_RESP_SENT,
+
+		/**
+		 * Indicates that the local node has received a route response message
+		 * from one of its immediate neighbors.
+		 */
+		ROUTE_RESP_RCVD,
+
+		/**
+		 * Indicates that the local node has received a route response message
+		 * from one of its immediate neighbors but the response is late and won't
+		 * be relayed to previous.
+		 */
+		ROUTE_RESP_LATE,
+
+		/**
+		 * Indicates that a complete and valid route has been successfully established
+		 * for a given request UUID. This event is logged by the original source node
+		 * once it receives the final route confirmation.
+		 */
+		ROUTE_FOUND,
+
+		/**
+		 * Indicates that the attempt to find a route for a specific request UUID has failed.
+		 * This event is logged by the original source node after exhausting all discovery branches.
+		 */
+		ROUTE_FAILED,
+
+		/**
+		 * Indicates that a new route entry has been successfully added to the
+		 * local node's routing table ({@code RouteEntry}).
+		 */
+		ROUTE_ENTRY_ADD,
+
+		/**
+		 * Indicates that a route entry has been removed from the local node's
+		 * routing table ({@code RouteEntry}), typically due to invalidation,
+		 * expiration, or replacement by a better route.
+		 */
+		ROUTE_ENTRY_DEL,
+
+		/**
+		 * Indicates that a {@code BroadcastStatusEntry} has been deleted
+		 * for a specific route request and a particular neighbor. This signifies
+		 * the conclusion of a branch in the broadcast discovery.
+		 */
+		BROADCAST_STATUS_DEL,
+
+		/**
+		 * Indicates that a {@code RequestEntry} has been deleted from the local node's
+		 * request table ({@code RequestTable}). This happens when a route request
+		 * has been fully resolved (either found or definitively failed).
+		 */
+		REQUEST_ENTRY_DEL
 	}
 }

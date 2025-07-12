@@ -126,21 +126,42 @@ public class SignalManager {
 		}
 	}
 
-	private void initializeIdentity() throws Exception {
+	/**
+	 * Initializes or regenerates the identity key pair.
+	 * If existing data is corrupted/incompatible, it will be cleared and new keys generated.
+	 */
+	private void initializeIdentity() {
 		String identityKeyPairData = preferences.getString(IDENTITY_KEY_PAIR_PREF, null);
 		int regId = preferences.getInt(REGISTRATION_ID_PREF, -1);
 
+		boolean loadSuccessful = false;
 		if (identityKeyPairData != null && regId != -1) {
-			// Get existing identity key
-			identityKeyPair = new IdentityKeyPair(hexStringToByteArray(identityKeyPairData));
-			registrationId = regId;
-		} else {
-			// Create new identity key
+			try {
+				identityKeyPair = new IdentityKeyPair(hexStringToByteArray(identityKeyPairData));
+				registrationId = regId;
+				loadSuccessful = true;
+				Log.d(TAG, "Existing identity key pair loaded successfully.");
+			} catch (InvalidKeyException e) {
+				Log.w(TAG, "Stored identity key pair is incompatible or corrupted. Regenerating all Signal data. Error: " + e.getMessage());
+			}
+		}
+
+		if (!loadSuccessful) {
+			Log.d(TAG, "Generating new identity key pair and registration ID.");
+			clearAllSignalData();
+
+			// Create new pair
 			identityKeyPair = KeyHelper.generateIdentityKeyPair();
 			registrationId = KeyHelper.generateRegistrationId(false);
 
-			// Save
-			preferences.edit().putString(IDENTITY_KEY_PAIR_PREF, byteArrayToHexString(identityKeyPair.serialize())).putInt(REGISTRATION_ID_PREF, registrationId).apply();
+			preferences.edit()
+					.putString(IDENTITY_KEY_PAIR_PREF, byteArrayToHexString(identityKeyPair.serialize()))
+					.putInt(REGISTRATION_ID_PREF, registrationId)
+					.putInt(NEXT_PREKEY_ID_PREF, 1)
+					.putInt(NEXT_SIGNED_PREKEY_ID_PREF, 1)
+					.apply();
+
+			Log.d(TAG, "New identity key pair and registration ID generated and saved.");
 		}
 	}
 
@@ -157,21 +178,22 @@ public class SignalManager {
 				preKeyStore.storePreKey(preKey.getId(), preKey); // Stock as 'used = false'
 			}
 			preferences.edit().putInt(NEXT_PREKEY_ID_PREF, startId + PREKEY_GENERATION_BATCH_SIZE).apply();
-			Log.d(TAG, "Generated " + PREKEY_GENERATION_BATCH_SIZE + " new PreKeys. Total unused: " + preKeyStore.getUnusedPreKeyCount());
+			Log.d(TAG, "Generated " + PREKEY_GENERATION_BATCH_SIZE + " new PreKeys. Total unused: " + (PREKEY_GENERATION_BATCH_SIZE + unusedPreKeyCount));
 		} else {
 			Log.d(TAG, "Sufficient PreKeys available: " + unusedPreKeyCount);
 		}
 
 		// Checking of generating the SignedPreKey
-		SignedPreKeyRecord latestSignedPreKey = null;
+		SignedPreKeyRecord latestSignedPreKey;
 		try {
 			latestSignedPreKey = signedPreKeyStore.getLatestSignedPreKey();
 		} catch (InvalidKeyIdException e) {
 			// There is no active SignedPreKey or it is compromised, we need to generate a new one.
 			Log.d(TAG, "No active SignedPreKey found or it was corrupted. Generating a new one.");
+			latestSignedPreKey = null;
 		}
 
-		boolean shouldGenerateNewSignedPreKey = false;
+		boolean shouldGenerateNewSignedPreKey;
 		if (latestSignedPreKey == null) {
 			shouldGenerateNewSignedPreKey = true;
 		} else {
@@ -181,6 +203,8 @@ public class SignalManager {
 				Log.i(TAG, "Active SignedPreKey has expired. Generating a new one.");
 				shouldGenerateNewSignedPreKey = true;
 				signedPreKeyStore.removeSignedPreKey(latestSignedPreKey.getId());
+			} else {
+				shouldGenerateNewSignedPreKey = false;
 			}
 		}
 
@@ -218,7 +242,7 @@ public class SignalManager {
 	 */
 	public boolean hasSession(@NonNull SignalProtocolAddress recipientAddress) {
 		if (sessionStore == null) {
-			Log.e(TAG, "SessionStore is null. SignalManager not initialized.");
+			Log.d(TAG, "SessionStore is null. SignalManager not initialized.");
 			return false;
 		}
 		// This check directly queries the session store
@@ -317,6 +341,32 @@ public class SignalManager {
 			throw new IllegalArgumentException("Unsupported message type: " + cipherMessage.getType());
 		}
 		return decryptedBytes;
+	}
+
+	/**
+	 * Clears all stored Signal Protocol data (identity, prekeys, signed prekeys, sessions).
+	 * This is typically called when existing data is corrupted or incompatible with a new library version.
+	 */
+	private void clearAllSignalData() {
+		Log.d(TAG, "Clearing all Signal Protocol data due to incompatibility or corruption.");
+
+		// Clear SharedPreferences related to Signal Identity and key IDs
+		preferences.edit()
+				.remove(IDENTITY_KEY_PAIR_PREF)
+				.remove(REGISTRATION_ID_PREF)
+				.remove(NEXT_PREKEY_ID_PREF)
+				.remove(NEXT_SIGNED_PREKEY_ID_PREF)
+				.apply();
+
+		// Clear the actual key stores
+		AndroidSessionStore.getInstance().clearAllCryptographyData();
+		// Reset instances to null so they are re-initialized clean later
+		sessionStore = null;
+		preKeyStore = null;
+		signedPreKeyStore = null;
+		identityKeyStore = null;
+
+		Log.d(TAG, "All Signal Protocol data cleared.");
 	}
 
 	/**

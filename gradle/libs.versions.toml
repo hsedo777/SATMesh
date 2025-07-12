@@ -4,7 +4,7 @@ junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 appcompat = "1.7.1"
-libsignalProtocolJava = "master-SNAPSHOT"
+libsignalProtocolJava = "2.8.1"
 material = "1.12.0"
 activity = "1.9.3"
 constraintlayout = "2.2.1"
@@ -12,6 +12,7 @@ playServicesNearby = "19.3.0"
 roomCompiler = "2.7.2"
 roomRuntime = "2.7.2"
 sqlcipherAndroid = "4.9.0"
+protobuf = "3.25.3"
 
 [libraries]
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
@@ -20,12 +21,12 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
-libsignal-protocol-java = { module = "com.github.signalapp:libsignal-protocol-java", version.ref = "libsignalProtocolJava" }
+libsignal-protocol-java = { module = "org.whispersystems:signal-protocol-java", version.ref = "libsignalProtocolJava" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 play-services-nearby = { module = "com.google.android.gms:play-services-nearby", version.ref = "playServicesNearby" }
-protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite" }
+protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf"  }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
 

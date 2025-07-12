@@ -69,6 +69,7 @@ dependencies {
     //SQLCipher for database file.s encryption/decryption
     implementation(libs.sqlcipher.android)
     //Protocol Buffers
+    implementation(platform(libs.protobuf.javalite))
     implementation(libs.protobuf.javalite)
     // Signal Protocol
     implementation(libs.libsignal.protocol.java)

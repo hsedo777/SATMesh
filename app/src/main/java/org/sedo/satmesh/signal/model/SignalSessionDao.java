@@ -23,4 +23,7 @@ public interface SignalSessionDao {
 
 	@Query("SELECT address FROM signal_session WHERE address LIKE :name || '.%'")
 	List<String> getSessionAddressesByNamePrefix(String name);
+
+	@Query("DELETE FROM signal_session")
+	void clearAll();
 }

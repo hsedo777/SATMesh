@@ -12,4 +12,7 @@ public interface SignalIdentityKeyDao {
 
 	@Insert(onConflict = OnConflictStrategy.REPLACE)
 	void insertIdentityKey(SignalIdentityKeyEntity identityKey);
+
+	@Query("DELETE FROM signal_identity_keys")
+	void clearAll();
 }

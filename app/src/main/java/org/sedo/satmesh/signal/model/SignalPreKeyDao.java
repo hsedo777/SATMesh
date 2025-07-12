@@ -25,4 +25,7 @@ public interface SignalPreKeyDao {
 
 	@Update
 	void updatePreKey(SignalPreKeyEntity preKey);
+
+	@Query("DELETE FROM signal_prekeys")
+	void clearAll();
 }

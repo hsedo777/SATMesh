@@ -24,4 +24,7 @@ public interface SignalSignedPreKeyDao {
 	// Get the latest SignedPreKey, assumed to be the current active
 	@Query("SELECT * FROM signal_signed_prekeys ORDER BY keyId DESC LIMIT 1")
 	SignalSignedPreKeyEntity getLatestSignedPreKey();
+
+	@Query("DELETE FROM signal_signed_prekeys")
+	void clearAll();
 }

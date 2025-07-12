@@ -12,28 +12,29 @@ import org.whispersystems.libsignal.state.SessionStore;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Implementation of session store. */
+/**
+ * Implementation of session store.
+ */
 public class AndroidSessionStore implements SessionStore {
 
 	private static AndroidSessionStore INSTANCE;
+	private final SignalSessionDao sessionDao;
 
-	public static AndroidSessionStore getInstance(){
-		if (INSTANCE == null){
-			synchronized (AndroidSessionStore.class){
+	protected AndroidSessionStore(SignalSessionDao sessionDao) {
+		this.sessionDao = sessionDao;
+	}
+
+	public static AndroidSessionStore getInstance() {
+		if (INSTANCE == null) {
+			synchronized (AndroidSessionStore.class) {
 				// At least the database must be initialized by the main activity
 				AppDatabase db = AppDatabase.getDB(null);
-				if (INSTANCE == null && db != null){
+				if (INSTANCE == null && db != null) {
 					INSTANCE = new AndroidSessionStore(db.sessionDao());
 				}
 			}
 		}
 		return INSTANCE;
-	}
-
-	private final SignalSessionDao sessionDao;
-
-	protected AndroidSessionStore(SignalSessionDao sessionDao) {
-		this.sessionDao = sessionDao;
 	}
 
 	private String getAddressKey(SignalProtocolAddress address) {
@@ -87,15 +88,25 @@ public class AndroidSessionStore implements SessionStore {
 		List<Integer> deviceIds = new ArrayList<>();
 
 		for (String address : allAddresses) {
-				try {
-					int deviceId = Integer.parseInt(address.substring(name.length() + 1));
-					if (deviceId != SIGNAL_PROTOCOL_DEVICE_ID) { // Exclude the main device
-						deviceIds.add(deviceId);
-					}
-				} catch (NumberFormatException ignore) {
-					// Ignore malformed address
+			try {
+				int deviceId = Integer.parseInt(address.substring(name.length() + 1));
+				if (deviceId != SIGNAL_PROTOCOL_DEVICE_ID) { // Exclude the main device
+					deviceIds.add(deviceId);
+				}
+			} catch (NumberFormatException ignore) {
+				// Ignore malformed address
 			}
 		}
 		return deviceIds;
+	}
+
+	public void clearAllCryptographyData() {
+		AppDatabase db = AppDatabase.getDB(null);
+		if (db != null) {
+			db.sessionDao().clearAll();
+			db.preKeyDao().clearAll();
+			db.signedPreKeyDao().clearAll();
+			db.identityKeyDao().clearAll();
+		}
 	}
 }

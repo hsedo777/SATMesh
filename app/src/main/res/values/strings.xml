@@ -151,6 +151,7 @@
 	<string name="username_updated_to">Username updated to: </string>
 	<string name="username_update_failed">Failed to update username.</string>
 	<string name="username_update_failed_no_node">Failed to update username: Local node data not found.</string>
+	<string name="title_activity_settings">Settings</string>
 	<!--
 	<string name=""></string>
 	-->

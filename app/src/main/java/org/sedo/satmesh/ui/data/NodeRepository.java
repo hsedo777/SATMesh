@@ -44,6 +44,17 @@ public class NodeRepository {
 		});
 	}
 
+	public void update(@NonNull Node node, @NonNull Consumer<Boolean> callback) {
+		executor.execute(() -> {
+			try {
+				dao.update(node);
+				callback.accept(true);
+			} catch (Exception e) {
+				callback.accept(false);
+			}
+		});
+	}
+
 	public void update(@NonNull Node node) {
 		executor.execute(() -> dao.update(node));
 	}

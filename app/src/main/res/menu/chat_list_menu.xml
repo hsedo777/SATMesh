@@ -22,6 +22,9 @@
 				android:id="@+id/menu_known_nodes"
 				android:title="@string/menu_known_nodes" />
 			<item
+				android:id="@+id/menu_renew_fingerprint"
+				android:title="@string/menu_renew_fingerprint" />
+			<item
 				android:id="@+id/menu_help_feedback"
 				android:title="@string/menu_help_feedback" />
 			<item

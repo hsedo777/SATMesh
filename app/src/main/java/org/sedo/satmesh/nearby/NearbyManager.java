@@ -29,6 +29,8 @@ import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.utils.DataLog;
+import org.sedo.satmesh.utils.DataLog.TransmissionEventType;
+import org.sedo.satmesh.utils.DataLog.TransmissionStatus;
 
 import java.util.List;
 import java.util.Map;
@@ -81,6 +83,7 @@ public class NearbyManager {
 				Log.w(TAG, "Payload received from unknown or disconnected endpoint: " + endpointId);
 				return;
 			}
+			DataLog.logTransmissionEvent(TransmissionEventType.RECEIVE, endpointId, payload.getId(), 0, TransmissionStatus.SUCCESS);
 			if (state.status != STATUS_CONNECTED) {
 				// Inconsistent state, we are receiving payload from the device, so we ae connected
 				Log.d(TAG, "Inconsistent state, we are receiving payload from the device in status: "
@@ -649,12 +652,14 @@ public class NearbyManager {
 		connectionsClient.sendPayload(endpointId, payload)
 				.addOnSuccessListener(unused -> {
 					Log.d(TAG, "Payload ID " + payload.getId() + " sent successfully to " + endpointId);
+					DataLog.logTransmissionEvent(TransmissionEventType.SEND, endpointId, payload.getId(), data.length, TransmissionStatus.SUCCESS);
 					if (callback != null) {
 						callback.onSuccess(payload);
 					}
 				})
 				.addOnFailureListener(e -> {
 					Log.e(TAG, "Failed to send Payload ID " + payload.getId() + " to " + endpointId, e);
+					DataLog.logTransmissionEvent(TransmissionEventType.SEND, endpointId, payload.getId(), data.length, TransmissionStatus.FAILURE);
 					if (callback != null) {
 						callback.onFailure(payload, e);
 					}

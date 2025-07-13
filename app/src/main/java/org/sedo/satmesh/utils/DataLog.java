@@ -144,14 +144,14 @@ public class DataLog {
 	 * @param eventType   The specific {@link RouteDiscoveryEvent} that occurred. Required.
 	 * @param requestUuid The UUID of the route request. Use null or empty string if not applicable.
 	 * @param params      A map containing additional key-value pairs for specific event details.
-	 * Use predefined static keys from LogToFileManager (e.g., PARAM_SOURCE_NODE_UUID).
-	 * <br>Common parameters:
-	 * - {@link #PARAM_INTERACTING_NODE_UUID} (String): UUID of the neighbor involved.
-	 * - {@link #PARAM_STATUS_OR_REASON} (String): Status or reason for the event (e.g., "ROUTE_FOUND", "NO_ROUTE_FOUND").
-	 * - {@link #PARAM_HOPS} (String): Number of hops (e.g., "1", "3").
-	 * - {@link #PARAM_ADDITIONAL_INFO} (String): Any extra, event-specific details.
-	 * - {@link #PARAM_SOURCE_NODE_UUID} (String): UUID of the original source node (ONLY for initiator node).
-	 * - {@link #PARAM_DEST_NODE_UUID} (String): UUID of the destination node for the request or route entry.
+	 *                    Use predefined static keys from LogToFileManager (e.g., PARAM_SOURCE_NODE_UUID).
+	 *                    <br>Common parameters:
+	 *                    - {@link #PARAM_INTERACTING_NODE_UUID} (String): UUID of the neighbor involved.
+	 *                    - {@link #PARAM_STATUS_OR_REASON} (String): Status or reason for the event (e.g., "ROUTE_FOUND", "NO_ROUTE_FOUND").
+	 *                    - {@link #PARAM_HOPS} (String): Number of hops (e.g., "1", "3").
+	 *                    - {@link #PARAM_ADDITIONAL_INFO} (String): Any extra, event-specific details.
+	 *                    - {@link #PARAM_SOURCE_NODE_UUID} (String): UUID of the original source node (ONLY for initiator node).
+	 *                    - {@link #PARAM_DEST_NODE_UUID} (String): UUID of the destination node for the request or route entry.
 	 */
 	public static synchronized void logRouteEvent(
 			RouteDiscoveryEvent eventType,
@@ -215,6 +215,48 @@ public class DataLog {
 			}
 		}
 	}
+
+	/**
+	 * Logs a transmission event (send or receive) of a payload over Nearby Connections.
+	 * Format:
+	 * [TIMESTAMP_MS] TRANSMISSION [EVENT_TYPE] [ENDPOINT_ID] [PAYLOAD_ID] [SIZE_BYTES] [STATUS]
+	 *
+	 * @param eventType  Whether it was a SEND or RECEIVE event.
+	 * @param endpointId The endpoint ID of the other party.
+	 * @param payloadId  The ID of the payload if known, or 0L if not applicable (e.g. on failure).
+	 * @param sizeBytes  The size of the payload in bytes.
+	 * @param status     SUCCESS or FAILURE.
+	 */
+	public static synchronized void logTransmissionEvent(
+			TransmissionEventType eventType,
+			String endpointId,
+			long payloadId,
+			int sizeBytes,
+			TransmissionStatus status) {
+
+		if (writer == null || eventType == null || status == null) {
+			Log.w(TAG, "DataLog not initialized or invalid params. Skipping logTransmissionEvent: event=" + eventType + ", status=" + status);
+			return;
+		}
+
+		long timestamp = System.currentTimeMillis();
+		String safeEndpointId = endpointId != null ? endpointId : "";
+		String payloadIdStr = (payloadId != 0) ? String.valueOf(payloadId) : ""; // omit if unknown
+
+		String logLine = String.format(
+				Locale.US,
+				"%d TRANSMISSION %s %s %s %d %s",
+				timestamp,
+				eventType.name(),
+				safeEndpointId,
+				payloadIdStr,
+				sizeBytes,
+				status.name()
+		);
+
+		writeLogToFile(logLine);
+	}
+
 
 	/**
 	 * Closes the underlying FileWriter. This method should be called when the application
@@ -331,4 +373,13 @@ public class DataLog {
 		 */
 		REQUEST_ENTRY_DEL
 	}
+
+	public enum TransmissionEventType {
+		SEND, RECEIVE
+	}
+
+	public enum TransmissionStatus {
+		SUCCESS, FAILURE
+	}
+
 }

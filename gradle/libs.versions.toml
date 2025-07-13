@@ -12,7 +12,7 @@ playServicesNearby = "19.3.0"
 roomCompiler = "2.7.2"
 roomRuntime = "2.7.2"
 sqlcipherAndroid = "4.9.0"
-protobuf = "3.25.3"
+protobuf = "3.10.0"
 
 [libraries]
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }

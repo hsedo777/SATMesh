@@ -2,10 +2,14 @@ package org.sedo.satmesh;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.preference.PreferenceManager;
 
 import org.sedo.satmesh.ui.SettingsFragment;
 
@@ -37,6 +41,20 @@ public class SettingsActivity extends AppCompatActivity {
 			return;
 		}
 
+		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+		String[] themes = getResources().getStringArray(R.array.pref_theme_values);
+		String themeValue = sharedPrefs.getString(getString(R.string.pref_key_theme), themes[2]);
+		switch (themeValue) {
+			case "dark":
+				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+				break;
+			case "light":
+				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+				break;
+			default:
+				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+		}
+
 		// Navigate only on initial creation
 		if (savedInstanceState == null) {
 			getSupportFragmentManager()
@@ -48,6 +66,12 @@ public class SettingsActivity extends AppCompatActivity {
 			getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 			getSupportActionBar().setTitle(R.string.title_activity_settings);
 		}
+		getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				onSupportNavigateUp();
+			}
+		});
 	}
 
 	@Override

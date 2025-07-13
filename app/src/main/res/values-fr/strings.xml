@@ -142,6 +142,11 @@
 	<string name="default_username">Mon Nœud</string>
 	<string name="pref_title_node_id">Votre ID de nœud</string>
 	<string name="node_id_copied_to_clipboard">ID du nœud copié dans le presse-papiers</string>
+	<string name="username_cannot_be_empty">Le nom d\'utilisateur ne peut pas être vide</string>
+	<string name="username_invalid">Cette valeur n\'est pas utilisable en tant que nom d'utilisateur.</string>
+	<string name="username_updated_to">Nom d\'utilisateur mis à jour vers : </string>
+	<string name="username_update_failed">Échec de la mise à jour du nom d\'utilisateur.</string>
+	<string name="username_update_failed_no_node">Échec de la mise à jour du nom d\'utilisateur : Données du nœud local introuvables.</string>
 	<!--
 	<string name=""></string>
 	-->

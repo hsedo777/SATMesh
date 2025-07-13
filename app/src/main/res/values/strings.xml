@@ -146,6 +146,11 @@
 	<string name="pref_title_node_id">Node ID</string>
 	<string name="pref_key_node_id" translatable="false">node_id_preference</string>
 	<string name="node_id_copied_to_clipboard">Node ID copied to clipboard</string>
+	<string name="username_cannot_be_empty">Username can\'t be empty</string>
+	<string name="username_invalid">This value is not usable as username.</string>
+	<string name="username_updated_to">Username updated to: </string>
+	<string name="username_update_failed">Failed to update username.</string>
+	<string name="username_update_failed_no_node">Failed to update username: Local node data not found.</string>
 	<!--
 	<string name=""></string>
 	-->

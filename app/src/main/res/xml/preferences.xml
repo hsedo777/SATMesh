@@ -11,16 +11,14 @@
 			android:entries="@array/pref_theme_entries"
 			android:entryValues="@array/pref_theme_values"
 			android:key="@string/pref_key_theme"
-			android:title="@string/pref_title_theme"
-			app:useAdminData="false" />
+			android:title="@string/pref_title_theme" />
 
 		<ListPreference
 			android:defaultValue="normal"
 			android:entries="@array/pref_font_size_entries"
 			android:entryValues="@array/pref_font_size_values"
 			android:key="@string/pref_key_font_size"
-			android:title="@string/pref_title_font_size"
-			app:useAdminData="false" />
+			android:title="@string/pref_title_font_size" />
 
 	</PreferenceCategory>
 
@@ -33,14 +31,12 @@
 			android:key="@string/pref_key_username"
 			android:selectAllOnFocus="true"
 			android:singleLine="true"
-			android:title="@string/pref_title_username"
-			app:useAdminData="false" />
+			android:title="@string/pref_title_username" />
 
 		<Preference
 			android:key="@string/pref_key_node_id"
 			android:selectable="true"
-			android:title="@string/pref_title_node_id"
-			app:useAdminData="false" />
+			android:title="@string/pref_title_node_id" />
 
 	</PreferenceCategory>
 

@@ -155,7 +155,7 @@ public class NearbyRouteManager {
 							@Override
 							public void onSuccess(@NonNull Payload payload) {
 								Log.d(TAG, "RouteRequestMessage payload " + payload.getId() + " sent successfully to " + recipientAddressName);
-								Consumer<Node> save = node -> {
+								Consumer<Node> save = node -> executor.execute(() -> {
 									// Ensure the broadcast status is recorded for tracking
 									BroadcastStatusEntry broadcastStatus = new BroadcastStatusEntry(messageBody.getUuid(), node.getId());
 									broadcastStatus.setPendingResponseInProgress(false); // Default to false
@@ -163,23 +163,25 @@ public class NearbyRouteManager {
 									DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_REQ_RELAYED, messageBody.getUuid(),
 											params(messageBody.getDestinationNodeId(), recipientAddressName, null, null));
 									Log.d(TAG, "BroadcastStatusEntry created for request " + messageBody.getUuid() + " to neighbor " + node.getId());
-								};
-								Node node = nodeRepository.findNodeSync(recipientAddressName);
-								if (node == null) {
-									Log.e(TAG, "Failed to find node for " + recipientAddressName + " after sending RouteRequestMessage. We are creating it.");
-									Node newNode = new Node();
-									newNode.setAddressName(recipientAddressName);
-									nodeRepository.insert(newNode, ok -> {
-										if (ok) {
-											save.accept(newNode);
-										} else {
-											Log.w(TAG, "Failed to persist the node!");
-										}
-										// To fetch failing, caller of this method might try to retrieve occurrence of the broadcast in DB
-									});
-								} else {
-									save.accept(node);
-								}
+								});
+								executor.execute(() -> {
+									Node node = nodeRepository.findNodeSync(recipientAddressName);
+									if (node == null) {
+										Log.e(TAG, "Failed to find node for " + recipientAddressName + " after sending RouteRequestMessage. We are creating it.");
+										Node newNode = new Node();
+										newNode.setAddressName(recipientAddressName);
+										nodeRepository.insert(newNode, ok -> {
+											if (ok) {
+												save.accept(newNode);
+											} else {
+												Log.w(TAG, "Failed to persist the node!");
+											}
+											// To fetch failing, caller of this method might try to retrieve occurrence of the broadcast in DB
+										});
+									} else {
+										save.accept(node);
+									}
+								});
 							}
 
 							@Override
@@ -425,170 +427,175 @@ public class NearbyRouteManager {
 					Log.d(TAG, "Resolved sender " + resolvedSenderAddressName + " to local ID: " + senderNodeLocalId + ". Continuing RouteRequest processing for UUID: " + routeRequest.getUuid());
 
 					// 2. Check if UUID exists in RouteRequestEntry (prevent loops/redundant processing).
-					RouteRequestEntry existingRequest = routeRequestEntryDao.getRequestByUuid(routeRequest.getUuid());
+					executor.execute(() -> {
+						RouteRequestEntry existingRequest = routeRequestEntryDao.getRequestByUuid(routeRequest.getUuid());
 
-					if (existingRequest != null) {
-						Log.d(TAG, "RouteRequest with UUID " + routeRequest.getUuid() + " already in progress. Sending REQUEST_ALREADY_IN_PROGRESS response.");
-						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
-								.setRequestUuid(routeRequest.getUuid())
-								.setStatus(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS)
-								.build();
-
-						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
-								new TransmissionCallback() {
-									@Override
-									public void onSuccess(@NonNull Payload payload) {
-										DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
-												params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
-														String.valueOf(routeRequest.getRemainingHops())));
-										Log.d(TAG, "Sent REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-
-									@Override
-									public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-										Log.e(TAG, "Failed to send REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-								});
-						return; // Stop processing, request is redundant.
-					}
-
-					// 3. Check if current node is the destination.
-					if (localHostAddress.equals(routeRequest.getDestinationNodeId())) {
-						Log.d(TAG, "Current node is the destination for RouteRequest " + routeRequest.getUuid() + ". Sending ROUTE_FOUND response.");
-
-						// Send ROUTE_FOUND response back to the previous hop (sender of this request)
-						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
-								.setRequestUuid(routeRequest.getUuid())
-								.setStatus(RouteResponseMessage.Status.ROUTE_FOUND)
-								.setHopCount(0)
-								.build();
-						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
-								new TransmissionCallback() {
-									@Override
-									public void onSuccess(@NonNull Payload payload) {
-										DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
-												params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
-														String.valueOf(routeRequest.getRemainingHops())));
-										Log.d(TAG, "Sent ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-
-									@Override
-									public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-										Log.e(TAG, "Failed to send ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-								});
-						return; // Stop processing, route found.
-					}
-
-					// If not the destination, proceed to check TTL and remaining hops for relaying.
-					// 4. Check TTL and remaining_hops.
-					long currentTime = System.currentTimeMillis();
-					if (routeRequest.getMaxTtl() < currentTime) {
-						Log.d(TAG, "RouteRequest " + routeRequest.getUuid() + " has expired (TTL reached). Sending TTL_EXPIRED response.");
-						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
-								.setRequestUuid(routeRequest.getUuid())
-								.setStatus(RouteResponseMessage.Status.TTL_EXPIRED)
-								.build();
-						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
-								new TransmissionCallback() {
-									@Override
-									public void onSuccess(@NonNull Payload payload) {
-										DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
-												params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
-														String.valueOf(routeRequest.getRemainingHops())));
-										Log.d(TAG, "Sent TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-
-									@Override
-									public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-										Log.e(TAG, "Failed to send TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-								});
-						return; // Stop processing.
-					}
-
-					if (routeRequest.getRemainingHops() <= 0) {
-						Log.d(TAG, "RouteRequest " + routeRequest.getUuid() + " has reached max hops. Sending MAX_HOPS_REACHED response.");
-						RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
-								.setRequestUuid(routeRequest.getUuid())
-								.setStatus(RouteResponseMessage.Status.MAX_HOPS_REACHED)
-								.build();
-						sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
-								new TransmissionCallback() {
-									@Override
-									public void onSuccess(@NonNull Payload payload) {
-										DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
-												params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
-														String.valueOf(routeRequest.getRemainingHops())));
-										Log.d(TAG, "Sent MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-
-									@Override
-									public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {								Log.e(TAG, "Failed to send MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-										Log.e(TAG, "Failed to send MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-									}
-								});
-						return; // Stop processing.
-					}
-
-					// --- If we reach here, this is an intermediate node and the request is valid for relaying ---
-
-					// 5. Store the incoming RouteRequestEntry
-					RouteRequestEntry newRequestEntry = new RouteRequestEntry(routeRequest.getUuid());
-					// Ensure destination exists
-					nodeRepository.findOrCreateNodeAsync(routeRequest.getDestinationNodeId(), new NodeCallback() {
-						@Override
-						public void onNodeReady(@NonNull Node destination) {
-							newRequestEntry.setDestinationNodeLocalId(destination.getId());
-							newRequestEntry.setPreviousHopLocalId(senderNodeLocalId); // The node that sent us this request
-							routeRequestEntryDao.insert(newRequestEntry);
-							Log.d(TAG, "RouteRequestEntry stored for relaying: UUID=" + routeRequest.getUuid() + ", PrevHop=" + resolvedSenderAddressName);
-
-							// 6. Decrement hops and relay the request to other neighbors
-							int newRemainingHops = routeRequest.getRemainingHops() - 1;
-							RouteRequestMessage relayedRouteRequest = RouteRequestMessage.newBuilder()
-									.setUuid(routeRequest.getUuid())
-									.setDestinationNodeId(routeRequest.getDestinationNodeId())
-									.setRemainingHops(newRemainingHops)
-									.setMaxTtl(routeRequest.getMaxTtl())
+						if (existingRequest != null) {
+							Log.d(TAG, "RouteRequest with UUID " + routeRequest.getUuid() + " already in progress. Sending REQUEST_ALREADY_IN_PROGRESS response.");
+							RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+									.setRequestUuid(routeRequest.getUuid())
+									.setStatus(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS)
 									.build();
 
-							// Broadcast the request to all neighbors, excluding the sender of this request
-							int sentToNeighborsCount = broadcastRouteRequestToNeighbors(relayedRouteRequest, resolvedSenderAddressName);
+							sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
+									new TransmissionCallback() {
+										@Override
+										public void onSuccess(@NonNull Payload payload) {
+											DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+													params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+															String.valueOf(routeRequest.getRemainingHops())));
+											Log.d(TAG, "Sent REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
 
-							if (sentToNeighborsCount == 0) {
-								Log.w(TAG, "Route request " + routeRequest.getUuid() + " received, but no other neighbors to relay to. Sending NO_ROUTE_FOUND response back.");
-								// If no other neighbors to relay to, this branch of discovery ends here.
-								RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
-										.setRequestUuid(routeRequest.getUuid())
-										.setStatus(RouteResponseMessage.Status.NO_ROUTE_FOUND)
-										.build();
-								sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
-										new TransmissionCallback() {
-											@Override
-											public void onSuccess(@NonNull Payload payload) {
-												DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
-														params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
-																String.valueOf(routeRequest.getRemainingHops())));
-												Log.d(TAG, "Sent NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " (no relays) to " + resolvedSenderAddressName);
-											}
+										@Override
+										public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+											Log.e(TAG, "Failed to send REQUEST_ALREADY_IN_PROGRESS response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
+									});
+							return; // Stop processing, request is redundant.
+						}
 
-											@Override
-											public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-												Log.e(TAG, "Failed to send NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
-											}
-										});
-								// Drop the new mapping from database
-								routeRequestEntryDao.deleteByRequestUuid(routeRequest.getUuid());
-							} else {
-								Log.d(TAG, "Route request " + routeRequest.getUuid() + " relayed to " + sentToNeighborsCount + " neighbors. New hops: " + newRemainingHops);
+						// 3. Check if current node is the destination.
+						if (localHostAddress.equals(routeRequest.getDestinationNodeId())) {
+							Log.d(TAG, "Current node is the destination for RouteRequest " + routeRequest.getUuid() + ". Sending ROUTE_FOUND response.");
+
+							// Send ROUTE_FOUND response back to the previous hop (sender of this request)
+							RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+									.setRequestUuid(routeRequest.getUuid())
+									.setStatus(RouteResponseMessage.Status.ROUTE_FOUND)
+									.setHopCount(0)
+									.build();
+							sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
+									new TransmissionCallback() {
+										@Override
+										public void onSuccess(@NonNull Payload payload) {
+											DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+													params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+															String.valueOf(routeRequest.getRemainingHops())));
+											Log.d(TAG, "Sent ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
+
+										@Override
+										public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+											Log.e(TAG, "Failed to send ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
+									});
+							return; // Stop processing, route found.
+						}
+
+						// If not the destination, proceed to check TTL and remaining hops for relaying.
+						// 4. Check TTL and remaining_hops.
+						long currentTime = System.currentTimeMillis();
+						if (routeRequest.getMaxTtl() < currentTime) {
+							Log.d(TAG, "RouteRequest " + routeRequest.getUuid() + " has expired (TTL reached). Sending TTL_EXPIRED response.");
+							RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+									.setRequestUuid(routeRequest.getUuid())
+									.setStatus(RouteResponseMessage.Status.TTL_EXPIRED)
+									.build();
+							sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
+									new TransmissionCallback() {
+										@Override
+										public void onSuccess(@NonNull Payload payload) {
+											DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+													params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+															String.valueOf(routeRequest.getRemainingHops())));
+											Log.d(TAG, "Sent TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
+
+										@Override
+										public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+											Log.e(TAG, "Failed to send TTL_EXPIRED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
+									});
+							return; // Stop processing.
+						}
+
+						if (routeRequest.getRemainingHops() <= 0) {
+							Log.d(TAG, "RouteRequest " + routeRequest.getUuid() + " has reached max hops. Sending MAX_HOPS_REACHED response.");
+							RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+									.setRequestUuid(routeRequest.getUuid())
+									.setStatus(RouteResponseMessage.Status.MAX_HOPS_REACHED)
+									.build();
+							sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
+									new TransmissionCallback() {
+										@Override
+										public void onSuccess(@NonNull Payload payload) {
+											DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+													params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+															String.valueOf(routeRequest.getRemainingHops())));
+											Log.d(TAG, "Sent MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
+
+										@Override
+										public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+											Log.e(TAG, "Failed to send MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+											Log.e(TAG, "Failed to send MAX_HOPS_REACHED response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+										}
+									});
+							return; // Stop processing.
+						}
+
+						// --- If we reach here, this is an intermediate node and the request is valid for relaying ---
+
+						// 5. Store the incoming RouteRequestEntry
+						RouteRequestEntry newRequestEntry = new RouteRequestEntry(routeRequest.getUuid());
+						// Ensure destination exists
+						nodeRepository.findOrCreateNodeAsync(routeRequest.getDestinationNodeId(), new NodeCallback() {
+							@Override
+							public void onNodeReady(@NonNull Node destination) {
+								executor.execute(() -> {
+									newRequestEntry.setDestinationNodeLocalId(destination.getId());
+									newRequestEntry.setPreviousHopLocalId(senderNodeLocalId); // The node that sent us this request
+									routeRequestEntryDao.insert(newRequestEntry);
+									Log.d(TAG, "RouteRequestEntry stored for relaying: UUID=" + routeRequest.getUuid() + ", PrevHop=" + resolvedSenderAddressName);
+
+									// 6. Decrement hops and relay the request to other neighbors
+									int newRemainingHops = routeRequest.getRemainingHops() - 1;
+									RouteRequestMessage relayedRouteRequest = RouteRequestMessage.newBuilder()
+											.setUuid(routeRequest.getUuid())
+											.setDestinationNodeId(routeRequest.getDestinationNodeId())
+											.setRemainingHops(newRemainingHops)
+											.setMaxTtl(routeRequest.getMaxTtl())
+											.build();
+
+									// Broadcast the request to all neighbors, excluding the sender of this request
+									int sentToNeighborsCount = broadcastRouteRequestToNeighbors(relayedRouteRequest, resolvedSenderAddressName);
+
+									if (sentToNeighborsCount == 0) {
+										Log.w(TAG, "Route request " + routeRequest.getUuid() + " received, but no other neighbors to relay to. Sending NO_ROUTE_FOUND response back.");
+										// If no other neighbors to relay to, this branch of discovery ends here.
+										RouteResponseMessage responseMessage = RouteResponseMessage.newBuilder()
+												.setRequestUuid(routeRequest.getUuid())
+												.setStatus(RouteResponseMessage.Status.NO_ROUTE_FOUND)
+												.build();
+										sendRouteResponseMessage(resolvedSenderAddressName, responseMessage,
+												new TransmissionCallback() {
+													@Override
+													public void onSuccess(@NonNull Payload payload) {
+														DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_SENT, routeRequest.getUuid(),
+																params(routeRequest.getDestinationNodeId(), resolvedSenderAddressName, responseMessage.getStatus().name(),
+																		String.valueOf(routeRequest.getRemainingHops())));
+														Log.d(TAG, "Sent NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " (no relays) to " + resolvedSenderAddressName);
+													}
+
+													@Override
+													public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+														Log.e(TAG, "Failed to send NO_ROUTE_FOUND response for " + routeRequest.getUuid() + " to " + resolvedSenderAddressName);
+													}
+												});
+										// Drop the new mapping from database
+										routeRequestEntryDao.deleteByRequestUuid(routeRequest.getUuid());
+									} else {
+										Log.d(TAG, "Route request " + routeRequest.getUuid() + " relayed to " + sentToNeighborsCount + " neighbors. New hops: " + newRemainingHops);
+									}
+								});
 							}
-						}
 
-						@Override
-						public void onError(@NonNull String errorMessage) {
-							Log.e(TAG, "Failed to resole the destination Node on the intermediate node of address=" + localHostAddress + ". Error: " + errorMessage);
-						}
+							@Override
+							public void onError(@NonNull String errorMessage) {
+								Log.e(TAG, "Failed to resole the destination Node on the intermediate node of address=" + localHostAddress + ". Error: " + errorMessage);
+							}
+						});
 					});
 				}
 
@@ -689,179 +696,181 @@ public class NearbyRouteManager {
 			nodeRepository.findOrCreateNodeAsync(senderAddressName, new NodeCallback() {
 				@Override
 				public void onNodeReady(@NonNull Node senderNode) {
-					long senderNodeLocalId = senderNode.getId();
-					String resolvedSenderAddressName = senderNode.getAddressName();
+					executor.execute(() -> {
+						long senderNodeLocalId = senderNode.getId();
+						String resolvedSenderAddressName = senderNode.getAddressName();
 
-					// 2.
-					RouteRequestEntry routeRequestEntry = routeRequestEntryDao.getRequestByUuid(requestUuid);
-					if (routeRequestEntry == null) {
-						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_LATE, requestUuid,
-								params(null, resolvedSenderAddressName, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-						Log.w(TAG, "RouteResponseMessage with UUID " + requestUuid + " received, but no corresponding RouteRequestEntry found. Ignoring response.");
-						return;
-					}
-
-					long destinationNodeLocalId = routeRequestEntry.getDestinationNodeLocalId();
-					Long previousHopLocalId = routeRequestEntry.getPreviousHopLocalId(); // Null if current node is original source
-
-					// Get destination node address name for logging and callbacks
-					Node destinationNode = nodeRepository.findNodeSync(destinationNodeLocalId);
-					if (destinationNode == null) {
-						// Undesired behavior, the node must be set at route request entry mapping
-						Log.e(TAG, "Undesired behavior, the node must be set at route request entry mapping");
-						return;
-					}
-					String destinationNodeAddressName = destinationNode.getAddressName();
-
-					// 3.
-					BroadcastStatusEntry broadcastStatus = broadcastStatusEntryDao.getBroadcastStatusEntrySync(requestUuid, senderNodeLocalId);
-					if (broadcastStatus == null) {
-						Log.e(TAG, "RouteResponseMessage for UUID " + requestUuid + " from " + resolvedSenderAddressName + " received, but no corresponding BroadcastStatusEntry found. This is unexpected. Ignoring response.");
-						return;
-					}
-
-					// Helper to determine if current node is the original source
-					boolean isOriginalSource = (previousHopLocalId == null);
-					Node previousHopNode = previousHopLocalId != null ? nodeRepository.findNodeSync(previousHopLocalId) : null;
-
-					// Internal helper function for common error/completion sequences
-					// This function simplifies the logic for handling various failure scenarios
-					// where a response needs to be forwarded or the source needs to be notified.
-					Consumer<RouteResponseMessage.Status> handleCompletionSequence = (finalStatus) -> {
-						if (broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid) != 0) {
-							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, requestUuid,
-									params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
-							Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid);
+						// 2.
+						RouteRequestEntry routeRequestEntry = routeRequestEntryDao.getRequestByUuid(requestUuid);
+						if (routeRequestEntry == null) {
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_LATE, requestUuid,
+									params(null, resolvedSenderAddressName, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.w(TAG, "RouteResponseMessage with UUID " + requestUuid + " received, but no corresponding RouteRequestEntry found. Ignoring response.");
+							return;
 						}
 
-						if (routeRequestEntryDao.deleteByRequestUuid(requestUuid) != 0) {
-							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.REQUEST_ENTRY_DEL, requestUuid,
-									params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
-							Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid);
+						long destinationNodeLocalId = routeRequestEntry.getDestinationNodeLocalId();
+						Long previousHopLocalId = routeRequestEntry.getPreviousHopLocalId(); // Null if current node is original source
+
+						// Get destination node address name for logging and callbacks
+						Node destinationNode = nodeRepository.findNodeSync(destinationNodeLocalId);
+						if (destinationNode == null) {
+							// Undesired behavior, the node must be set at route request entry mapping
+							Log.e(TAG, "Undesired behavior, the node must be set at route request entry mapping");
+							return;
+						}
+						String destinationNodeAddressName = destinationNode.getAddressName();
+
+						// 3.
+						BroadcastStatusEntry broadcastStatus = broadcastStatusEntryDao.getBroadcastStatusEntrySync(requestUuid, senderNodeLocalId);
+						if (broadcastStatus == null) {
+							Log.e(TAG, "RouteResponseMessage for UUID " + requestUuid + " from " + resolvedSenderAddressName + " received, but no corresponding BroadcastStatusEntry found. This is unexpected. Ignoring response.");
+							return;
 						}
 
-						if (isOriginalSource) {
-							// Notify the higher layer that the route could not be found.
-							nearbyManager.onRouteNotFound(requestUuid, destinationNodeAddressName, finalStatus);
-							Log.d(TAG, "Notified NearbyManager.onRouteNotFound for UUID " + requestUuid + " with status: " + finalStatus);
-							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_FAILED, requestUuid,
-									params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
-						} else {
-							if (previousHopNode == null) {
-								Log.e(TAG, "Failed to retrieve previous hop node " + previousHopLocalId + " for forwarding response for UUID " + requestUuid);
-								return;
+						// Helper to determine if current node is the original source
+						boolean isOriginalSource = (previousHopLocalId == null);
+						Node previousHopNode = previousHopLocalId != null ? nodeRepository.findNodeSync(previousHopLocalId) : null;
+
+						// Internal helper function for common error/completion sequences
+						// This function simplifies the logic for handling various failure scenarios
+						// where a response needs to be forwarded or the source needs to be notified.
+						Consumer<RouteResponseMessage.Status> handleCompletionSequence = (finalStatus) -> executor.execute(() -> {
+							if (broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid) != 0) {
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, requestUuid,
+										params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
+								Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid);
 							}
-							RouteResponseMessage responseToForward = RouteResponseMessage.newBuilder()
-									.setRequestUuid(requestUuid)
-									.setStatus(finalStatus)
-									.build();
-							sendRouteResponseMessage(previousHopNode.getAddressName(), responseToForward, TransmissionCallback.NULL_CALLBACK);
-						}
-					};
 
-					DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_RCVD, requestUuid,
-							params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-					// 4. If status == ROUTE_FOUND:
-					if (responseStatus == RouteResponseMessage.Status.ROUTE_FOUND) {
-						routeRequestEntryDao.deleteByRequestUuid(requestUuid);
-						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.REQUEST_ENTRY_DEL, requestUuid,
-								params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-						Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid + " (ROUTE_FOUND)");
-
-						// 4.b.
-						RouteEntry newRouteEntry = new RouteEntry();
-						newRouteEntry.setDiscoveryUuid(requestUuid);
-						newRouteEntry.setDestinationNodeLocalId(destinationNodeLocalId);
-						newRouteEntry.setNextHopLocalId(senderNodeLocalId);
-						newRouteEntry.setHopCount(routeResponse.getHopCount());
-						newRouteEntry.setPreviousHopLocalId(previousHopLocalId);
-						routeEntryDao.insert(newRouteEntry);
-
-						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_ENTRY_ADD, requestUuid,
-								params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-						Log.d(TAG, "RouteEntry created for UUID: " + requestUuid + " with destination " + destinationNodeAddressName + ", next hop " + resolvedSenderAddressName);
-
-						// 4.c.
-						RouteUsage routeUsage = new RouteUsage(requestUuid);
-						routeUsage.setRouteEntryDiscoveryUuid(requestUuid); // Same as request ID at route discovery
-						routeUsage.setLastUsedTimestamp(System.currentTimeMillis());
-						routeUsageDao.insert(routeUsage);
-						Log.d(TAG, "RouteUsage recorded for UUID: " + requestUuid);
-
-						// 4.d.
-						broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid);
-						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, routeResponse.getRequestUuid(),
-								params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-						Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid + " (ROUTE_FOUND)");
-
-						// 4.e.
-						if (isOriginalSource) {
-							// The route is established. Use a dedicated method NearbyManager.onRouteFound
-							nearbyManager.onRouteFound(destinationNodeAddressName, newRouteEntry);
-							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_FOUND, requestUuid,
-									params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-							Log.d(TAG, "Notified NearbyManager.onRouteFound for UUID " + requestUuid + " to " + destinationNodeAddressName);
-						} else {
-							// 4.f.
-							if (previousHopNode == null) {
-								Log.e(TAG, "Failed to retrieve previous hop node " + previousHopLocalId + " for forwarding ROUTE_FOUND response for UUID " + requestUuid);
-								return;
+							if (routeRequestEntryDao.deleteByRequestUuid(requestUuid) != 0) {
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.REQUEST_ENTRY_DEL, requestUuid,
+										params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
+								Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid);
 							}
-							sendRouteResponseMessage(previousHopNode.getAddressName(), routeResponse, TransmissionCallback.NULL_CALLBACK);
-						}
-					} else if (responseStatus == RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS) {
-						// 5.
-						// 5.a.
-						broadcastStatus.setPendingResponseInProgress(true); // Mark as processed for this neighbor
-						broadcastStatusEntryDao.update(broadcastStatus);
-						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_RCVD, routeResponse.getRequestUuid(),
-								params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-						Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " updated to isPendingResponseInProgress=true.");
-
-						// 5.b.
-						boolean isBroadcastRemaining = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, false);
-
-						// 5.c.
-						if (!isBroadcastRemaining) {
-							// All broadcasts have been processed
 
 							if (isOriginalSource) {
-								// 5.c.i.
-								Log.e(TAG, "Unexpected REQUEST_ALREADY_IN_PROGRESS response for UUID " + requestUuid + " at original source. Potential UUID collision.");
+								// Notify the higher layer that the route could not be found.
+								nearbyManager.onRouteNotFound(requestUuid, destinationNodeAddressName, finalStatus);
+								Log.d(TAG, "Notified NearbyManager.onRouteNotFound for UUID " + requestUuid + " with status: " + finalStatus);
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_FAILED, requestUuid,
+										params(null, null, finalStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							} else {
+								if (previousHopNode == null) {
+									Log.e(TAG, "Failed to retrieve previous hop node " + previousHopLocalId + " for forwarding response for UUID " + requestUuid);
+									return;
+								}
+								RouteResponseMessage responseToForward = RouteResponseMessage.newBuilder()
+										.setRequestUuid(requestUuid)
+										.setStatus(finalStatus)
+										.build();
+								sendRouteResponseMessage(previousHopNode.getAddressName(), responseToForward, TransmissionCallback.NULL_CALLBACK);
 							}
-							handleCompletionSequence.accept(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS);
-						} else {
-							// 5.d.
-							Log.d(TAG, "Still pending broadcasts for UUID " + requestUuid + ". Waiting for more responses.");
-						}
-					} else {
-						// 6. Status in (NO_ROUTE_FOUND, TTL_EXPIRED, MAX_HOPS_REACHED)
-						// 6.a
-						broadcastStatusEntryDao.delete(requestUuid, broadcastStatus.getNeighborNodeLocalId());
-						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, routeResponse.getRequestUuid(),
-								params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
-						Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " deleted (failure).");
+						});
 
-						// 6.b.
-						boolean isBroadcastRemaining = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, false);
+						DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_RCVD, requestUuid,
+								params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+						// 4. If status == ROUTE_FOUND:
+						if (responseStatus == RouteResponseMessage.Status.ROUTE_FOUND) {
+							routeRequestEntryDao.deleteByRequestUuid(requestUuid);
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.REQUEST_ENTRY_DEL, requestUuid,
+									params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.d(TAG, "Deleted RouteRequestEntry for UUID: " + requestUuid + " (ROUTE_FOUND)");
 
-						// 6.b.i.
-						if (!isBroadcastRemaining) {
-							// All branches have responded.
-							boolean isRequestInProgress = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, true);
+							// 4.b.
+							RouteEntry newRouteEntry = new RouteEntry();
+							newRouteEntry.setDiscoveryUuid(requestUuid);
+							newRouteEntry.setDestinationNodeLocalId(destinationNodeLocalId);
+							newRouteEntry.setNextHopLocalId(senderNodeLocalId);
+							newRouteEntry.setHopCount(routeResponse.getHopCount());
+							newRouteEntry.setPreviousHopLocalId(previousHopLocalId);
+							routeEntryDao.insert(newRouteEntry);
 
-							if (isRequestInProgress) {
-								Log.d(TAG, "All branches processed for UUID " + requestUuid + ". Found REQUEST_ALREADY_IN_PROGRESS branches. Executing completion with REQUEST_ALREADY_IN_PROGRESS.");
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_ENTRY_ADD, requestUuid,
+									params(destinationNodeAddressName, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.d(TAG, "RouteEntry created for UUID: " + requestUuid + " with destination " + destinationNodeAddressName + ", next hop " + resolvedSenderAddressName);
+
+							// 4.c.
+							RouteUsage routeUsage = new RouteUsage(requestUuid);
+							routeUsage.setRouteEntryDiscoveryUuid(requestUuid); // Same as request ID at route discovery
+							routeUsage.setLastUsedTimestamp(System.currentTimeMillis());
+							routeUsageDao.insert(routeUsage);
+							Log.d(TAG, "RouteUsage recorded for UUID: " + requestUuid);
+
+							// 4.d.
+							broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid);
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, routeResponse.getRequestUuid(),
+									params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.d(TAG, "Deleted all BroadcastStatusEntries for UUID: " + requestUuid + " (ROUTE_FOUND)");
+
+							// 4.e.
+							if (isOriginalSource) {
+								// The route is established. Use a dedicated method NearbyManager.onRouteFound
+								nearbyManager.onRouteFound(destinationNodeAddressName, newRouteEntry);
+								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_FOUND, requestUuid,
+										params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+								Log.d(TAG, "Notified NearbyManager.onRouteFound for UUID " + requestUuid + " to " + destinationNodeAddressName);
+							} else {
+								// 4.f.
+								if (previousHopNode == null) {
+									Log.e(TAG, "Failed to retrieve previous hop node " + previousHopLocalId + " for forwarding ROUTE_FOUND response for UUID " + requestUuid);
+									return;
+								}
+								sendRouteResponseMessage(previousHopNode.getAddressName(), routeResponse, TransmissionCallback.NULL_CALLBACK);
+							}
+						} else if (responseStatus == RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS) {
+							// 5.
+							// 5.a.
+							broadcastStatus.setPendingResponseInProgress(true); // Mark as processed for this neighbor
+							broadcastStatusEntryDao.update(broadcastStatus);
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.ROUTE_RESP_RCVD, routeResponse.getRequestUuid(),
+									params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " updated to isPendingResponseInProgress=true.");
+
+							// 5.b.
+							boolean isBroadcastRemaining = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, false);
+
+							// 5.c.
+							if (!isBroadcastRemaining) {
+								// All broadcasts have been processed
+
+								if (isOriginalSource) {
+									// 5.c.i.
+									Log.e(TAG, "Unexpected REQUEST_ALREADY_IN_PROGRESS response for UUID " + requestUuid + " at original source. Potential UUID collision.");
+								}
 								handleCompletionSequence.accept(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS);
 							} else {
-								Log.d(TAG, "All branches processed for UUID " + requestUuid + ". No REQUEST_ALREADY_IN_PROGRESS branches. Executing completion with received status: " + responseStatus);
-								handleCompletionSequence.accept(responseStatus);
+								// 5.d.
+								Log.d(TAG, "Still pending broadcasts for UUID " + requestUuid + ". Waiting for more responses.");
 							}
 						} else {
-							// 6.b.ii.
-							Log.d(TAG, "Still pending broadcasts for UUID " + requestUuid + ". Waiting for more responses.");
+							// 6. Status in (NO_ROUTE_FOUND, TTL_EXPIRED, MAX_HOPS_REACHED)
+							// 6.a
+							broadcastStatusEntryDao.delete(requestUuid, broadcastStatus.getNeighborNodeLocalId());
+							DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, routeResponse.getRequestUuid(),
+									params(null, null, responseStatus.name(), String.valueOf(routeResponse.getHopCount())));
+							Log.d(TAG, "BroadcastStatusEntry for " + requestUuid + " to " + resolvedSenderAddressName + " deleted (failure).");
+
+							// 6.b.
+							boolean isBroadcastRemaining = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, false);
+
+							// 6.b.i.
+							if (!isBroadcastRemaining) {
+								// All branches have responded.
+								boolean isRequestInProgress = broadcastStatusEntryDao.hasResponseInProgressState(requestUuid, true);
+
+								if (isRequestInProgress) {
+									Log.d(TAG, "All branches processed for UUID " + requestUuid + ". Found REQUEST_ALREADY_IN_PROGRESS branches. Executing completion with REQUEST_ALREADY_IN_PROGRESS.");
+									handleCompletionSequence.accept(RouteResponseMessage.Status.REQUEST_ALREADY_IN_PROGRESS);
+								} else {
+									Log.d(TAG, "All branches processed for UUID " + requestUuid + ". No REQUEST_ALREADY_IN_PROGRESS branches. Executing completion with received status: " + responseStatus);
+									handleCompletionSequence.accept(responseStatus);
+								}
+							} else {
+								// 6.b.ii.
+								Log.d(TAG, "Still pending broadcasts for UUID " + requestUuid + ". Waiting for more responses.");
+							}
 						}
-					}
+					});
 				}
 
 				@Override

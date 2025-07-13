@@ -36,7 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -135,11 +134,15 @@ public class NearbyManager {
 			String remoteAddressName = state.addressName;
 			if (result.getStatus().isSuccess()) {
 				Log.d(TAG, "Connection established with: " + remoteAddressName + " (EndpointId: " + endpointId + ")");
+				int status = state.status;
 				// Store the mapping between endpointId and the remote device's SignalProtocolAddress name
 				putState(endpointId, remoteAddressName, STATUS_CONNECTED, NodeState.ON_CONNECTED);
 				addressNameToEndpointId.put(remoteAddressName, endpointId); // Update the core mapping
 
 				deviceConnectionListeners.forEach(listener -> listener.onDeviceConnected(endpointId, remoteAddressName));
+				if (status == STATUS_INITIATED_FROM_REMOTE){
+					NearbySignalMessenger.getInstance().handleInitialKeyExchange(remoteAddressName);
+				}
 			} else {
 				Log.e(TAG, "Connection failed with: " + remoteAddressName + " (EndpointId: " + endpointId + "). Status: " + result.getStatus().getStatusMessage());
 				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(endpointId, remoteAddressName, result.getStatus()));
@@ -536,7 +539,7 @@ public class NearbyManager {
 	 * to the recipient via {@link NearbyRouteManager}.
 	 * <ul>
 	 * <li>If an active route exists, the {@code plainMessageBody} is immediately sent
-	 * through that route using {@link NearbyRouteManager#sendMessageThroughRoute(String, String, NearbyMessageBody, BiConsumer)}.</li>
+	 * through that route using {@link NearbyRouteManager#sendMessageThroughRoute(String, String, NearbyMessageBody, TransmissionCallback)}.</li>
 	 * <li>If no active route is found, route discovery is initiated via
 	 * {@link NearbyRouteManager#initiateRouteDiscovery(String, java.util.function.Consumer, java.util.function.Consumer)}.
 	 * Upon successful route discovery, the message will then be sent through the newly found route.</li>
@@ -549,11 +552,10 @@ public class NearbyManager {
 	 *                                     message to be sent. This will be encrypted either directly (if neighbor)
 	 *                                     or end-to-end (if routed).
 	 * @param recipientAddressName         The {@code SignalProtocolAddress.name} of the final recipient.
-	 * @param transmissionCallback         A {@link BiConsumer} callback that receives the {@link Payload}
-	 *                                     (or {@code null} if direct transmission failed or route not found)
-	 *                                     and a boolean indicating success ({@code true}) or failure ({@code false}).
-	 * @param routeTransmissionCallback    A {@link BiConsumer} callback that receives the {@link Payload}
-	 *                                     (or {@code null} if the attempt to send the message to the next
+	 * @param transmissionCallback         A callback that receives the {@link Payload}
+	 *                                     (or {@code null} if direct transmission failed before payload created).
+	 * @param routeTransmissionCallback    A callback that receives the {@link Payload}
+	 *                                     or {@code null} if the attempt to send the message to the next
 	 *                                     hop (direct connection or first hop of route). So it is used only if
 	 *                                     the message is put on a route.
 	 * @param onDiscoveryInitiatedCallback An optional {@link Consumer} callback that is invoked to
@@ -563,8 +565,8 @@ public class NearbyManager {
 	 */
 	protected void sendRoutableNearbyMessageInternal(@NonNull NearbyMessageBody plainMessageBody,
 	                                                 @NonNull String recipientAddressName,
-	                                                 @NonNull BiConsumer<Payload, Boolean> transmissionCallback,
-	                                                 @NonNull BiConsumer<Payload, Boolean> routeTransmissionCallback,
+	                                                 @NonNull TransmissionCallback transmissionCallback,
+	                                                 @NonNull TransmissionCallback routeTransmissionCallback,
 	                                                 @Nullable Consumer<Boolean> onDiscoveryInitiatedCallback) {
 		executorService.execute(() -> {
 			final String endpointId = getLinkedEndpointId(recipientAddressName);
@@ -584,7 +586,7 @@ public class NearbyManager {
 					}
 				} catch (Exception e) {
 					Log.e(TAG, "Handling route for message transmission failed.", e);
-					transmissionCallback.accept(null, false); // Notify failure
+					transmissionCallback.onFailure(null, e); // Notify failure
 				}
 				return;
 			}
@@ -595,7 +597,7 @@ public class NearbyManager {
 				Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
 			} catch (Exception e) {
 				Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-				transmissionCallback.accept(null, false); // Notify failure
+				transmissionCallback.onFailure(null, e); // Notify failure
 			}
 		});
 	}
@@ -609,11 +611,11 @@ public class NearbyManager {
 	 */
 	protected void sendNearbyMessageInternal(@NonNull NearbyMessage nearbyMessage,
 	                                         @NonNull String recipientAddressName,
-	                                         @NonNull BiConsumer<Payload, Boolean> callback) {
+	                                         @NonNull TransmissionCallback callback) {
 		final String endpointId = getLinkedEndpointId(recipientAddressName);
 		if (endpointId == null) {
 			Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");
-			callback.accept(null, false); // Notify failure
+			callback.onFailure(null, null); // Notify failure
 			return;
 		}
 
@@ -623,7 +625,7 @@ public class NearbyManager {
 			Log.d(TAG, "NearbyMessage (type: " + (nearbyMessage.getExchange() ? "KEY_EXCHANGE" : "ENCRYPTED_DATA") + ") sent to " + recipientAddressName);
 		} catch (Exception e) {
 			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-			callback.accept(null, false); // Notify failure
+			callback.onFailure(null, e); // Notify failure
 		}
 	}
 
@@ -633,14 +635,13 @@ public class NearbyManager {
 	 *
 	 * @param endpointId The ID of the endpoint to send the message to.
 	 * @param data       The raw byte array to send.
-	 * @param callback   A {@link BiConsumer} that accepts the sent {@link Payload} and a boolean
-	 *                   indicating success (true) or failure (false) of the send operation.
+	 * @param callback   A callback that accepts the sent {@link Payload}
 	 *                   The {@link Payload} argument will be null if the `data` was null or if the send operation failed before payload creation.
 	 */
-	private void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable BiConsumer<Payload, Boolean> callback) {
+	private void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable TransmissionCallback callback) {
 		if (data.length == 0) {
 			Log.e(TAG, "Attempted to send null or empty data to " + endpointId);
-			if (callback != null) callback.accept(null, false);
+			if (callback != null) callback.onFailure(null, null);
 			return;
 		}
 
@@ -649,13 +650,13 @@ public class NearbyManager {
 				.addOnSuccessListener(unused -> {
 					Log.d(TAG, "Payload ID " + payload.getId() + " sent successfully to " + endpointId);
 					if (callback != null) {
-						callback.accept(payload, true);
+						callback.onSuccess(payload);
 					}
 				})
 				.addOnFailureListener(e -> {
 					Log.e(TAG, "Failed to send Payload ID " + payload.getId() + " to " + endpointId, e);
 					if (callback != null) {
-						callback.accept(payload, false);
+						callback.onFailure(payload, e);
 					}
 					// The device is probably disconnected, try force disconnection
 					executorService.execute(() -> {
@@ -818,6 +819,22 @@ public class NearbyManager {
 		 */
 		default void onPayloadTransferUpdate(@NonNull String ignoredEndpointId, @NonNull PayloadTransferUpdate ignoredUpdate) {
 		}
+	}
+
+	public interface TransmissionCallback {
+		void onSuccess(@NonNull Payload payload);
+
+		void onFailure(@Nullable Payload payload, @Nullable Exception cause);
+
+		TransmissionCallback NULL_CALLBACK = new TransmissionCallback() {
+			@Override
+			public void onSuccess(@NonNull Payload payload) {
+			}
+
+			@Override
+			public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+			}
+		};
 	}
 
 	private static class ConnectionState {

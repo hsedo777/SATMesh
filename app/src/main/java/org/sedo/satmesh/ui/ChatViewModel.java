@@ -256,14 +256,9 @@ public class ChatViewModel extends AndroidViewModel {
 		executor.execute(() -> {
 			String endpointId = nearbyManager.getLinkedEndpointId(remoteNode.getAddressName());
 			if (endpointId != null) {
-				/*
-				 * Initiate key exchange if necessary. This method is now smart enough
-				 * to check for existing sessions and debounce.
-				 */
-				nearbySignalMessenger.handleInitialKeyExchange(remoteNode.getAddressName());
-
 				// Send PersonalInfo if display name is unknown/empty
-				if (remoteNode.getDisplayName() == null || remoteNode.getDisplayName().isEmpty()) {
+				if (nearbySignalMessenger.hasSession(remoteNode.getAddressName()) &&
+						(remoteNode.getDisplayName() == null || remoteNode.getDisplayName().isEmpty())) {
 					PersonalInfo info = hostNode.toPersonalInfo(true);
 					nearbySignalMessenger.sendPersonalInfo(info, remoteNode.getAddressName());
 				}
@@ -320,7 +315,7 @@ public class ChatViewModel extends AndroidViewModel {
 			 * and combine with transient and persistent states for robust check.
 			 */
 			boolean isSessionSecure = nearbySignalMessenger.hasSession(currentRemoteNode.getAddressName());
-			if (!isSessionSecure){
+			if (!isSessionSecure) {
 				/*
 				 * Initiate key exchange if no session. This is a crucial change.
 				 * The actual message will be sent after session is established.
@@ -331,12 +326,15 @@ public class ChatViewModel extends AndroidViewModel {
 
 			messageRepository.insertMessage(message, success -> {
 				if (success) {
-					TextMessage text = TextMessage.newBuilder()
-							.setContent(message.getContent())
-							.setPayloadId(0L) // Payload ID will be set by NearbySignalManager on send
-							.setTimestamp(message.getTimestamp())
-							.build();
-					nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text, message.getId());
+					if (isSessionSecure) {
+						TextMessage text = TextMessage.newBuilder()
+								.setContent(message.getContent())
+								.setPayloadId(0L) // Payload ID will be set by NearbySignalManager on send
+								.setTimestamp(message.getTimestamp())
+								.build();
+						nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text,
+								message.getId(), NearbyManager.TransmissionCallback.NULL_CALLBACK);
+					}
 				} else {
 					// Damageable
 					uiMessage.postValue(getApplication().getString(R.string.error_message_persistence_failed));

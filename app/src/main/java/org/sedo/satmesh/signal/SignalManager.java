@@ -18,10 +18,12 @@ import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.IdentityKeyPair;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.InvalidKeyIdException;
+import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.SessionBuilder;
 import org.whispersystems.libsignal.SessionCipher;
 import org.whispersystems.libsignal.SignalProtocolAddress;
+import org.whispersystems.libsignal.UntrustedIdentityException;
 import org.whispersystems.libsignal.ecc.Curve;
 import org.whispersystems.libsignal.ecc.ECPublicKey;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
@@ -124,6 +126,16 @@ public class SignalManager {
 				callback.onError(e);
 			}
 		}
+	}
+
+	public void reinitialize(SignalInitializationCallback callback) {
+		Log.d(TAG, "Start: Reinitialize the cryptographic data of this node");
+		preferences.edit()
+				.remove(IDENTITY_KEY_PAIR_PREF)
+				.remove(REGISTRATION_ID_PREF)
+				.apply();
+		initialize(callback);
+		Log.d(TAG, "End: Reinitialize the cryptographic data of this node");
 	}
 
 	/**
@@ -283,7 +295,14 @@ public class SignalManager {
 	 */
 	public void establishSessionFromRemotePreKeyBundle(SignalProtocolAddress senderAddress, PreKeyBundle preKeyBundle) throws Exception {
 		SessionBuilder sessionBuilder = new SessionBuilder(sessionStore, preKeyStore, signedPreKeyStore, identityKeyStore, senderAddress);
-		sessionBuilder.process(preKeyBundle);
+		try {
+			sessionBuilder.process(preKeyBundle);
+		} catch (UntrustedIdentityException e) {
+			Log.w(TAG, "establishSessionFromRemotePreKeyBundle: handling untrusted identity from address=" + senderAddress.getName());
+			identityKeyStore.deleteIdentityForAddress(senderAddress);
+			sessionBuilder.process(preKeyBundle);
+			Log.d(TAG, "establishSessionFromRemotePreKeyBundle: Delete old value and process prekey bundle with untrusted identity from address=" + senderAddress.getName());
+		}
 		Log.d(TAG, "Signal session established with " + senderAddress.getName() + " after processing remote bundle.");
 	}
 
@@ -329,11 +348,36 @@ public class SignalManager {
 		byte[] decryptedBytes;
 		if (cipherMessage.getType() == CiphertextMessage.PREKEY_TYPE) {
 			PreKeySignalMessage preKeyMessage = (PreKeySignalMessage) cipherMessage;
-			decryptedBytes = sessionCipher.decrypt(preKeyMessage);
+			try {
+				decryptedBytes = sessionCipher.decrypt(preKeyMessage);
+			} catch (UntrustedIdentityException e) {
+				Log.w(TAG, "Untrusted identity from " + senderAddress.getName() + ". Overwriting existing identity.");
+
+				identityKeyStore.saveIdentity(senderAddress, preKeyMessage.getIdentityKey());
+
+				decryptedBytes = sessionCipher.decrypt(preKeyMessage);
+				Log.d(TAG, "Session established with new identity from " + senderAddress.getName());
+			}
 			Log.d(TAG, "PreKeySignalMessage decrypted from " + senderAddress.getName());
 		} else if (cipherMessage.getType() == CiphertextMessage.WHISPER_TYPE) {
 			SignalMessage signalMessage = (SignalMessage) cipherMessage;
-			decryptedBytes = sessionCipher.decrypt(signalMessage);
+			try {
+				decryptedBytes = sessionCipher.decrypt(signalMessage);
+			} catch (InvalidMessageException | NoSessionException e) {
+				String msg = e.getMessage();
+				Log.w(TAG, "Decryption failed with InvalidMessageException|NoSessionException: " + msg);
+
+				if (msg != null && (msg.contains("Bad Mac") || msg.contains("No valid sessions"))) {
+					Log.w(TAG, "Session is corrupted or out of sync with " + senderAddress.getName() + ". Forcing reset...");
+
+					// 1. Drop local session
+					sessionStore.deleteSession(senderAddress);
+					Log.d(TAG, "Session deleted for " + senderAddress.getName());
+
+					// 2 : Ensure PreKeyBundle exchange is initialized: see `throw e;`
+				}
+				throw e;
+			}
 			Log.d(TAG, "SignalMessage decrypted from " + senderAddress.getName());
 		} else {
 			Log.e(TAG, "Unsupported message type received: " + cipherMessage.getType());

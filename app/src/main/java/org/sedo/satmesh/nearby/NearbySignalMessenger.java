@@ -21,6 +21,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
+import org.sedo.satmesh.nearby.NearbyManager.TransmissionCallback;
 import org.sedo.satmesh.proto.MessageAck;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
@@ -38,7 +39,9 @@ import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.utils.Constants;
 import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.NotificationType;
+import org.sedo.satmesh.utils.ObjectHolder;
 import org.whispersystems.libsignal.InvalidKeyException;
+import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
@@ -52,7 +55,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -327,6 +329,9 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		// Encrypt message
 		SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
 		CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, plainNearbyMessageBody.toByteArray());
+		if (ciphertextMessage.getType() == CiphertextMessage.PREKEY_TYPE) {
+			Log.d(TAG, "OCCURRENCE OF CIPHER MESSAGE OF TYPE 'PREKEY_TYPE'");
+		}
 
 		// Encapsulate the message
 		return NearbyMessage.newBuilder().setExchange(false).setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
@@ -336,10 +341,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * Delegated method to {@code NearbyManager#sendRoutableNearbyMessageInternal(...)}
 	 */
 	protected void sendNearbyMessageInternal(@NonNull NearbyMessageBody plainNearbyMessage, @NonNull String recipientAddressName,
-	                                         @NonNull BiConsumer<Payload, Boolean> transmissionCallback,
-	                                         @Nullable BiConsumer<Payload, Boolean> routeTransmissionCallback,
+	                                         @NonNull TransmissionCallback transmissionCallback,
+	                                         @Nullable TransmissionCallback routeTransmissionCallback,
 	                                         @Nullable Consumer<Boolean> routeDiscoveryCallback) {
-		final Consumer<Boolean> finaleDiscoveryCallback = onSuccess -> {
+		final Consumer<Boolean> finalDiscoveryCallback = onSuccess -> {
 			executor.execute(() -> {
 				Node target = nodeRepository.findNodeSync(recipientAddressName);
 				if (target == null) {
@@ -356,9 +361,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				routeDiscoveryCallback.accept(onSuccess);
 			}
 		};
-		final BiConsumer<Payload, Boolean> finalRouteCallback = routeTransmissionCallback != null ? routeTransmissionCallback : (p, s) -> {
-		};
-		nearbyManager.sendRoutableNearbyMessageInternal(plainNearbyMessage, recipientAddressName, transmissionCallback, finalRouteCallback, finaleDiscoveryCallback);
+		nearbyManager.sendRoutableNearbyMessageInternal(plainNearbyMessage, recipientAddressName, transmissionCallback,
+				Objects.requireNonNullElse(routeTransmissionCallback, TransmissionCallback.NULL_CALLBACK), finalDiscoveryCallback);
 	}
 
 	/**
@@ -420,31 +424,23 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		// This method is called from an executor thread, so direct calls to `signalManager` are fine.
 		executor.execute(() -> {
 			try {
-				Log.d(TAG, "handleInitialKeyExchange() from " + hostNode.getAddressName() + " to " + remoteAddressName);
-				boolean responseExpected = !hasSession(remoteAddressName);
-
+				Log.d(TAG, "handleInitialKeyExchange from " + hostNode.getAddressName() + " to " + remoteAddressName);
 				// Checks if there is an old sent of the PreKeyBundle to the same remote device
-				if (!responseExpected) {
-					Log.d(TAG, "You have already sent recently your PreKeyBundle to device: " + remoteAddressName);
+				if (hasSession(remoteAddressName)) {
+					Log.d(TAG, "Signal session already exists for: " + remoteAddressName);
+					return;
 				}
 				// Prepare packet and sent
 				PreKeyBundle localPreKeyBundle = signalManager.generateOurPreKeyBundle();
 				byte[] serializedPreKeyBundle = signalManager.serializePreKeyBundle(localPreKeyBundle);
 
 				PreKeyBundleExchange preKeyBundleExchange = PreKeyBundleExchange.newBuilder().
-						setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle))
-						.setResponseExpected(responseExpected).build();
+						setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle)).build();
 
 				NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(true) // Indicate it's a key exchange message
 						.setKeyExchangeMessage(preKeyBundleExchange).build();
 
-				nearbyManager.sendNearbyMessageInternal(nearbyMessage, remoteAddressName, (payload, success) -> {
-					if (success) {
-						Log.d(TAG, "Key exchange message sent to: " + remoteAddressName + ". Payload ID: " + payload.getId());
-					} else {
-						Log.e(TAG, "Failed to send key exchange message to " + remoteAddressName);
-					}
-				});
+				nearbyManager.sendNearbyMessageInternal(nearbyMessage, remoteAddressName, TransmissionCallback.NULL_CALLBACK);
 			} catch (Exception e) {
 				Log.e(TAG, "Error initiating key exchange with " + remoteAddressName, e);
 			}
@@ -472,7 +468,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param textMessage          The plaintext TextMessage to encrypt and send.
 	 * @param messageDbId          The ID of the message in the local database (used for updates).
 	 */
-	public void sendEncryptedTextMessage(@NonNull String recipientAddressName, @NonNull TextMessage textMessage, long messageDbId) {
+	public void sendEncryptedTextMessage(@NonNull String recipientAddressName, @NonNull TextMessage textMessage, long messageDbId, @NonNull TransmissionCallback transmissionCallback) {
 		executor.execute(() -> {
 			try {
 				// Construct NearbyMessageBody with the actual TextMessage
@@ -480,12 +476,38 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 				// Send the wrapped message
 				sendNearbyMessageInternal(messageBody, recipientAddressName,
-						(payload, success) -> consumeSendingEncryptedTextMessage(payload, success, Message.MESSAGE_STATUS_DELIVERED, messageDbId, recipientAddressName, textMessage),
-						(payload, success) -> consumeSendingEncryptedTextMessage(payload, success, Message.MESSAGE_STATUS_ROUTING, messageDbId, recipientAddressName, textMessage),
+						new TransmissionCallback() {
+							@Override
+							public void onSuccess(@NonNull Payload payload) {
+								consumeSendingEncryptedTextMessage(payload, true, Message.MESSAGE_STATUS_PENDING/*wait for ack*/, messageDbId, recipientAddressName, textMessage);
+								transmissionCallback.onSuccess(payload);
+							}
+
+							@Override
+							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+								if (cause instanceof NoSessionException || cause instanceof InvalidMessageException) {
+									handleInitialKeyExchange(recipientAddressName);
+								}
+								consumeSendingEncryptedTextMessage(payload, false, Message.MESSAGE_STATUS_PENDING/*wait for ack*/, messageDbId, recipientAddressName, textMessage);
+								transmissionCallback.onFailure(payload, cause);
+							}
+						},
+						new TransmissionCallback() {
+							@Override
+							public void onSuccess(@NonNull Payload payload) {
+								consumeSendingEncryptedTextMessage(payload, true, Message.MESSAGE_STATUS_ROUTING, messageDbId, recipientAddressName, textMessage);
+							}
+
+							@Override
+							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+								consumeSendingEncryptedTextMessage(payload, false, Message.MESSAGE_STATUS_ROUTING, messageDbId, recipientAddressName, textMessage);
+							}
+						},
 						initiated -> updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId(), null));
 			} catch (Exception e) {
 				Log.e(TAG, "Error encrypting or sending TextMessage to " + recipientAddressName, e);
 				updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId(), null);
+				transmissionCallback.onFailure(null, e);
 			}
 		});
 	}
@@ -512,15 +534,20 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						)
 						.setEncryptedData(messageAck.toByteString()).build();
 
-				sendNearbyMessageInternal(messageBody, recipientAddressName, (payload, success) -> {
-					if (success) {
-						Log.d(TAG, (delivered ? "Delivered" : "Read") + " ACK sent for payload " + originalPayloadId + " to " + recipientAddressName);
-						updateMessageStatus(null, delivered ? Message.MESSAGE_STATUS_DELIVERED : Message.MESSAGE_STATUS_READ, originalPayloadId, finalCallback);
-					} else {
-						Log.e(TAG, "Failed to send " + (delivered ? "Delivered" : "Read") + " ACK for payload " + originalPayloadId + " to " + recipientAddressName);
-						finalCallback.accept(false);
-					}
-				}, null, null);
+				sendNearbyMessageInternal(messageBody, recipientAddressName,
+						new TransmissionCallback() {
+							@Override
+							public void onSuccess(@NonNull Payload payload) {
+								Log.d(TAG, (delivered ? "Delivered" : "Read") + " ACK sent for payload " + originalPayloadId + " to " + recipientAddressName);
+								updateMessageStatus(null, delivered ? Message.MESSAGE_STATUS_DELIVERED : Message.MESSAGE_STATUS_READ, originalPayloadId, finalCallback);
+							}
+
+							@Override
+							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+								Log.e(TAG, "Failed to send " + (delivered ? "Delivered" : "Read") + " ACK for payload " + originalPayloadId + " to " + recipientAddressName);
+								finalCallback.accept(false);
+							}
+						}, null, null);
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error sending ACK for payload " + originalPayloadId + " to " + recipientAddressName, e);
@@ -539,13 +566,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		executor.execute(() -> {
 			try {
 				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(NearbyMessageBody.MessageType.PERSONAL_INFO).setEncryptedData(info.toByteString()).build();
-				sendNearbyMessageInternal(messageBody, recipientAddressName, (payload, success) -> {
-					if (success) {
-						Log.d(TAG, "PersonalInfo sent successfully to " + recipientAddressName);
-					} else {
-						Log.e(TAG, "Failed to send PersonalInfo to " + recipientAddressName);
-					}
-				}, null, null);
+				sendNearbyMessageInternal(messageBody, recipientAddressName, TransmissionCallback.NULL_CALLBACK, null, null);
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error sending PersonalInfo to " + recipientAddressName, e);
@@ -573,8 +594,13 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			);
 
 			if (failedMessages != null && !failedMessages.isEmpty()) {
+				final ObjectHolder<Boolean> toContinue = new ObjectHolder<>();
+				toContinue.post(true);
 				Log.d(TAG, "Found " + failedMessages.size() + " failed messages to resend for " + remoteNode.getDisplayName());
 				for (Message message : failedMessages) {
+					if (!toContinue.getValue()) {
+						break;
+					}
 					// Before attempting to resend, update its status to PENDING
 					message.setStatus(Message.MESSAGE_STATUS_PENDING);
 					messageRepository.updateMessage(message, onSuccess -> {
@@ -585,7 +611,19 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 									.setTimestamp(message.getTimestamp())
 									.build();
 							// Send the message. nearbySignalMessenger will handle success/failure status update.
-							sendEncryptedTextMessage(remoteNode.getAddressName(), text, message.getId());
+							sendEncryptedTextMessage(remoteNode.getAddressName(), text, message.getId(), new TransmissionCallback() {
+								@Override
+								public void onSuccess(@NonNull Payload payload) {
+									// Great
+								}
+
+								@Override
+								public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+									toContinue.post(false);
+								}
+							});
+						} else {
+							toContinue.post(false);
 						}
 					}); // This will update UI if it observes
 				}
@@ -682,6 +720,27 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			signalManager.establishSessionFromRemotePreKeyBundle(remoteAddress,
 					signalManager.deserializePreKeyBundle(bundleExchange.getPreKeyBundle().toByteArray()));
 
+			// Send knowledge message
+			byte[] data = new byte[]{0, 1};
+			NearbyMessageBody body = NearbyMessageBody.newBuilder()
+					.setMessageType(NearbyMessageBody.MessageType.KNOWLEDGE)
+					.setEncryptedData(ByteString.copyFrom(data)).build();
+
+			nearbyManager.sendNearbyMessageInternal(encryptBody(body, senderAddressName), senderAddressName,
+					new TransmissionCallback() {
+						@Override
+						public void onSuccess(@NonNull Payload payload) {
+							Log.d(TAG, "Knowledge message successfully sent to remote user at address=" + senderAddressName);
+						}
+
+						@Override
+						public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+							Log.e(TAG, "Failed to send knowledge message to user at address=" + senderAddressName
+									+ "\tsessionState=" + signalManager.hasSession(remoteAddress), cause);
+							// It may be interesting to invalidate the session
+						}
+					});
+
 			Log.d(TAG, "Signal session established/updated with " + senderAddressName + ". Endpoint mapped.");
 		} catch (InvalidProtocolBufferException e) {
 			Log.e(TAG, "Failed to deserialize PreKeyBundle from " + senderAddressName + ": " + e.getMessage(), e);
@@ -704,37 +763,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		} catch (Exception e) {
 			Log.e(TAG, "Error updating Node DB status for " + senderAddressName + ": " + e.getMessage(), e);
 		}
-		/*
-		 * Proactive Step: Check if we need to send our PreKeyBundle back
-		 * We need to send our bundle if they haven't received it yet (i.e., no session for them exists on our side).
-		 * The 'hasSession' method checks if WE (local device) have a session to SEND to THEM (the sender).
-		 * If we DON'T have a session for THEM, it means they likely haven't received our PreKeyBundle yet,
-		 * or their existing session has expired/been reset.
-		 */
-		if (bundleExchange.getResponseExpected()) {
-			Log.d(TAG, "Proactively sending our PreKeyBundle to " + senderAddressName + " in response.");
-			/*
-			 * We trigger the initial key exchange process from our side for this sender.
-			 * This will send our PreKeyBundle to them and establish OUR session to send messages to THEM.
-			 * It's important to use handleInitialKeyExchange as it encapsulates the logic
-			 * for generating/sending our bundle.
-			 */
-			handleInitialKeyExchange(senderAddressName);
-		}
 	}
 
-	/**
-	 * Handles an incoming encrypted message payload.
-	 * It decrypts the message, parses its body, and processes it based on its type.
-	 *
-	 * @param senderAddressName The SignalProtocolAddress.name of the sender.
-	 * @param cipherData        The raw encrypted bytes of the CiphertextMessage (which contains NearbyMessageBody).
-	 * @param payloadId         The Nearby Payload ID.
-	 */
-	private void handleReceivedEncryptedMessage(@NonNull String senderAddressName, @NonNull byte[] cipherData, long payloadId) {
+	@Nullable
+	protected byte[] decrypt(byte[] cipherData, @NonNull String remoteAddressName) throws Exception {
 		try {
-			Log.d(TAG, "Received Encrypted Message from: " + senderAddressName + ", Size: " + cipherData.length);
-
 			CiphertextMessage receivedCipherMessage;
 			/*
 			 * Reconstruct CiphertextMessage from raw bytes
@@ -750,8 +783,38 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				receivedCipherMessage = new PreKeySignalMessage(cipherData);
 			}
 
-			SignalProtocolAddress senderAddress = getAddress(senderAddressName);
-			byte[] decryptedBytes = signalManager.decryptMessage(senderAddress, receivedCipherMessage);
+			SignalProtocolAddress senderAddress = getAddress(remoteAddressName);
+			return signalManager.decryptMessage(senderAddress, receivedCipherMessage);
+		} catch (InvalidProtocolBufferException e) {
+			Log.e(TAG, "Failed to parse decrypted message body from " + remoteAddressName + ": " + e.getMessage(), e);
+		} catch (NoSessionException | InvalidMessageException e) {
+			Log.e(TAG, "No Signal session to decrypt message from " + remoteAddressName + ": " + e.getMessage(), e);
+			/*
+			 * This could happen if sender sends message before session is fully established, or if our session was lost.
+			 * We should re-initiate key exchange if possible, or request sender to re-send.
+			 * Optionally, try to initiate key exchange again to fix session
+			 */
+			//executor.execute(() -> handleInitialKeyExchange(remoteAddressName));
+		}
+		return null;
+	}
+
+	/**
+	 * Handles an incoming encrypted message payload.
+	 * It decrypts the message, parses its body, and processes it based on its type.
+	 *
+	 * @param senderAddressName The SignalProtocolAddress.name of the sender.
+	 * @param cipherData        The raw encrypted bytes of the CiphertextMessage (which contains NearbyMessageBody).
+	 * @param payloadId         The Nearby Payload ID.
+	 */
+	private void handleReceivedEncryptedMessage(@NonNull String senderAddressName, @NonNull byte[] cipherData, long payloadId) {
+		try {
+			Log.d(TAG, "Received Encrypted Message from: " + senderAddressName + ", Size: " + cipherData.length);
+
+			byte[] decryptedBytes = decrypt(cipherData, senderAddressName);
+			if (decryptedBytes == null) {
+				return;
+			}
 			NearbyMessageBody decryptedMessageBody = NearbyMessageBody.parseFrom(decryptedBytes);
 
 			// Now, we have the decrypted content (NearbyMessageBody).
@@ -761,14 +824,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			parseDecryptedMessage(decryptedMessageBody, senderAddressName, payloadId);
 		} catch (InvalidProtocolBufferException e) {
 			Log.e(TAG, "Failed to parse decrypted message body from " + senderAddressName + ": " + e.getMessage(), e);
-		} catch (NoSessionException e) {
-			Log.e(TAG, "No Signal session to decrypt message from " + senderAddressName + ": " + e.getMessage(), e);
-			/*
-			 * This could happen if sender sends message before session is fully established, or if our session was lost.
-			 * We should re-initiate key exchange if possible, or request sender to re-send.
-			 * Optionally, try to initiate key exchange again to fix session
-			 */
-			executor.execute(() -> handleInitialKeyExchange(senderAddressName));
 		} catch (Exception e) {
 			Log.e(TAG, "Error processing encrypted message from " + senderAddressName + ": " + e.getMessage(), e);
 		}
@@ -873,6 +928,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			case ROUTED_MESSAGE:
 				RoutedMessage routedMessage = RoutedMessage.parseFrom(decryptedMessageBody.getEncryptedData());
 				nearbyRouteManager.handleIncomingRoutedMessage(senderAddressName, routedMessage, hostNode.getAddressName(), payloadId);
+				break;
+			case KNOWLEDGE:
+				// Success decryption of the body, above, is enough
+				Log.d(TAG, "Receiving KNOWLEDGE message from: " + senderAddress);
 				break;
 			case UNRECOGNIZED:
 			case UNKNOWN:

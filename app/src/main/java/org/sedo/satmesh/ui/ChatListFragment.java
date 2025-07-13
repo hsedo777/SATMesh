@@ -8,18 +8,23 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatListBinding;
+import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
+
+import java.util.concurrent.Executors;
 
 public class ChatListFragment extends Fragment implements ChatListAdapter.OnItemClickListener {
 
@@ -129,6 +134,35 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 				}
 				if (id == R.id.menu_known_nodes) {
 					discussionMenuListener.moveToKnownNodesFragment(chatListViewModel.getHostNodeId());
+					return true;
+				}
+				if (id == R.id.menu_renew_fingerprint) {
+					new AlertDialog.Builder(requireContext())
+							.setTitle(R.string.menu_renew_fingerprint)
+							.setMessage(R.string.renew_fingerprint_alert_description)
+							.setPositiveButton(R.string.menu_renew_fingerprint, (dialog, which) -> {
+								Log.d(TAG, "Confirmation received. Reinitializing SignalManager");
+								Executors.newSingleThreadExecutor().execute(() -> {
+									SignalManager signalManager = SignalManager.getInstance(requireContext());
+									signalManager.reinitialize(new SignalManager.SignalInitializationCallback() {
+										@Override
+										public void onSuccess() {
+											requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_success, Toast.LENGTH_LONG).show());
+										}
+
+										@Override
+										public void onError(Exception e) {
+											requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_failed, Toast.LENGTH_LONG).show());
+										}
+									});
+								});
+							})
+							.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+								Log.d(TAG, "SignalManager reinitialization cancelled by user.");
+								dialog.dismiss();
+							})
+							.setIcon(android.R.drawable.ic_dialog_alert)
+							.show();
 					return true;
 				}
 			}

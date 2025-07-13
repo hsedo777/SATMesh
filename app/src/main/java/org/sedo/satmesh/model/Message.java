@@ -166,7 +166,9 @@ public class Message {
 	}
 
 	public void setPayloadId(Long payloadId) {
-		if (payloadId != null && payloadId == 0L) {
+		if ((payloadId != null && payloadId == 0L)
+				|| (this.payloadId != null && this.payloadId != 0L) //Prevent payload ID modification
+		) {
 			return;
 		}
 		this.payloadId = payloadId;

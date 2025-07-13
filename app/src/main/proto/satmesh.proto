@@ -19,7 +19,7 @@ message SignalPreKeyBundle {
 // New message for Key Exchange (wrapping the serialized PreKeyBundle)
 message PreKeyBundleExchange {
   bytes pre_key_bundle = 1;       // The serialized SignalPreKeyBundle
-  bool response_expected = 2;     // Specify if the sender is expecting response from receiver
+  //bool response_expected = 2;     // Specify if the sender is expecting response from receiver
 }
 
 // New message for personal information exchange
@@ -58,6 +58,7 @@ message NearbyMessageBody {
     ROUTE_DISCOVERY_RESP = 6;
     TYPING_INDICATOR = 7;
     ROUTED_MESSAGE = 8;
+    KNOWLEDGE = 9;
   }
   MessageType message_type = 1;
   /*

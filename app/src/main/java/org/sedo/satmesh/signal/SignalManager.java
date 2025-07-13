@@ -285,7 +285,6 @@ public class SignalManager {
 		SessionBuilder sessionBuilder = new SessionBuilder(sessionStore, preKeyStore, signedPreKeyStore, identityKeyStore, senderAddress);
 		sessionBuilder.process(preKeyBundle);
 		Log.d(TAG, "Signal session established with " + senderAddress.getName() + " after processing remote bundle.");
-
 	}
 
 	/**

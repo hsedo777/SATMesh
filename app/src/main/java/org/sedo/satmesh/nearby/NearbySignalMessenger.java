@@ -21,7 +21,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
-import org.sedo.satmesh.model.SignalKeyExchangeState;
 import org.sedo.satmesh.proto.MessageAck;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
@@ -36,7 +35,6 @@ import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.MessageRepository;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
-import org.sedo.satmesh.ui.data.SignalKeyExchangeStateRepository;
 import org.sedo.satmesh.utils.Constants;
 import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.NotificationType;
@@ -65,11 +63,11 @@ import java.util.function.Consumer;
  */
 public class NearbySignalMessenger implements DeviceConnectionListener, PayloadListener {
 
-	/**
+	/*
 	 * Minimum delay, in millisecond, to be elapsed before accept new request of
 	 * sending PreKeyBundle when there is an old
 	 */
-	public static final long DEBOUNCE_TIME_MS = 90L * 24 * 60 * 60 * 1000; // 90 days
+	//public static final long DEBOUNCE_TIME_MS = 90L * 24 * 60 * 60 * 1000; // 90 days
 	private static final String TAG = "NearbySignalMessenger";
 	private static volatile NearbySignalMessenger INSTANCE;
 
@@ -79,7 +77,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	private final Node hostNode; // Represents our own device
 	private final MessageRepository messageRepository;
 	private final NodeRepository nodeRepository;
-	private final SignalKeyExchangeStateRepository keyExchangeStateRepository;
 	private final ExecutorService executor;
 	private final Context applicationContext;
 	private Node currentRemote;
@@ -94,7 +91,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		this.hostNode = hostNode;
 		messageRepository = new MessageRepository(context);
 		nodeRepository = new NodeRepository(context);
-		keyExchangeStateRepository = new SignalKeyExchangeStateRepository(context);
 		this.executor = Executors.newSingleThreadExecutor(); // Single thread for ordered message processing
 		this.nearbyRouteManager = new NearbyRouteManager(nearbyManager, signalManager, context, executor);
 		Log.d(TAG, "NearbySignalMessenger instance created with dependencies.");
@@ -240,7 +236,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * Handles the event when a NEW Nearby endpoint is found.
 	 * Decides whether to initiate a connection based on the current connection state.
 	 *
-	 * @param endpointId   The ID of the discovered endpoint.
+	 * @param endpointId          The ID of the discovered endpoint.
 	 * @param endpointAddressName The Signal Protocol address name of the discovered endpoint.
 	 */
 	public void onEndpointFound(@NonNull String endpointId, @NonNull String endpointAddressName) {
@@ -424,30 +420,20 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		// This method is called from an executor thread, so direct calls to `signalManager` are fine.
 		executor.execute(() -> {
 			try {
-				SignalKeyExchangeState keyExchangeState;
-				// Check if we have an existing Signal Protocol session for this remoteAddressName.
-				// This means we are already ready to send encrypted messages to them.
 				Log.d(TAG, "handleInitialKeyExchange() from " + hostNode.getAddressName() + " to " + remoteAddressName);
-				// Get the persistent key exchange state for this remote node.
-				keyExchangeState = keyExchangeStateRepository.getByRemoteAddressSync(remoteAddressName);
+				boolean responseExpected = !hasSession(remoteAddressName);
 
 				// Checks if there is an old sent of the PreKeyBundle to the same remote device
-				if (hasSession(remoteAddressName) && keyExchangeState != null && keyExchangeState.getLastOurSentAttempt() != null
-						&& System.currentTimeMillis() - keyExchangeState.getLastOurSentAttempt() < DEBOUNCE_TIME_MS) {
+				if (!responseExpected) {
 					Log.d(TAG, "You have already sent recently your PreKeyBundle to device: " + remoteAddressName);
-					return;
 				}
-				if (keyExchangeState == null) {
-					keyExchangeState = new SignalKeyExchangeState(remoteAddressName);
-				} else {
-					Log.d(TAG, "Session already expired with " + remoteAddressName);
-				}
-				final SignalKeyExchangeState exchangeState = keyExchangeState;
 				// Prepare packet and sent
 				PreKeyBundle localPreKeyBundle = signalManager.generateOurPreKeyBundle();
 				byte[] serializedPreKeyBundle = signalManager.serializePreKeyBundle(localPreKeyBundle);
 
-				PreKeyBundleExchange preKeyBundleExchange = PreKeyBundleExchange.newBuilder().setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle)).build();
+				PreKeyBundleExchange preKeyBundleExchange = PreKeyBundleExchange.newBuilder().
+						setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle))
+						.setResponseExpected(responseExpected).build();
 
 				NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(true) // Indicate it's a key exchange message
 						.setKeyExchangeMessage(preKeyBundleExchange).build();
@@ -455,9 +441,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				nearbyManager.sendNearbyMessageInternal(nearbyMessage, remoteAddressName, (payload, success) -> {
 					if (success) {
 						Log.d(TAG, "Key exchange message sent to: " + remoteAddressName + ". Payload ID: " + payload.getId());
-						// Update persistent state to reflect that our bundle was effectively 'sent'
-						exchangeState.setLastOurSentAttempt(System.currentTimeMillis());
-						keyExchangeStateRepository.save(exchangeState);
 					} else {
 						Log.e(TAG, "Failed to send key exchange message to " + remoteAddressName);
 					}
@@ -666,10 +649,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Log.e(TAG, "Received NearbyMessage with exchange=true but no key_exchange_message content from " + senderAddressName);
 					return;
 				}
-				handleReceivedKeyExchange(senderAddressName, nearbyMessage.getKeyExchangeMessage().getPreKeyBundle().toByteArray());
+				handleReceivedKeyExchange(senderAddressName, nearbyMessage.getKeyExchangeMessage());
 			} else {
 				// It's an encrypted message body
-				if (!nearbyMessage.hasBody()) {
+				if (nearbyMessage.getPayloadContentCase() != NearbyMessage.PayloadContentCase.BODY) {
 					Log.e(TAG, "Received NearbyMessage with exchange=false but no body content from " + senderAddressName);
 					return;
 				}
@@ -687,26 +670,19 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * This runs on the caller thread
 	 *
 	 * @param senderAddressName The SignalProtocolAddress name of the sender.
-	 * @param preKeyBundleData  The serialized PreKeyBundle.
+	 * @param bundleExchange    The {@code PreKeyBundleExchange} that wrap the prekey bundle.
 	 */
-	private void handleReceivedKeyExchange(@NonNull String senderAddressName, @NonNull byte[] preKeyBundleData) {
-		boolean requireResponse = false;
+	private void handleReceivedKeyExchange(@NonNull String senderAddressName, @NonNull PreKeyBundleExchange bundleExchange) {
 		try {
 			Log.d(TAG, "Received Key Exchange from: " + senderAddressName);
 			SignalProtocolAddress remoteAddress = getAddress(senderAddressName);
-			SignalKeyExchangeState exchangeState = keyExchangeStateRepository.getByRemoteAddressSync(senderAddressName);
-			if (exchangeState == null) {
-				exchangeState = new SignalKeyExchangeState(senderAddressName);
-			}
-			exchangeState.setLastTheirReceivedAttempt(System.currentTimeMillis());
 
 			// Process the received PreKeyBundle using SignalManager
 			// The method establishSessionFromRemotePreKeyBundle handles session establishment/updates
-			signalManager.establishSessionFromRemotePreKeyBundle(remoteAddress, signalManager.deserializePreKeyBundle(preKeyBundleData));
+			signalManager.establishSessionFromRemotePreKeyBundle(remoteAddress,
+					signalManager.deserializePreKeyBundle(bundleExchange.getPreKeyBundle().toByteArray()));
 
 			Log.d(TAG, "Signal session established/updated with " + senderAddressName + ". Endpoint mapped.");
-			keyExchangeStateRepository.save(exchangeState);
-			requireResponse = exchangeState.getLastOurSentAttempt() == null;
 		} catch (InvalidProtocolBufferException e) {
 			Log.e(TAG, "Failed to deserialize PreKeyBundle from " + senderAddressName + ": " + e.getMessage(), e);
 		} catch (InvalidKeyException e) {
@@ -735,7 +711,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		 * If we DON'T have a session for THEM, it means they likely haven't received our PreKeyBundle yet,
 		 * or their existing session has expired/been reset.
 		 */
-		if (requireResponse) {
+		if (bundleExchange.getResponseExpected()) {
 			Log.d(TAG, "Proactively sending our PreKeyBundle to " + senderAddressName + " in response.");
 			/*
 			 * We trigger the initial key exchange process from our side for this sender.

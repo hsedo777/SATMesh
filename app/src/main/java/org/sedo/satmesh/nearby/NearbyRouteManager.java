@@ -1110,7 +1110,7 @@ public class NearbyRouteManager {
 				Log.d(TAG, "Message for " + finalDestinationAddressName + " from original sender " + originalSenderNodeId + " received.");
 				// c. Deliver the internalNearbyMessageBody to the application layer via NearbyManager
 				nearbyManager.onRoutedMessageReceived(originalSenderNodeId, internalNearbyMessageBody,
-						incomingRoutedMessage.hasPayloadId() ? incomingRoutedMessage.getPayloadId() : payloadId);
+						incomingRoutedMessage.getPayloadId() != 0L ? incomingRoutedMessage.getPayloadId() : payloadId);
 			} else {
 				// 2. Current node is an intermediate node, forward the message
 				Log.d(TAG, "Current node is an intermediate node for RoutedMessage to " + finalDestinationAddressName);
@@ -1142,7 +1142,7 @@ public class NearbyRouteManager {
 				}
 				String nextHopAddressName = nextHopNode.getAddressName();
 				RoutedMessage routedMessage;
-				if (incomingRoutedMessage.hasPayloadId() && incomingRoutedMessage.getPayloadId() != 0L) {
+				if (incomingRoutedMessage.getPayloadId() != 0L) {
 					routedMessage = incomingRoutedMessage; // Re-use the existing RoutedMessage bytes
 				} else {
 					routedMessage = incomingRoutedMessage.toBuilder().setPayloadId(payloadId).build();

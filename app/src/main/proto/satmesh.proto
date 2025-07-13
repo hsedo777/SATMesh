@@ -19,6 +19,7 @@ message SignalPreKeyBundle {
 // New message for Key Exchange (wrapping the serialized PreKeyBundle)
 message PreKeyBundleExchange {
   bytes pre_key_bundle = 1;       // The serialized SignalPreKeyBundle
+  bool response_expected = 2;     // Specify if the sender is expecting response from receiver
 }
 
 // New message for personal information exchange
@@ -119,7 +120,7 @@ message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
    * from the original source to the destination node.
    * This value helps in evaluating the path length. It is irrelevant for failure statuses.
    */
-  optional int32 hop_count = 3;
+  int32 hop_count = 3;
 }
 
 // The end-to-end encrypted payload that only the final destination can decrypt.
@@ -153,6 +154,6 @@ message RoutedMessage {
   string original_sender_node_id = 5;
 
   // The payload ID to use to track the packet. Caller must ensure the value is set once
-  optional int64 payload_id = 6;
+  int64 payload_id = 6;
 }
 

@@ -17,44 +17,18 @@ import java.util.Arrays;
  * It follows the Singleton pattern to ensure a single instance across the application.
  */
 public class AndroidIdentityKeyStore implements IdentityKeyStore {
+	private static volatile AndroidIdentityKeyStore INSTANCE; // Use volatile for thread-safe singleton
 	private final SignalIdentityKeyDao identityKeyDao;
 	private final IdentityKeyPair identityKeyPair;
 	private final int registrationId;
-
-	private static volatile AndroidIdentityKeyStore INSTANCE; // Use volatile for thread-safe singleton
-
-	/**
-	 * Returns the singleton instance of {@link AndroidIdentityKeyStore}.
-	 * This method ensures that the database is initialized before creating the store.
-	 *
-	 * @param identityKeyPair The local identity key pair.
-	 * @param registrationId The local registration ID.
-	 * @return The singleton instance of AndroidIdentityKeyStore.
-	 * @throws IllegalStateException if the database has not been initialized.
-	 */
-	public static AndroidIdentityKeyStore getInstance(IdentityKeyPair identityKeyPair, int registrationId){
-		if (INSTANCE == null){
-			synchronized (AndroidIdentityKeyStore.class){
-				// The database must be initialized by the main activity or Application class
-				AppDatabase db = AppDatabase.getDB(null);
-				if (db == null) {
-					throw new IllegalStateException("AppDatabase has not been initialized. Call AppDatabase.init() first.");
-				}
-				if (INSTANCE == null){
-					INSTANCE = new AndroidIdentityKeyStore(db.identityKeyDao(), identityKeyPair, registrationId);
-				}
-			}
-		}
-		return INSTANCE;
-	}
 
 	/**
 	 * Constructs a new AndroidIdentityKeyStore.
 	 * This constructor is protected to be used by the singleton factory method.
 	 *
-	 * @param identityKeyDao The DAO for accessing identity key entities in the database.
+	 * @param identityKeyDao  The DAO for accessing identity key entities in the database.
 	 * @param identityKeyPair The local identity key pair.
-	 * @param registrationId The local registration ID.
+	 * @param registrationId  The local registration ID.
 	 */
 	protected AndroidIdentityKeyStore(SignalIdentityKeyDao identityKeyDao,
 	                                  IdentityKeyPair identityKeyPair,
@@ -62,6 +36,31 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 		this.identityKeyDao = identityKeyDao;
 		this.identityKeyPair = identityKeyPair;
 		this.registrationId = registrationId;
+	}
+
+	/**
+	 * Returns the singleton instance of {@link AndroidIdentityKeyStore}.
+	 * This method ensures that the database is initialized before creating the store.
+	 *
+	 * @param identityKeyPair The local identity key pair.
+	 * @param registrationId  The local registration ID.
+	 * @return The singleton instance of AndroidIdentityKeyStore.
+	 * @throws IllegalStateException if the database has not been initialized.
+	 */
+	public static AndroidIdentityKeyStore getInstance(IdentityKeyPair identityKeyPair, int registrationId) {
+		if (INSTANCE == null) {
+			synchronized (AndroidIdentityKeyStore.class) {
+				// The database must be initialized by the main activity or Application class
+				AppDatabase db = AppDatabase.getDB(null);
+				if (db == null) {
+					throw new IllegalStateException("AppDatabase has not been initialized. Call AppDatabase.init() first.");
+				}
+				if (INSTANCE == null) {
+					INSTANCE = new AndroidIdentityKeyStore(db.identityKeyDao(), identityKeyPair, registrationId);
+				}
+			}
+		}
+		return INSTANCE;
 	}
 
 	/**
@@ -84,18 +83,22 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 		return registrationId;
 	}
 
+	private String getAddress(SignalProtocolAddress address) {
+		return address.getName() + "." + address.getDeviceId();
+	}
+
 	/**
 	 * Saves a remote identity key for a given SignalProtocolAddress.
 	 * If an identity key for the address already exists and is different, it indicates
 	 * a potential identity change, and the new key is not saved.
 	 *
-	 * @param address The SignalProtocolAddress of the remote party.
+	 * @param address     The SignalProtocolAddress of the remote party.
 	 * @param identityKey The IdentityKey of the remote party.
 	 * @return true if the identity was saved successfully or if it already matched, false if the identity changed.
 	 */
 	@Override
 	public boolean saveIdentity(SignalProtocolAddress address, IdentityKey identityKey) {
-		String addressString = address.getName() + "." + address.getDeviceId();
+		String addressString = getAddress(address);
 		SignalIdentityKeyEntity existing = identityKeyDao.getIdentityKey(addressString);
 
 		if (existing != null && !Arrays.equals(existing.identityKey, identityKey.serialize())) {
@@ -113,16 +116,16 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	 * An identity is trusted if no previous identity is stored for the address, or
 	 * if the provided identity key matches the one already stored.
 	 *
-	 * @param address The SignalProtocolAddress of the remote party.
+	 * @param address     The SignalProtocolAddress of the remote party.
 	 * @param identityKey The IdentityKey to check.
-	 * @param direction The direction of the message (SENDING or RECEIVING). Not used in this implementation.
+	 * @param direction   The direction of the message (SENDING or RECEIVING). Not used in this implementation.
 	 * @return true if the identity is trusted, false otherwise.
 	 */
 	@Override
 	public boolean isTrustedIdentity(SignalProtocolAddress address,
 	                                 IdentityKey identityKey,
 	                                 Direction direction) {
-		String addressString = address.getName() + "." + address.getDeviceId();
+		String addressString = getAddress(address);
 		SignalIdentityKeyEntity existing = identityKeyDao.getIdentityKey(addressString);
 
 		return existing == null || Arrays.equals(existing.identityKey, identityKey.serialize());
@@ -136,7 +139,7 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	 */
 	@Override
 	public IdentityKey getIdentity(SignalProtocolAddress address) {
-		String addressString = address.getName() + "." + address.getDeviceId();
+		String addressString = getAddress(address);
 		SignalIdentityKeyEntity identityKeyEntity = identityKeyDao.getIdentityKey(addressString);
 
 		if (identityKeyEntity != null) {
@@ -148,5 +151,9 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 			}
 		}
 		return null;
+	}
+
+	public void deleteIdentityForAddress(SignalProtocolAddress address) {
+		identityKeyDao.deleteIdentityForAddress(getAddress(address));
 	}
 }

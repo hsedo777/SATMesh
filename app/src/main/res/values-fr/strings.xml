@@ -148,6 +148,8 @@
 	<string name="username_update_failed">Échec de la mise à jour du nom d\'utilisateur.</string>
 	<string name="username_update_failed_no_node">Échec de la mise à jour du nom d\'utilisateur : Données du nœud local introuvables.</string>
 	<string name="title_activity_settings">Paramètres</string>
+
+	<string name="loading_message">Chargement des services, veuillez patienter…</string>
 	<!--
 	<string name=""></string>
 	-->

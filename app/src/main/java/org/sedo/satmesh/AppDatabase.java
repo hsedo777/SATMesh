@@ -103,6 +103,14 @@ public abstract class AppDatabase extends RoomDatabase {
 		@Override
 		public void migrate(@NonNull SupportSQLiteDatabase database) {
 			database.execSQL("PRAGMA foreign_keys=OFF");
+
+			// 1. DROP INDICES
+			database.execSQL("DROP INDEX IF EXISTS index_node_addressName");
+			database.execSQL("DROP INDEX IF EXISTS index_message_payloadId");
+			database.execSQL("DROP INDEX IF EXISTS index_message_senderNodeId");
+			database.execSQL("DROP INDEX IF EXISTS index_message_recipientNodeId");
+
+			// 2. NODE MIGRATION
 			database.execSQL("ALTER TABLE node RENAME TO node_old");
 			database.execSQL("CREATE TABLE IF NOT EXISTS node (" +
 					"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -115,6 +123,30 @@ public abstract class AppDatabase extends RoomDatabase {
 					"SELECT id, displayName, addressName, trusted, lastSeen FROM node_old");
 			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_node_addressName ON node (addressName)");
 			database.execSQL("DROP TABLE node_old");
+
+			// 3. MESSAGE MIGRATION
+			database.execSQL("ALTER TABLE message RENAME TO message_old");
+			database.execSQL("CREATE TABLE IF NOT EXISTS message (" +
+					"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+					"content TEXT, " +
+					"payloadId INTEGER, " +
+					"senderNodeId INTEGER, " +
+					"recipientNodeId INTEGER, " +
+					"status INTEGER NOT NULL, " +
+					"timestamp INTEGER NOT NULL, " +
+					"type INTEGER NOT NULL, " +
+					"FOREIGN KEY(senderNodeId) REFERENCES node(id) ON DELETE CASCADE, " +
+					"FOREIGN KEY(recipientNodeId) REFERENCES node(id) ON DELETE CASCADE)"
+			);
+			database.execSQL("INSERT INTO message (id, content, payloadId, senderNodeId, recipientNodeId, status, timestamp, type) " +
+					"SELECT id, content, payloadId, senderNodeId, recipientNodeId, status, timestamp, type FROM message_old");
+			database.execSQL("DROP TABLE message_old");
+
+			// 4. RESET INDICES
+			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_message_payloadId ON message (payloadId)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS index_message_senderNodeId ON message (senderNodeId)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS index_message_recipientNodeId ON message (recipientNodeId)");
+
 			database.execSQL("PRAGMA foreign_keys=ON");
 		}
 	};

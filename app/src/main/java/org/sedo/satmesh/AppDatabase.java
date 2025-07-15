@@ -42,7 +42,7 @@ import org.sedo.satmesh.utils.AndroidKeyManager;
 		SignalSignedPreKeyEntity.class, SignalIdentityKeyEntity.class,
 		SignalKeyExchangeState.class, RouteEntry.class, RouteRequestEntry.class,
 		RouteUsage.class, BroadcastStatusEntry.class},
-		version = 3)
+		version = 4)
 public abstract class AppDatabase extends RoomDatabase {
 
 	// Define migrations here
@@ -99,6 +99,26 @@ public abstract class AppDatabase extends RoomDatabase {
 		}
 	};
 
+	static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+		@Override
+		public void migrate(@NonNull SupportSQLiteDatabase database) {
+			database.execSQL("PRAGMA foreign_keys=OFF");
+			database.execSQL("ALTER TABLE node RENAME TO node_old");
+			database.execSQL("CREATE TABLE IF NOT EXISTS node (" +
+					"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+					"displayName TEXT, " +
+					"addressName TEXT, " +
+					"trusted INTEGER NOT NULL, " +
+					"lastSeen INTEGER)"
+			);
+			database.execSQL("INSERT INTO node (id, displayName, addressName, trusted, lastSeen) " +
+					"SELECT id, displayName, addressName, trusted, lastSeen FROM node_old");
+			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_node_addressName ON node (addressName)");
+			database.execSQL("DROP TABLE node_old");
+			database.execSQL("PRAGMA foreign_keys=ON");
+		}
+	};
+
 	private static volatile AppDatabase INSTANCE;
 
 	public static AppDatabase getDB(Context context) {
@@ -109,7 +129,7 @@ public abstract class AppDatabase extends RoomDatabase {
 					SupportOpenHelperFactory factory = new SupportOpenHelperFactory(AndroidKeyManager.getOrCreateAppCipherPassphrase(context));
 					INSTANCE = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "satmesh_db")
 							.openHelperFactory(factory)
-							.addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+							.addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 							.build();
 				}
 			}

@@ -17,7 +17,6 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
 import org.sedo.satmesh.ui.data.NodeRepository;
-import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
@@ -53,22 +52,11 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 		NodeTransientStateRepository nodeStateRepository = NodeTransientStateRepository.getInstance();
 		nearbyManager = NearbyManager.getInstance();
 
-		// Observe the connected nodes from the database
-		LiveData<List<Node>> connectedNodesFromDb = nodeRepository.getConnectedNode();
-
-		// Combine DB nodes with transient states
-		// Use MediatorLiveData to combine these two sources
-		displayNodeListLiveData.addSource(connectedNodesFromDb, dbNodes -> {
-			Log.d(TAG, "Mediator: DB connected nodes updated.");
-			// When DB nodes change, combine them with current transient states
-			updateDisplayNodes(dbNodes, nodeStateRepository.getTransientNodeStates().getValue());
-		});
-
 		displayNodeListLiveData.addSource(nodeStateRepository.getTransientNodeStates(), transientStates -> {
 			Log.d(TAG, "Mediator: Transient states updated.");
 
 			// When transient states change, combine them with current DB nodes
-			updateDisplayNodes(connectedNodesFromDb.getValue(), transientStates);
+			updateDisplayNodes(transientStates);
 		});
 
 		// Initialize UI states
@@ -115,58 +103,27 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	 * This method is triggered by changes in either the connected nodes from DB
 	 * or the transient states from NodeStateRepository.
 	 *
-	 * @param dbNodes         The current list of connected nodes from the database.
 	 * @param transientStates The current map of transient states from NodeStateRepository.
 	 */
-	private void updateDisplayNodes(@Nullable List<Node> dbNodes, @Nullable Map<String, NodeTransientState> transientStates) {
-		viewModelExecutor.execute(() -> { // Perform combining logic on a background thread
+	private void updateDisplayNodes(@Nullable Map<String, NodeTransientState> transientStates) {
+		viewModelExecutor.execute(() -> { // Perform logic on a background thread
 			Map<String, NodeDiscoveryItem> seenNodes = new HashMap<>(); // To handle uniqueness
 
-			// 1. Add all connected nodes from the database
-			if (dbNodes != null) {
-				for (Node node : dbNodes) {
-					seenNodes.put(node.getAddressName(), new NodeDiscoveryItem(node, null));
-				}
-			}
-
-			// 2. Overlay or add transient states
+			// 1. Overlay or add transient states
 			if (transientStates != null) {
 				for (Map.Entry<String, NodeTransientState> entry : transientStates.entrySet()) {
 					String addressName = entry.getKey();
 					NodeTransientState state = entry.getValue();
-					NodeDiscoveryItem nodeInList = seenNodes.get(addressName);
 
-					if (nodeInList != null) {
-						/*
-						 * Node is already in the list (from DB, meaning connected).
-						 * Only override if the transient state implies a temporary override
-						 * (e.g., ON_DISCONNECTED for a briefly disconnected but still in DB node).
-						 * Otherwise, connected state from DB usually takes precedence for display.
-						 */
-						if (state.connectionState == NodeState.ON_DISCONNECTED) {
-							nodeInList.node.setConnected(false); // Mark as not connected for UI purposes
-							// The `NearbySignalMessenger` is responsible for eventually removing this if truly lost.
-							Log.d(TAG, "Transient: Marking " + addressName + " as temporarily disconnected.");
-						}
-					} else {
-						// This node is not in the DB's connected list.
-						// It must be a newly discovered, pending, or failed-to-connect node.
-						Node node;
-						node = nodeRepository.findNodeSync(addressName);
-						if (node == null)
-							node = new Node();
-						/*
-						 * If the node fetched from database is not null, we don't need to update
-						 * its state here. We just use it. Its setting up to date is covered by
-						 * `NearbySignalMessenger`
-						 */
+					Node node = nodeRepository.findNodeSync(addressName);
+					if (node == null) {
+						node = new Node();
+						// Do not persist the node, it is the job of `NearbySignalMessenger`
 						node.setAddressName(addressName);
-						node.setConnected(false); // It's not connected yet
-						nodeInList = new NodeDiscoveryItem(node, null);
-						seenNodes.put(addressName, nodeInList); // Add to seen to prevent duplicates
-						Log.d(TAG, "Transient: Adding " + addressName + " with state " + state + ".");
 					}
+					NodeDiscoveryItem nodeInList = new NodeDiscoveryItem(node, null);
 					nodeInList.state = state.connectionState;
+					seenNodes.put(addressName, nodeInList);
 				}
 			}
 

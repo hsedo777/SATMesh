@@ -34,6 +34,8 @@ import org.sedo.satmesh.ui.ChatListFragment;
 import org.sedo.satmesh.ui.DiscussionListener;
 import org.sedo.satmesh.ui.DiscussionMenuListener;
 import org.sedo.satmesh.ui.KnownNodesFragment;
+import org.sedo.satmesh.ui.LoadingFragment;
+import org.sedo.satmesh.ui.LoadingFragment.ServiceLoadingListener;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryListener;
 import org.sedo.satmesh.ui.SearchFragment;
@@ -47,7 +49,7 @@ import java.util.function.Consumer;
 
 public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener,
 		DiscussionListener, NearbyDiscoveryListener, ChatListAccessor, AppHomeListener,
-		DiscussionMenuListener {
+		DiscussionMenuListener, ServiceLoadingListener {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -242,7 +244,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			// Load host Node
 			// Check if setup is complete
 			if (isSetupCompleted()) {
-				navigateToMainScreen();
+				onSetupCompleted();
 			} else {
 				showWelcomeFragment();
 			}
@@ -251,7 +253,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		Consumer<Void> showFragmentRestore = (unused) -> {
 			if (isSetupCompleted()) {
 				Log.d(TAG, "Restore view in state setup completed!");
-				startCommunicationService(); // Ensure service is running
+				onSetupCompleted(); // Ensure service is running
 			}
 			// The fragment will reattach itself
 		};
@@ -411,7 +413,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 					Log.d(TAG, "Host node created and saved: " + hostNode.getDisplayName() + " (" + hostNode.getAddressName() + ") with ID: " + hostNode.getId());
 
 					// Navigate to ChatListFragment or NearbyDiscoveryFragment on UI thread
-					runOnUiThread(this::navigateToMainScreen);
+					runOnUiThread(this::onSetupCompleted);
 				} else {
 					Log.e(TAG, "Failed to insert host node into database.");
 					runOnUiThread(() -> Toast.makeText(this, R.string.node_profile_saving_failed, Toast.LENGTH_LONG).show());
@@ -495,12 +497,22 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		navigateTo(KnownNodesFragment.newInstance(hostNodeId), KnownNodesFragment.TAG, true);
 	}
 
+	private void onSetupCompleted() {
+		startCommunicationService();
+		navigateTo(LoadingFragment.newInstance(), LoadingFragment.TAG, false);
+	}
+
+	// Implementation of `ServiceLoadingListener`
+	@Override
+	public void onServicesReady() {
+		navigateToMainScreen();
+	}
+
 	/**
 	 * Show the fragment to display after configuration or node loading.
 	 */
 	private void navigateToMainScreen() {
 		// The host node is identified, init app service
-		startCommunicationService();
 		appDatabase.getQueryExecutor().execute(() -> {
 			long count = appDatabase.messageDao().countAll();
 			if (count > 0L) {

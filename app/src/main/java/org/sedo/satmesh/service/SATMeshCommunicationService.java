@@ -358,6 +358,7 @@ public class SATMeshCommunicationService extends Service {
 				Log.d(TAG, "Attempting to start NearbyManager advertising and discovery on main thread.");
 				nearbyManager.startAdvertising();
 				nearbyManager.startDiscovery();
+				SATMeshServiceStatus.getInstance().setServiceReady(true);
 				Log.d(TAG, "NearbyManager advertising and discovery successfully started.");
 				Log.d(TAG, "NearbyManager started in service.");
 			} catch (Exception e) {

@@ -26,7 +26,6 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.signal.SignalManager;
-import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Constants;
 import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.NotificationType;
@@ -321,7 +320,6 @@ public class SATMeshCommunicationService extends Service {
 		}
 		DataLog.init(getApplicationContext(), hostNode.getAddressName());
 		// Reset node connection state
-		new NodeRepository(getApplicationContext()).setAllNodesDisconnected();
 		if (nearbyManager == null) {
 			// Pass the service's application context and the host node's address name
 			nearbyManager = NearbyManager.getInstance(getApplicationContext(), hostNode.getAddressName());
@@ -382,7 +380,6 @@ public class SATMeshCommunicationService extends Service {
 			Log.d(TAG, "NearbyManager stopped in service.");
 		}
 		signalManager = null;
-		new NodeRepository(getApplicationContext()).setAllNodesDisconnected();
 		DataLog.close();
 		Log.i(TAG, "Communication modules stopped.");
 	}

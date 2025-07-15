@@ -18,6 +18,10 @@ import java.util.Objects;
  */
 @Entity(tableName = "node", indices = {@Index(value = "addressName", unique = true)})
 public class Node {
+	private static final String NODE_ID = "node_id";
+	private static final String NODE_DISPLAY_NAME = "node_display_name";
+	private static final String NODE_ADDRESS_NAME = "node_address_name";
+	private static final String NODE_TRUSTED = "arg_remote_node_name";
 	@PrimaryKey(autoGenerate = true)
 	private Long id;
 	private String displayName;
@@ -26,28 +30,39 @@ public class Node {
 	 * This ensures consistency across sessions and network disconnections.
 	 */
 	private String addressName;
-
 	private boolean trusted = false;
 	private Long lastSeen;
-	private boolean connected;
 
-	private static final String NODE_ID = "node_id";
-	private static final String NODE_DISPLAY_NAME = "node_display_name";
-	private static final String NODE_ADDRESS_NAME = "node_address_name";
-	private static final String NODE_TRUSTED = "arg_remote_node_name";
+	/**
+	 * Default constructor.
+	 */
+	public Node() {
+	}
 
-	/** Default constructor. */
-	public Node(){}
-
-	/** Constructor of copy. */
-	public Node(@NonNull Node toCopy){
+	/**
+	 * Constructor of copy.
+	 */
+	public Node(@NonNull Node toCopy) {
 		id = toCopy.id;
 		displayName = toCopy.displayName;
 		addressName = toCopy.addressName;
 		trusted = toCopy.trusted;
 		lastSeen = toCopy.lastSeen;
-		connected = toCopy.connected;
 	}
+
+	@NonNull
+	public static Node restoreFromBundle(@NonNull Bundle bundle, @NonNull String prefix) {
+		Node node = new Node();
+		long temp = bundle.getLong(prefix + NODE_ID, -1);
+		if (temp != -1) {
+			node.id = temp;
+		}
+		node.displayName = bundle.getString(prefix + NODE_DISPLAY_NAME, null);
+		node.addressName = bundle.getString(prefix + NODE_ADDRESS_NAME, null);
+		node.trusted = bundle.getBoolean(prefix + NODE_TRUSTED);
+		return node;
+	}
+
 	/**
 	 * Populates the node's properties using a PersonalInfo Protocol Buffer object.
 	 * This is typically used when receiving personal information from another node.
@@ -59,7 +74,7 @@ public class Node {
 		this.displayName = info.getDisplayName();
 	}
 
-	public PersonalInfo toPersonalInfo(boolean expectResult){
+	public PersonalInfo toPersonalInfo(boolean expectResult) {
 		return PersonalInfo.newBuilder().setAddressName(addressName).setExpectResult(expectResult).setDisplayName(displayName).build();
 	}
 
@@ -88,7 +103,7 @@ public class Node {
 	}
 
 	@NonNull
-	public String getNonNullName(){
+	public String getNonNullName() {
 		return displayName == null ? addressName : displayName;
 	}
 
@@ -108,46 +123,25 @@ public class Node {
 		this.lastSeen = lastSeen;
 	}
 
-	public boolean isConnected() {
-		return connected;
-	}
-
-	public void setConnected(boolean connected) {
-		this.connected = connected;
-	}
-
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Node node = (Node) o;
-		return trusted == node.trusted && connected == node.connected && Objects.equals(displayName, node.displayName) && Objects.equals(addressName, node.addressName) && Objects.equals(lastSeen, node.lastSeen);
+		return trusted == node.trusted && Objects.equals(displayName, node.displayName) && Objects.equals(addressName, node.addressName) && Objects.equals(lastSeen, node.lastSeen);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(displayName, addressName, trusted, lastSeen, connected);
+		return Objects.hash(displayName, addressName, trusted, lastSeen);
 	}
 
-	public void write(@NonNull Bundle input, @NonNull String prefix){
-		if (id != null){
+	public void write(@NonNull Bundle input, @NonNull String prefix) {
+		if (id != null) {
 			input.putLong(prefix + NODE_ID, id);
 		}
 		input.putString(prefix + NODE_DISPLAY_NAME, displayName);
 		input.putString(prefix + NODE_ADDRESS_NAME, addressName);
 		input.putBoolean(prefix + NODE_TRUSTED, trusted);
-	}
-
-	@NonNull
-	public static Node restoreFromBundle(@NonNull Bundle bundle, @NonNull String prefix){
-		Node node = new Node();
-		long temp = bundle.getLong(prefix + NODE_ID, -1);
-		if (temp != -1){
-			node.id = temp;
-		}
-		node.displayName = bundle.getString(prefix + NODE_DISPLAY_NAME, null);
-		node.addressName = bundle.getString(prefix + NODE_ADDRESS_NAME, null);
-		node.trusted = bundle.getBoolean(prefix + NODE_TRUSTED);
-		return node;
 	}
 }

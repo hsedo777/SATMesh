@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "2f51b16afc4bb1f05e282e22b5ef02c7",
+    "identityHash": "96ef802ac0aa889b48b67de35a43d626",
     "entities": [
       {
         "tableName": "node",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `displayName` TEXT, `addressName` TEXT, `trusted` INTEGER NOT NULL, `lastSeen` INTEGER, `connected` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `displayName` TEXT, `addressName` TEXT, `trusted` INTEGER NOT NULL, `lastSeen` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -33,12 +33,6 @@
             "fieldPath": "lastSeen",
             "columnName": "lastSeen",
             "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "connected",
-            "columnName": "connected",
-            "affinity": "INTEGER",
-            "notNull": true
           }
         ],
         "primaryKey": {
@@ -580,7 +574,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2f51b16afc4bb1f05e282e22b5ef02c7')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '96ef802ac0aa889b48b67de35a43d626')"
     ]
   }
 }

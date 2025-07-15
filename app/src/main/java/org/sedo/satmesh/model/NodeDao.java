@@ -63,29 +63,6 @@ public interface NodeDao {
 	@Query("SELECT * FROM node WHERE id = :id")
 	LiveData<Node> getNodeById(long id);
 
-	/**
-	 * Get the live data of nodes in state connected
-	 *
-	 * @see Node#isConnected()
-	 */
-	@Query("SELECT * FROM node WHERE connected = 1")
-	LiveData<List<Node>> getConnectedNode();
-
-	/**
-	 * Set all nodes in state disconnected. This method should be called
-	 * at the app completely shutdown
-	 */
-	@Query("UPDATE node SET connected = 0")
-	void setAllNodesDisconnected();
-
-	/**
-	 * Retrieves all Nodes (contacts) from the database.
-	 *
-	 * @return A LiveData list of all Node objects, which can be observed for changes.
-	 */
-	@Query("SELECT * FROM node ORDER BY displayName COLLATE NOCASE ASC")
-	LiveData<List<Node>> getAllNodes();
-
 	@Delete
 	int delete(List<Node> nodes); // For deleting multiple nodes (useful for selected items)
 

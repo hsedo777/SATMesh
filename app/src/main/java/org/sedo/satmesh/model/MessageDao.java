@@ -155,8 +155,7 @@ public interface MessageDao {
 			"N.displayName AS remoteNode_displayName, " +
 			"N.addressName AS remoteNode_addressName, " +
 			"N.trusted AS remoteNode_trusted, " +
-			"N.lastSeen AS remoteNode_lastSeen, " +
-			"N.connected AS remoteNode_connected " +
+			"N.lastSeen AS remoteNode_lastSeen " +
 			"FROM message AS M " +
 			"JOIN message_fts AS fts ON M.id = fts.rowid " +
 			"JOIN (" + // Subquery to determine the 'partnerId' (remoteNodeId) for each message
@@ -200,7 +199,6 @@ public interface MessageDao {
 			"  N.addressName AS remote_node_addressName, " +
 			"  N.trusted AS remote_node_trusted, " +
 			"  N.lastSeen AS remote_node_lastSeen, " +
-			"  N.connected AS remote_node_connected, " +
 			"  M.id AS last_msg_id, " +
 			"  M.payloadId AS last_msg_payloadId, " +
 			"  M.content AS last_msg_content, " +
@@ -249,7 +247,6 @@ public interface MessageDao {
 			"  N.addressName AS remote_node_addressName, " +
 			"  N.trusted AS remote_node_trusted, " +
 			"  N.lastSeen AS remote_node_lastSeen, " +
-			"  N.connected AS remote_node_connected, " +
 			"  M.id AS last_msg_id, " +
 			"  M.payloadId AS last_msg_payloadId, " +
 			"  M.content AS last_msg_content, " +

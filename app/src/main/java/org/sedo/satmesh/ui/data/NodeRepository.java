@@ -71,14 +71,6 @@ public class NodeRepository {
 		return dao.getNodeByAddressNameSync(addressName);
 	}
 
-	public LiveData<List<Node>> getConnectedNode() {
-		return dao.getConnectedNode();
-	}
-
-	public void setAllNodesDisconnected() {
-		executor.execute(dao::setAllNodesDisconnected);
-	}
-
 	/**
 	 * Finds a node by its address name. If not found, attempts to create it.
 	 * The result is returned via a callback. This method runs operations on the executor.

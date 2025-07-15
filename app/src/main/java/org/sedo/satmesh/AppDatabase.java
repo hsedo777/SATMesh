@@ -3,9 +3,12 @@ package org.sedo.satmesh;
 
 import android.content.Context;
 
+import androidx.annotation.NonNull;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
+import androidx.room.migration.Migration;
+import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory;
 
@@ -42,30 +45,71 @@ import org.sedo.satmesh.utils.AndroidKeyManager;
 		version = 3)
 public abstract class AppDatabase extends RoomDatabase {
 
-	public abstract NodeDao nodeDao();
-	public abstract MessageDao messageDao();
-	public abstract SignalSessionDao sessionDao();
-	public abstract SignalPreKeyDao preKeyDao();
-	public abstract SignalSignedPreKeyDao signedPreKeyDao();
-	public abstract SignalIdentityKeyDao identityKeyDao();
-	public abstract SignalKeyExchangeStateDao signalKeyExchangeStateDao();
-	public abstract RouteEntryDao routeEntryDao();
-	public abstract RouteUsageDao routeUsageDao();
-	public abstract RouteRequestEntryDao routeRequestEntryDao();
-	public abstract BroadcastStatusEntryDao broadcastStatusEntryDao();
+	// Define migrations here
+	static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+		@Override
+		public void migrate(@NonNull SupportSQLiteDatabase database) {
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_entry` (" +
+					"`id` INTEGER PRIMARY KEY AUTOINCREMENT, " +
+					"`discovery_uuid` TEXT, " +
+					"`destination_node_local_id` INTEGER, " +
+					"`next_hop_local_id` INTEGER, " +
+					"`previous_hop_local_id` INTEGER, " +
+					"`hop_count` INTEGER)");
+
+			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_route_entry_discovery_uuid` ON `route_entry` (`discovery_uuid`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_destination_node_local_id` ON `route_entry` (`destination_node_local_id`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_next_hop_local_id` ON `route_entry` (`next_hop_local_id`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_previous_hop_local_id` ON `route_entry` (`previous_hop_local_id`)");
+
+			// Création de la table route_request_entry
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_request_entry` (" +
+					"`request_uuid` TEXT NOT NULL, " +
+					"`destination_node_local_id` INTEGER, " +
+					"`previous_hop_local_id` INTEGER, " +
+					"PRIMARY KEY(`request_uuid`))");
+
+			// Création de la table route_usage
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_usage` (" +
+					"`usage_request_uuid` TEXT NOT NULL, " +
+					"`route_entry_discovery_uuid` TEXT, " +
+					"`last_used_timestamp` INTEGER, " +
+					"PRIMARY KEY(`usage_request_uuid`), " +
+					"FOREIGN KEY(`route_entry_discovery_uuid`) REFERENCES `route_entry`(`discovery_uuid`) ON UPDATE NO ACTION ON DELETE CASCADE)");
+
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_usage_route_entry_discovery_uuid` ON `route_usage` (`route_entry_discovery_uuid`)");
+
+			// Création de la table broadcast_status_entry
+			database.execSQL("CREATE TABLE IF NOT EXISTS `broadcast_status_entry` (" +
+					"`request_uuid` TEXT NOT NULL, " +
+					"`neighbor_node_local_id` INTEGER NOT NULL, " +
+					"`is_pending_response_in_progress` INTEGER NOT NULL, " +
+					"PRIMARY KEY(`request_uuid`, `neighbor_node_local_id`), " +
+					"FOREIGN KEY(`request_uuid`) REFERENCES `route_request_entry`(`request_uuid`) ON UPDATE NO ACTION ON DELETE CASCADE)");
+
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_broadcast_status_entry_request_uuid` ON `broadcast_status_entry` (`request_uuid`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_broadcast_status_entry_neighbor_node_local_id` ON `broadcast_status_entry` (`neighbor_node_local_id`)");
+		}
+	};
+
+	static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+		@Override
+		public void migrate(@NonNull SupportSQLiteDatabase database) {
+			// No structural change
+		}
+	};
 
 	private static volatile AppDatabase INSTANCE;
 
-	public static AppDatabase getDB(Context context){
-		if (INSTANCE == null && context != null){
-			synchronized (AppDatabase.class){
-				if (INSTANCE == null){
+	public static AppDatabase getDB(Context context) {
+		if (INSTANCE == null && context != null) {
+			synchronized (AppDatabase.class) {
+				if (INSTANCE == null) {
 					System.loadLibrary("sqlcipher"); // Required to fix
 					SupportOpenHelperFactory factory = new SupportOpenHelperFactory(AndroidKeyManager.getOrCreateAppCipherPassphrase(context));
 					INSTANCE = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "satmesh_db")
 							.openHelperFactory(factory)
-							//.addMigrations(MIGRATION_1_2,...)
-							.fallbackToDestructiveMigration(true)//Only at dev stage
+							.addMigrations(MIGRATION_1_2, MIGRATION_2_3)
 							.build();
 				}
 			}
@@ -73,12 +117,32 @@ public abstract class AppDatabase extends RoomDatabase {
 		return INSTANCE;
 	}
 
+	public abstract NodeDao nodeDao();
+
+	public abstract MessageDao messageDao();
+
+	public abstract SignalSessionDao sessionDao();
+
+	public abstract SignalPreKeyDao preKeyDao();
+
+	public abstract SignalSignedPreKeyDao signedPreKeyDao();
+
+	public abstract SignalIdentityKeyDao identityKeyDao();
+
+	public abstract SignalKeyExchangeStateDao signalKeyExchangeStateDao();
+
+	public abstract RouteEntryDao routeEntryDao();
+
+	public abstract RouteUsageDao routeUsageDao();
+
+	public abstract RouteRequestEntryDao routeRequestEntryDao();
+
 	/* Sample of hook for actions to execute before db encryption or after db decryption
 	private static final SQLiteDatabaseHook databaseHook = new SQLiteDatabaseHook() {
 		@Override
 		public void preKey(SQLiteConnection database) {
 			// This method is called before db encryption
-			// You can execute "PRAGMAS" here if needed before encryption
+			// You can execute "PRAGMA S" here if needed before encryption
 		}
 
 		@Override
@@ -88,14 +152,7 @@ public abstract class AppDatabase extends RoomDatabase {
 			database.execSQL("PRAGMA secure_delete = ON;");
 		}
 	};
+	 */
 
-    // Define migrations here
-    static final Migration MIGRATION_1_2 = new Migration(1, 2) {
-        @Override
-        public void migrate(@NonNull SupportSQLiteDatabase database) {
-            // Implement schema changes here
-            // Ex: database.execSQL("ALTER TABLE node ADD COLUMN newColumn TEXT");
-        }
-    };
-    */
+	public abstract BroadcastStatusEntryDao broadcastStatusEntryDao();
 }

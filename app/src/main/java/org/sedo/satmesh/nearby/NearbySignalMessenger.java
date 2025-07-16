@@ -178,6 +178,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, deviceAddressName, endpointId, node.getDisplayName(), "connected to an old node");
 					if (hasSession(deviceAddressName)) {
 						attemptResendFailedMessagesTo(node, null);
+					} else {
+						handleInitialKeyExchange(deviceAddressName);
 					}
 				} else {
 					// Create a new node entity if it doesn't exist.
@@ -193,6 +195,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					});
 					Log.d(TAG, "New Node " + deviceAddressName + " inserted and marked as connected in DB.");
 					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, deviceAddressName, endpointId, null, "connected to a new node");
+					handleInitialKeyExchange(deviceAddressName);
 				}
 			} catch (Exception e) {
 				Log.e(TAG, "Error updating/inserting node status on device connected: " + e.getMessage(), e);
@@ -920,6 +923,9 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			case KNOWLEDGE:
 				// Success decryption of the body, above, is enough
 				Log.d(TAG, "Receiving KNOWLEDGE message from: " + senderAddress);
+				Node hostCopy = nodeRepository.findNodeSync(hostNode.getAddressName());
+				sendPersonalInfo(hostCopy.toPersonalInfo(true), senderAddressName);
+				hostNode.setDisplayName(hostCopy.getDisplayName());
 				break;
 			case UNRECOGNIZED:
 			case UNKNOWN:

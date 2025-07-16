@@ -27,6 +27,7 @@ import androidx.fragment.app.FragmentTransaction;
 import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.service.SATMeshCommunicationService;
+import org.sedo.satmesh.service.SATMeshServiceStatus;
 import org.sedo.satmesh.ui.AppHomeListener;
 import org.sedo.satmesh.ui.ChatFragment;
 import org.sedo.satmesh.ui.ChatListAccessor;
@@ -227,8 +228,9 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		);
 
 		// Flag to check if the intent was handled by a specific notification action
-		boolean notificationHandled = false;
-		if (getIntent() != null) {
+		boolean notificationHandled = Boolean.TRUE.equals(SATMeshServiceStatus.getInstance().getServiceReady().getValue())
+				&& getIntent() != null;
+		if (notificationHandled) {
 			notificationHandled = handleIncomingIntent(getIntent());
 		}
 

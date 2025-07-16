@@ -30,19 +30,12 @@ public class NodeTransientStateRepository {
 	/*
 	 * MutableLiveData to hold the map of transient node states.
 	 * Key: Node's addressName, Value: NodeTransientState
+	 * Initialize with an empty ConcurrentHashMap to be thread-safe for internal map operations.
 	 */
-	private final MutableLiveData<Map<String, NodeTransientState>> transientNodeStatesLiveData = new MutableLiveData<>();
+	private final MutableLiveData<Map<String, NodeTransientState>> transientNodeStatesLiveData = new MutableLiveData<>(new ConcurrentHashMap<>());
 
 	// Executor for handling state updates and timed removals to avoid blocking the main thread.
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-
-	/**
-	 * Private constructor to enforce Singleton pattern.
-	 */
-	private NodeTransientStateRepository() {
-		// Initialize with an empty ConcurrentHashMap to be thread-safe for internal map operations.
-		transientNodeStatesLiveData.setValue(new ConcurrentHashMap<>());
-	}
 
 	/**
 	 * Provides the singleton instance of the NodeStateRepository.
@@ -81,33 +74,32 @@ public class NodeTransientStateRepository {
 	 * @param addressName The Signal Protocol address name of the node.
 	 * @param newState    The new transient state for the node.
 	 */
-	public void updateTransientNodeState(String addressName, NodeState newState) {
-		if (addressName == null || newState == null) {
-			Log.w(TAG, "Attempted to update transient state with null addressName or newState.");
-			return;
-		}
-
+	public void updateTransientNodeState(@NonNull String addressName, @NonNull NodeState newState) {
 		executor.execute(() -> {
-			Map<String, NodeTransientState> currentStates = transientNodeStatesLiveData.getValue();
-			if (currentStates == null) {
+			Map<String, NodeTransientState> tmp = transientNodeStatesLiveData.getValue();
+			Map<String, NodeTransientState> currentStates;
+			if (tmp == null) {
 				// This should not happen with initial ConcurrentHashMap, but as a safeguard.
 				currentStates = new ConcurrentHashMap<>();
 				transientNodeStatesLiveData.postValue(currentStates);
+			} else {
+				currentStates = tmp;
 			}
 
-			NodeTransientState transientState = currentStates.get(addressName);
-			if (transientState == null){
-				transientState = new NodeTransientState();
+			NodeTransientState ts = currentStates.get(addressName);
+			NodeTransientState transientState;
+			if (ts == null) {
+				transientState = new NodeTransientState(newState);
+			} else {
+				transientState = ts;
 			}
 			Log.d(TAG, "Updating transient state for " + addressName + " from " + transientState.connectionState + " to " + newState);
-			transientState.connectionState = newState;
+			currentStates.put(addressName, transientState);
+			transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(currentStates)); // Post a copy to trigger observers
 
 			if (newState == NodeState.ON_DISCONNECTED) {
 				// For disconnected state, add it and schedule a removal after a delay.
 				// This allows the UI to show "disconnected" briefly before potentially removing it.
-				currentStates.put(addressName, transientState);
-				transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(currentStates)); // Post a copy to trigger observers
-
 				executor.schedule(() -> {
 					// Only remove if still in ON_DISCONNECTED state (i.e., not reconnected)
 					Map<String, NodeTransientState> statesAfterDelay = transientNodeStatesLiveData.getValue();
@@ -118,12 +110,6 @@ public class NodeTransientStateRepository {
 						transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(statesAfterDelay)); // Post update
 					}
 				}, REMOVAL_DELAY_MS, TimeUnit.MILLISECONDS);
-			} else {
-				/*
-				 * For other transient states (ON_ENDPOINT_FOUND, ON_CONNECTION_INITIATED), add or update them.
-				 */
-				currentStates.put(addressName, transientState);
-				transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(currentStates)); // Post a copy to trigger observers
 			}
 		});
 	}

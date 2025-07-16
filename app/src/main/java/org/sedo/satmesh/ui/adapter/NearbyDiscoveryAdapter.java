@@ -94,10 +94,8 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 
 		public void bind(@NonNull NodeDiscoveryItem item) {
 			itemBinding.nodeDisplayName.setText(item.getNonNullName());
-			if (item.state != null) {
-				int color = ContextCompat.getColor(itemView.getContext(), item.state.getColorResId());
-				itemBinding.statusIndicator.getBackground().setTint(color);
-			}
+			int color = ContextCompat.getColor(itemView.getContext(), item.state.getColorResId());
+			itemBinding.statusIndicator.getBackground().setTint(color);
 		}
 	}
 

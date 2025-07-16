@@ -8,8 +8,13 @@ import java.util.Objects;
  * This utility class is defined to map the transient state of {@link org.sedo.satmesh.model.Node}.
  */
 public class NodeTransientState {
+	@NonNull
 	public NodeState connectionState;
 	//public Boolean typingStatus; //later
+
+	public NodeTransientState(@NonNull NodeState connectionState) {
+		this.connectionState = connectionState;
+	}
 
 	@Override
 	public boolean equals(Object o) {

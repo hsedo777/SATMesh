@@ -115,14 +115,16 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 					String addressName = entry.getKey();
 					NodeTransientState state = entry.getValue();
 
-					Node node = nodeRepository.findNodeSync(addressName);
-					if (node == null) {
+					Node tmp = nodeRepository.findNodeSync(addressName);
+					Node node;
+					if (tmp == null) {
 						node = new Node();
 						// Do not persist the node, it is the job of `NearbySignalMessenger`
 						node.setAddressName(addressName);
+					} else {
+						node = tmp;
 					}
-					NodeDiscoveryItem nodeInList = new NodeDiscoveryItem(node, null);
-					nodeInList.state = state.connectionState;
+					NodeDiscoveryItem nodeInList = new NodeDiscoveryItem(node, state.connectionState);
 					seenNodes.put(addressName, nodeInList);
 				}
 			}

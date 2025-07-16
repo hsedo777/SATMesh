@@ -11,13 +11,14 @@ import java.util.Objects;
  */
 public class NodeDiscoveryItem {
 	@NonNull public Node node;
-	public NodeState state;
+	@NonNull public NodeState state;
 
-	public NodeDiscoveryItem(@NonNull Node node, NodeState state) {
+	public NodeDiscoveryItem(@NonNull Node node, @NonNull NodeState state) {
 		this.node = node;
 		this.state = state;
 	}
 
+	@NonNull
 	public String getAddressName() {
 		return node.getAddressName();
 	}

@@ -3,9 +3,7 @@ package org.sedo.satmesh.ui.adapter;
 import static org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.NodeDiscoveryViewHolder;
 
 import android.view.LayoutInflater;
-import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
@@ -13,8 +11,10 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.sedo.satmesh.R;
+import org.sedo.satmesh.databinding.ItemNearbyNodeBinding;
 import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
+
+import java.util.Objects;
 
 public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeDiscoveryViewHolder> {
 
@@ -49,8 +49,8 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 	@NonNull
 	@Override
 	public NodeDiscoveryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-		View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_nearby_node, parent, false);
-		return new NodeDiscoveryViewHolder(view, callback);
+		ItemNearbyNodeBinding binding = ItemNearbyNodeBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
+		return new NodeDiscoveryViewHolder(binding, callback);
 	}
 
 	@Override
@@ -72,13 +72,11 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 	}
 
 	public static class NodeDiscoveryViewHolder extends RecyclerView.ViewHolder {
-		private final TextView nameTextView;
-		private final View statusIndicator;
+		private final ItemNearbyNodeBinding itemBinding;
 
-		public NodeDiscoveryViewHolder(@NonNull View itemView, @NonNull OnChildClickCallback onClick) {
-			super(itemView);
-			nameTextView = itemView.findViewById(R.id.node_display_name);
-			statusIndicator = itemView.findViewById(R.id.status_indicator);
+		public NodeDiscoveryViewHolder(@NonNull ItemNearbyNodeBinding item, @NonNull OnChildClickCallback onClick) {
+			super(item.getRoot());
+			this.itemBinding = item;
 			this.itemView.setOnClickListener(view -> {
 				try {
 					onClick.onClick(getAdapterPosition());
@@ -95,11 +93,10 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 		}
 
 		public void bind(@NonNull NodeDiscoveryItem item) {
-			String displayName = item.getDisplayName();
-			nameTextView.setText(displayName == null ? item.getAddressName() : displayName);
+			itemBinding.nodeDisplayName.setText(item.getNonNullName());
 			if (item.state != null) {
 				int color = ContextCompat.getColor(itemView.getContext(), item.state.getColorResId());
-				statusIndicator.getBackground().setTint(color);
+				itemBinding.statusIndicator.getBackground().setTint(color);
 			}
 		}
 	}
@@ -108,7 +105,7 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 
 		@Override
 		public boolean areItemsTheSame(@NonNull NodeDiscoveryItem oldItem, @NonNull NodeDiscoveryItem newItem) {
-			return oldItem.node.equals(newItem.node);
+			return Objects.equals(oldItem.node.getAddressName(), newItem.node.getAddressName());
 		}
 
 		@Override

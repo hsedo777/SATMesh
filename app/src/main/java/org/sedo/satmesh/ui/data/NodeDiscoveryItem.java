@@ -18,12 +18,13 @@ public class NodeDiscoveryItem {
 		this.state = state;
 	}
 
-	public String getDisplayName() {
-		return node.getDisplayName();
-	}
-
 	public String getAddressName() {
 		return node.getAddressName();
+	}
+
+	@NonNull
+	public String getNonNullName() {
+		return node.getNonNullName();
 	}
 
 	@Override

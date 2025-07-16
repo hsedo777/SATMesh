@@ -70,6 +70,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * sending PreKeyBundle when there is an old
 	 */
 	//public static final long DEBOUNCE_TIME_MS = 90L * 24 * 60 * 60 * 1000; // 90 days
+	/**
+	 * Minimum delay, in millisecond, to be elapsed before accept to resend message
+	 * when we don't have any result about its last transmission.
+	 */
+	public static final long MESSAGE_RESEND_DELAY_MS = 10_000L; // 10 seconds
 	private static final String TAG = "NearbySignalMessenger";
 	private static volatile NearbySignalMessenger INSTANCE;
 
@@ -171,6 +176,9 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					notifyNeighborDiscovery(node, false);
 					Log.d(TAG, "Node " + deviceAddressName + " marked as connected in DB.");
 					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, deviceAddressName, endpointId, node.getDisplayName(), "connected to an old node");
+					if (hasSession(deviceAddressName)) {
+						attemptResendFailedMessagesTo(node, null);
+					}
 				} else {
 					// Create a new node entity if it doesn't exist.
 					// This covers cases where a device is connected but not yet explicitly "discovered"
@@ -349,9 +357,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				}
 				if (message != null) {
 					message.setStatus(status);
-					if (payloadId != null && payloadId != 0L && (message.getPayloadId() == null || message.getPayloadId() == 0L)) {
-						message.setPayloadId(payloadId); // Set the Nearby Payload ID, only if the value is not previously defined
-					}
+					message.setLastSendingAttempt(null);
+					message.setPayloadId(payloadId); // Apply the Nearby Payload ID, only if the value is not previously defined
 					if (callback != null) {
 						messageRepository.updateMessage(message, callback);
 					} else {
@@ -449,7 +456,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 								if (cause instanceof NoSessionException || cause instanceof InvalidMessageException) {
 									handleInitialKeyExchange(recipientAddressName);
 								}
-								consumeSendingEncryptedTextMessage(payload, false, Message.MESSAGE_STATUS_PENDING/*wait for ack*/, messageDbId, recipientAddressName, textMessage);
+								consumeSendingEncryptedTextMessage(payload, false, Message.MESSAGE_STATUS_PENDING, messageDbId, recipientAddressName, textMessage);
 								transmissionCallback.onFailure(payload, cause);
 							}
 						},
@@ -540,30 +547,46 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * remote node and tries to send delivery ack for messages the previous attempt failed.
 	 * This method should be called when a secure session is established.
 	 *
-	 * @param remoteNode the remote node
+	 * @param remoteNode     the remote node
+	 * @param onFirstSuccess If not null, it's called on success transmission of one message.
+	 *                       Implementation guarantee the call is once at most.
 	 */
-	public void attemptResendFailedMessagesTo(@NonNull Node remoteNode) {
+	public void attemptResendFailedMessagesTo(@NonNull Node remoteNode, @Nullable Consumer<Void> onFirstSuccess) {
 		executor.execute(() -> {
-			/*
-			 * Retrieve messages with MESSAGE_STATUS_FAILED, MESSAGE_STATUS_PENDING_KEY_EXCHANGE
-			 * or MESSAGE_STATUS_PENDING for the current remote node
-			 */
 			List<Message> failedMessages = messageRepository.getMessagesInStatusesForRecipientSync(remoteNode.getId(),
 					Arrays.asList(Message.MESSAGE_STATUS_FAILED,
 							Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
-							Message.MESSAGE_STATUS_PENDING /* Occurs when the send failure mapping failed*/)
+							Message.MESSAGE_STATUS_PENDING,
+							Message.MESSAGE_STATUS_ROUTING
+					)
 			);
 
 			if (failedMessages != null && !failedMessages.isEmpty()) {
 				final ObjectHolder<Boolean> toContinue = new ObjectHolder<>();
 				toContinue.post(true);
+				final ObjectHolder<Boolean> firstSucceed = new ObjectHolder<>();
+				firstSucceed.post(false);
 				Log.d(TAG, "Found " + failedMessages.size() + " failed messages to resend for " + remoteNode.getDisplayName());
 				for (Message message : failedMessages) {
 					if (!toContinue.getValue()) {
 						break;
 					}
+					Long lastAttempt = message.getLastSendingAttempt();
+					if (lastAttempt != null) {
+						long delay;
+						if (Message.MESSAGE_STATUS_ROUTING == message.getStatus()) {
+							delay = MESSAGE_RESEND_DELAY_MS * 6;
+						} else {
+							delay = MESSAGE_RESEND_DELAY_MS;
+						}
+						if (System.currentTimeMillis() - lastAttempt < delay) {
+							// Wait few time, expecting possible response
+							continue;
+						}
+					}
 					// Before attempting to resend, update its status to PENDING
 					message.setStatus(Message.MESSAGE_STATUS_PENDING);
+					message.setLastSendingAttempt(System.currentTimeMillis());
 					messageRepository.updateMessage(message, onSuccess -> {
 						if (onSuccess) {
 							TextMessage text = TextMessage.newBuilder()
@@ -576,6 +599,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 								@Override
 								public void onSuccess(@NonNull Payload payload) {
 									// Great
+									if (!firstSucceed.getValue() && onFirstSuccess != null) {
+										onFirstSuccess.accept(null);
+									}
+									firstSucceed.post(true);
 								}
 
 								@Override
@@ -805,19 +832,19 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 				Log.d(TAG, "Received TextMessage from " + senderAddressName);
 				if (textMessage.getPayloadId() != 0L) {
-					// We are in case or retransmission
+					// We are in case of retransmission
 					payloadId = textMessage.getPayloadId();
 					Message retransmitted = messageRepository.getMessageByPayloadIdSync(payloadId);
 					if (retransmitted != null) {
 						Log.d(TAG, "Message multiple retransmission");
 						int oldStatus = retransmitted.getStatus();
-						// The sender is trying to send the message again because it's in pending status by his side
-						retransmitted.setStatus(Message.MESSAGE_STATUS_PENDING);
-						messageRepository.updateMessage(retransmitted, ok -> {
-							if (ok) {
-								sendMessageAck(retransmitted.getPayloadId(), senderAddressName, oldStatus != Message.MESSAGE_STATUS_READ, null);
-							}
-						});
+						/*
+						 * The sender is trying to send the message again because it's neither
+						 * marked delivered nor read by his side.
+						 */
+						sendMessageAck(payloadId, senderAddressName,
+								// Ensure the message status is maintained locally
+								oldStatus == Message.MESSAGE_STATUS_DELIVERED, null);
 						return;
 					}
 				}
@@ -911,7 +938,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				return;
 			}
 			notifyRouteDiscoveryResult(remoteNode, true);
-			attemptResendFailedMessagesTo(remoteNode);
+			attemptResendFailedMessagesTo(remoteNode, null);
 		});
 	}
 

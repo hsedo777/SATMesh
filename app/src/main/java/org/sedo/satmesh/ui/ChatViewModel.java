@@ -326,6 +326,8 @@ public class ChatViewModel extends AndroidViewModel {
 			messageRepository.insertMessage(message, success -> {
 				if (success) {
 					if (isSessionSecure) {
+						message.setLastSendingAttempt(System.currentTimeMillis());
+						messageRepository.updateMessage(message);
 						TextMessage text = TextMessage.newBuilder()
 								.setContent(message.getContent())
 								.setPayloadId(0L) // Payload ID will be set by NearbySignalManager on send
@@ -391,8 +393,8 @@ public class ChatViewModel extends AndroidViewModel {
 			return;
 		}
 
-		nearbySignalMessenger.attemptResendFailedMessagesTo(currentRemoteNode);
-		uiMessage.postValue(getApplication().getString(R.string.resending_failed_messages));
+		nearbySignalMessenger.attemptResendFailedMessagesTo(currentRemoteNode,
+				unused -> uiMessage.postValue(getApplication().getString(R.string.resending_failed_messages)));
 	}
 
 	public void deleteMessagesById(@NonNull List<Long> ids) {

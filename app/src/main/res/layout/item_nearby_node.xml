@@ -6,37 +6,69 @@
 	android:layout_height="wrap_content"
 	android:layout_marginHorizontal="@dimen/space_sm"
 	android:layout_marginVertical="@dimen/space_sm"
-	app:cardBackgroundColor="@color/cardBackgroundColor"
-	app:strokeColor="@color/secondaryColor"
-	app:cardElevation="8dp"
 	android:clickable="true"
-	android:focusable="true">
+	android:focusable="true"
+	app:cardBackgroundColor="@color/cardBackgroundColor"
+	app:cardElevation="8dp"
+	app:strokeColor="@color/secondaryColor">
 
-	<!--
-	app:cardForegroundColor="?attr/selectableItemBackground"
-	-->
 	<LinearLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:orientation="horizontal"
-		android:gravity="center_vertical"
+		android:orientation="vertical"
 		android:padding="@dimen/space_md">
 
-		<TextView
-			android:id="@+id/node_display_name"
-			android:layout_width="0dp"
+		<LinearLayout
+			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:textColor="@color/cardText"
-			android:textSize="@dimen/text_size_title"
-			android:textStyle="bold"
-			tools:text="Alice"/>
+			android:gravity="center_vertical"
+			android:orientation="horizontal">
 
-		<View
-			android:id="@+id/status_indicator"
-			android:layout_width="@dimen/node_state_indication_radius"
-			android:layout_height="@dimen/node_state_indication_radius"
-			android:layout_marginStart="@dimen/space_md"
-			android:background="@drawable/status_indicator" />
+			<TextView
+				android:id="@+id/node_display_name"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:textColor="@color/cardText"
+				android:textSize="@dimen/text_size_title"
+				android:textStyle="bold"
+				tools:text="Alice" />
+
+			<View
+				android:id="@+id/status_indicator"
+				android:layout_width="@dimen/node_state_indication_radius"
+				android:layout_height="@dimen/node_state_indication_radius"
+				android:layout_marginStart="@dimen/space_md"
+				android:background="@drawable/status_indicator" />
+		</LinearLayout>
+
+		<LinearLayout
+			android:id="@+id/item_secure_session_container"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:gravity="center_vertical"
+			android:orientation="horizontal"
+			android:visibility="gone"
+			tools:visibility="visible">
+
+			<TextView
+				android:id="@+id/secure_session_status"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:ellipsize="end"
+				android:maxLines="1"
+				android:textColor="@color/cardText"
+				android:textSize="@dimen/text_size_body"
+				android:textStyle="italic"
+				tools:text="@string/status_waiting_for_their_keys" />
+
+			<ImageView
+				android:id="@+id/secure_session_icon"
+				android:layout_width="@dimen/secure_session_icon"
+				android:layout_height="@dimen/secure_session_icon"
+				android:contentDescription="@string/status_waiting_for_their_keys"
+				app:srcCompat="@drawable/ic_lock" />
+		</LinearLayout>
 	</LinearLayout>
 </com.google.android.material.card.MaterialCardView>

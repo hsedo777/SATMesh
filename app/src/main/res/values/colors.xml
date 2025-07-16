@@ -33,6 +33,8 @@
 	<color name="cardText2">@color/black</color>
 	<color name="cardText3">#363333</color>
 
+	<color name="ic_lock_not_secure">@color/colorError</color>
+	<color name="ic_lock_secure">@color/node_state_connected</color>
 	<color name="colorOutline">#79747E</color>
 
 	<!-- Connection states -->

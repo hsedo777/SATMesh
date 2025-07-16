@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -64,6 +65,12 @@ public class LoadingFragment extends Fragment {
 		SATMeshServiceStatus.getInstance().getServiceReady().observe(getViewLifecycleOwner(), aBoolean -> {
 			if (Boolean.TRUE.equals(aBoolean)) {
 				loadingListener.onServicesReady();
+			}
+		});
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				requireActivity().finish();
 			}
 		});
 	}

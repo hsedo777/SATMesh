@@ -18,7 +18,6 @@ import org.sedo.satmesh.model.MessageFts;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.model.NodeDao;
 import org.sedo.satmesh.model.SignalKeyExchangeState;
-import org.sedo.satmesh.model.SignalKeyExchangeStateDao;
 import org.sedo.satmesh.model.rt.BroadcastStatusEntry;
 import org.sedo.satmesh.model.rt.BroadcastStatusEntryDao;
 import org.sedo.satmesh.model.rt.RouteEntry;
@@ -181,8 +180,6 @@ public abstract class AppDatabase extends RoomDatabase {
 
 	public abstract SignalIdentityKeyDao identityKeyDao();
 
-	public abstract SignalKeyExchangeStateDao signalKeyExchangeStateDao();
-
 	public abstract RouteEntryDao routeEntryDao();
 
 	public abstract RouteUsageDao routeUsageDao();
@@ -194,7 +191,7 @@ public abstract class AppDatabase extends RoomDatabase {
 		@Override
 		public void preKey(SQLiteConnection database) {
 			// This method is called before db encryption
-			// You can execute "PRAGMA S" here if needed before encryption
+			// You can execute "PRAGMA"S here if needed before encryption
 		}
 
 		@Override

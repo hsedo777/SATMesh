@@ -96,8 +96,7 @@ public class ChatViewModel extends AndroidViewModel {
 	}
 
 	/**
-	 * Updates the connection status LiveData based on the latest states from NodeTransientStateRepository
-	 * and now also from SignalKeyExchangeStateRepository.
+	 * Updates the connection status LiveData based on the latest states from NodeTransientStateRepository.
 	 *
 	 * @param statesMap The current map of transient node states.
 	 */

@@ -41,6 +41,7 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
 	private final NodeRepository nodeRepository;
 	private final NearbyManager nearbyManager;
+	private final NodeTransientStateRepository nodeStateRepository;
 	// Executor for ViewModel specific background tasks that are not handled by repositories
 	private final ExecutorService viewModelExecutor = Executors.newSingleThreadExecutor();
 	private String hostDeviceName;
@@ -49,7 +50,7 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 		super(application);
 		// This map still holds transient states not directly in the DB Node model
 		nodeRepository = new NodeRepository(application);
-		NodeTransientStateRepository nodeStateRepository = NodeTransientStateRepository.getInstance();
+		nodeStateRepository = NodeTransientStateRepository.getInstance();
 		nearbyManager = NearbyManager.getInstance();
 
 		displayNodeListLiveData.addSource(nodeStateRepository.getTransientNodeStates(), transientStates -> {
@@ -96,6 +97,14 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
 	public void setHostDeviceName(String hostDeviceName) {
 		this.hostDeviceName = hostDeviceName;
+	}
+
+	/**
+	 * Force reloading nodes in the view
+	 */
+	public void reloadNodes() {
+		nearbyManager.startDiscovery();
+		updateDisplayNodes(nodeStateRepository.getTransientNodeStates().getValue());
 	}
 
 	/**

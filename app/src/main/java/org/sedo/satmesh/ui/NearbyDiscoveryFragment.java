@@ -110,8 +110,6 @@ public class NearbyDiscoveryFragment extends Fragment {
 		adapter.attachOnNodeClickListener(new OnNodeClickListener() {
 			@Override
 			public void onClick(@NonNull NodeDiscoveryItem item) {
-				if (item.state == null)
-					return;
 				if (item.state != NodeState.ON_CONNECTED) {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(item.getAddressName());
 					if (endpointId != null) {
@@ -140,7 +138,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 			}
 		});
 		binding.nearbyNodesRecyclerView.setAdapter(adapter);
-		binding.nearbyTitle.setOnClickListener(v -> reload());
+		binding.nearbyTitle.setOnClickListener(v -> viewModel.reloadNodes());
 
 		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
 			@Override
@@ -154,16 +152,8 @@ public class NearbyDiscoveryFragment extends Fragment {
 		});
 	}
 
-	private void reload() {
-		Log.d(TAG, "Reloading nodes list.");
-		onNodesChanged(viewModel.getDisplayNodeListLiveData().getValue());
-		viewModel.getNearbyManager().startDiscovery();
-	}
-
 	private void onNodesChanged(@Nullable List<NodeDiscoveryItem> items) {
-		if (items == null)
-			return;
-		Log.d(TAG, "Nodes list updated in Fragment: " + items.size() + " nodes.");
+		Log.d(TAG, "Nodes list updated in Fragment: " + (items != null ? items.size() : "0") + " nodes.");
 		adapter.submitList(items);
 
 		viewModel.getProgressBar().postValue(View.GONE); // Always hide progress bar after results are processed

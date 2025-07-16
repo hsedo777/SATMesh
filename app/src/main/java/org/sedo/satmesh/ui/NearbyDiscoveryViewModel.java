@@ -15,6 +15,7 @@ import androidx.lifecycle.MutableLiveData;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
+import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeTransientState;
@@ -133,7 +134,8 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 					} else {
 						node = tmp;
 					}
-					NodeDiscoveryItem nodeInList = new NodeDiscoveryItem(node, state.connectionState);
+					boolean isSecure = NearbySignalMessenger.getInstance().hasSession(addressName);
+					NodeDiscoveryItem nodeInList = new NodeDiscoveryItem(node, state.connectionState, isSecure);
 					seenNodes.put(addressName, nodeInList);
 				}
 			}

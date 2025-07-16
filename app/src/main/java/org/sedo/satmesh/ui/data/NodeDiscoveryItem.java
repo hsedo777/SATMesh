@@ -12,10 +12,12 @@ import java.util.Objects;
 public class NodeDiscoveryItem {
 	@NonNull public Node node;
 	@NonNull public NodeState state;
+	public boolean isSecured;
 
-	public NodeDiscoveryItem(@NonNull Node node, @NonNull NodeState state) {
+	public NodeDiscoveryItem(@NonNull Node node, @NonNull NodeState state, boolean isSecured) {
 		this.node = node;
 		this.state = state;
+		this.isSecured = isSecured;
 	}
 
 	@NonNull

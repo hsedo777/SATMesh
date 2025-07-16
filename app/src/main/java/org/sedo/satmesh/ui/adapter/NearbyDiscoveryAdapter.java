@@ -3,6 +3,7 @@ package org.sedo.satmesh.ui.adapter;
 import static org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.NodeDiscoveryViewHolder;
 
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -11,8 +12,10 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.ItemNearbyNodeBinding;
 import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
+import org.sedo.satmesh.ui.data.NodeState;
 
 import java.util.Objects;
 
@@ -96,6 +99,21 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 			itemBinding.nodeDisplayName.setText(item.getNonNullName());
 			int color = ContextCompat.getColor(itemView.getContext(), item.state.getColorResId());
 			itemBinding.statusIndicator.getBackground().setTint(color);
+			if (item.state == NodeState.ON_CONNECTED) {
+				int sbg, textCode;
+				if (item.isSecured) {
+					sbg = ContextCompat.getColor(itemView.getContext(), R.color.ic_lock_secure);
+					textCode = R.string.status_secure_session_active;
+				} else {
+					sbg = ContextCompat.getColor(itemView.getContext(), R.color.ic_lock_not_secure);
+					textCode = R.string.status_waiting_to_send_our_keys;
+				}
+				itemBinding.secureSessionStatus.setText(textCode);
+				itemBinding.secureSessionIcon.getBackground().setTint(sbg);
+				itemBinding.itemSecureSessionContainer.setVisibility(View.VISIBLE);
+			} else {
+				itemBinding.itemSecureSessionContainer.setVisibility(View.GONE);
+			}
 		}
 	}
 

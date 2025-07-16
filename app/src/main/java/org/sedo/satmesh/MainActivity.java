@@ -505,6 +505,17 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	// Implementation of `ServiceLoadingListener`
 	@Override
 	public void onServicesReady() {
+		// Remove the loading fragment from the view
+		Fragment loading = getCurrentFragmentInContainer();
+		FragmentManager fragmentManager = getSupportFragmentManager();
+		if (loading != null) {
+			fragmentManager.beginTransaction().remove(loading).commit();
+			if (loading instanceof LoadingFragment) {
+				Log.d(TAG, "Success remove of LoadingFragment");
+			}
+		} else {
+			Log.w(TAG, "The fragment LoadingFragment is not found onServicesReady.");
+		}
 		navigateToMainScreen();
 	}
 

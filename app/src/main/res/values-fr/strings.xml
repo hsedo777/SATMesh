@@ -127,7 +127,7 @@
 
 	<!-- Notification buttons -->
 	<string name="action_mark_as_read">Marquer comme lu</string>
-	<string name="new_messages_from_sender">%s de %s</string>
+	<string name="new_messages_from_sender">%1$s de %2$s</string>
 	<string name="action_mark_all_as_read">Marquer tous comme lus</string>
 	<string name="multiple_new_messages_summary">Taper pour ouvrir</string>
 

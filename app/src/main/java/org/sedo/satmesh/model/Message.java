@@ -124,6 +124,13 @@ public class Message {
 	private Long recipientNodeId;
 
 	/**
+	 * The last time the message has been transmitted but without
+	 * transmission result even if success or failure
+	 */
+	@ColumnInfo(name = "lastAttempt")
+	private Long lastSendingAttempt;
+
+	/**
 	 * Test if the input integer value is a valid status code
 	 *
 	 * @param status the code to test
@@ -230,6 +237,14 @@ public class Message {
 
 	public boolean isRead() {
 		return status == MESSAGE_STATUS_READ;
+	}
+
+	public Long getLastSendingAttempt() {
+		return lastSendingAttempt;
+	}
+
+	public void setLastSendingAttempt(Long lastSendingAttempt) {
+		this.lastSendingAttempt = lastSendingAttempt;
 	}
 
 	@Override

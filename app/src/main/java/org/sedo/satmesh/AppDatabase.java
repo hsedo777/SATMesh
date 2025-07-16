@@ -41,7 +41,7 @@ import org.sedo.satmesh.utils.AndroidKeyManager;
 		SignalSignedPreKeyEntity.class, SignalIdentityKeyEntity.class,
 		SignalKeyExchangeState.class, RouteEntry.class, RouteRequestEntry.class,
 		RouteUsage.class, BroadcastStatusEntry.class},
-		version = 4)
+		version = 5)
 public abstract class AppDatabase extends RoomDatabase {
 
 	// Define migrations here
@@ -120,7 +120,6 @@ public abstract class AppDatabase extends RoomDatabase {
 			);
 			database.execSQL("INSERT INTO node (id, displayName, addressName, trusted, lastSeen) " +
 					"SELECT id, displayName, addressName, trusted, lastSeen FROM node_old");
-			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_node_addressName ON node (addressName)");
 			database.execSQL("DROP TABLE node_old");
 
 			// 3. MESSAGE MIGRATION
@@ -142,6 +141,45 @@ public abstract class AppDatabase extends RoomDatabase {
 			database.execSQL("DROP TABLE message_old");
 
 			// 4. RESET INDICES
+			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_node_addressName ON node (addressName)");
+			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_message_payloadId ON message (payloadId)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS index_message_senderNodeId ON message (senderNodeId)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS index_message_recipientNodeId ON message (recipientNodeId)");
+
+			database.execSQL("PRAGMA foreign_keys=ON");
+		}
+	};
+
+	static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+		@Override
+		public void migrate(@NonNull SupportSQLiteDatabase database) {
+			database.execSQL("PRAGMA foreign_keys=OFF");
+
+			// 1. DROP INDICES
+			database.execSQL("DROP INDEX IF EXISTS index_message_payloadId");
+			database.execSQL("DROP INDEX IF EXISTS index_message_senderNodeId");
+			database.execSQL("DROP INDEX IF EXISTS index_message_recipientNodeId");
+
+			// 2. MESSAGE MIGRATION
+			database.execSQL("ALTER TABLE message RENAME TO message_old");
+			database.execSQL("CREATE TABLE IF NOT EXISTS message (" +
+					"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+					"content TEXT, " +
+					"payloadId INTEGER, " +
+					"senderNodeId INTEGER, " +
+					"lastAttempt INTEGER DEFAULT NULL, " +
+					"recipientNodeId INTEGER, " +
+					"status INTEGER NOT NULL, " +
+					"timestamp INTEGER NOT NULL, " +
+					"type INTEGER NOT NULL, " +
+					"FOREIGN KEY(senderNodeId) REFERENCES node(id) ON DELETE CASCADE, " +
+					"FOREIGN KEY(recipientNodeId) REFERENCES node(id) ON DELETE CASCADE)"
+			);
+			database.execSQL("INSERT INTO message (id, content, payloadId, senderNodeId, lastAttempt, recipientNodeId, status, timestamp, type) " +
+					"SELECT id, content, payloadId, senderNodeId, NULL, recipientNodeId, status, timestamp, type FROM message_old");
+			database.execSQL("DROP TABLE message_old");
+
+			// 4. RESET INDICES
 			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_message_payloadId ON message (payloadId)");
 			database.execSQL("CREATE INDEX IF NOT EXISTS index_message_senderNodeId ON message (senderNodeId)");
 			database.execSQL("CREATE INDEX IF NOT EXISTS index_message_recipientNodeId ON message (recipientNodeId)");
@@ -160,7 +198,7 @@ public abstract class AppDatabase extends RoomDatabase {
 					SupportOpenHelperFactory factory = new SupportOpenHelperFactory(AndroidKeyManager.getOrCreateAppCipherPassphrase(context));
 					INSTANCE = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "satmesh_db")
 							.openHelperFactory(factory)
-							.addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+							.addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 							.build();
 				}
 			}

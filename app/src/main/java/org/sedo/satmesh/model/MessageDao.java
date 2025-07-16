@@ -123,12 +123,6 @@ public interface MessageDao {
 	void deleteMessagesWithNode(Long nodeId);
 
 	/**
-	 * Deletes all messages from the database.
-	 */
-	@Query("DELETE FROM message")
-	void deleteAllMessages();
-
-	/**
 	 * Searches for messages using Full-Text Search (FTS) on their content,
 	 * and joins with the Node table to retrieve the associated remote node details
 	 * for each message, based on the host node ID.
@@ -149,6 +143,7 @@ public interface MessageDao {
 			"M.status AS status, " +
 			"M.type AS type, " +
 			"M.senderNodeId AS senderNodeId, " +
+			"M.lastAttempt AS lastAttempt," +
 			"M.recipientNodeId AS recipientNodeId, " +
 			// 2. Select all columns for the Remote Node object (using 'remoteNode_' prefix for @Embedded)
 			"N.id AS remoteNode_id, " +
@@ -206,6 +201,7 @@ public interface MessageDao {
 			"  M.status AS last_msg_status, " +
 			"  M.type AS last_msg_type, " +
 			"  M.senderNodeId AS last_msg_senderNodeId, " +
+			"  M.lastAttempt AS last_msg_lastAttempt," +
 			"  M.recipientNodeId AS last_msg_recipientNodeId, " +
 			"  COALESCE(UC.unreadCount, 0) AS unreadCount " +
 			"FROM message AS M " +
@@ -254,6 +250,7 @@ public interface MessageDao {
 			"  M.status AS last_msg_status, " +
 			"  M.type AS last_msg_type, " +
 			"  M.senderNodeId AS last_msg_senderNodeId, " +
+			"  M.lastAttempt AS last_msg_lastAttempt," +
 			"  M.recipientNodeId AS last_msg_recipientNodeId, " +
 			"  COALESCE(UC.unreadCount, 0) AS unreadCount " +
 			"FROM message AS M " +

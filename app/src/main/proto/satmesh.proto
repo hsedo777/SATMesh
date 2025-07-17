@@ -59,6 +59,7 @@ message NearbyMessageBody {
     TYPING_INDICATOR = 7;
     ROUTED_MESSAGE = 8;
     KNOWLEDGE = 9;
+    CLAIM_READ_ACK = 10;
   }
   MessageType message_type = 1;
   /*
@@ -71,7 +72,7 @@ message NearbyMessageBody {
   bytes encrypted_data = 3;
 }
 
-//Message for types `MESSAGE_DELIVERED_ACK` and `MESSAGE_READ_ACK`
+//Message for types `MESSAGE_DELIVERED_ACK`, `MESSAGE_READ_ACK` and `CLAIM_READ_ACK`
 message MessageAck {
   int64 payloadId = 1; // original message payload ID
 }

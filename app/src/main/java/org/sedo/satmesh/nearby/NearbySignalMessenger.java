@@ -2,6 +2,7 @@ package org.sedo.satmesh.nearby;
 
 import static org.sedo.satmesh.nearby.NearbyManager.DeviceConnectionListener;
 import static org.sedo.satmesh.nearby.NearbyManager.PayloadListener;
+import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.CLAIM_READ_ACK;
 import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MESSAGE;
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
 
@@ -528,6 +529,25 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	}
 
 	/**
+	 * When you sent a discussion message to a remote node and had received the
+	 * delivered ack, you can claim the read ack. Thus, if the message is read and
+	 * you don't have the ack, it'll be delivered to you.
+	 */
+	public void claimReadAck(long originalPayloadId, @NonNull String recipientAddressName) {
+		executor.execute(() -> {
+			try {
+				MessageAck ack = MessageAck.newBuilder().setPayloadId(originalPayloadId).build();
+				NearbyMessageBody body = NearbyMessageBody.newBuilder()
+						.setMessageType(CLAIM_READ_ACK)
+						.setEncryptedData(ack.toByteString()).build();
+				sendNearbyMessageInternal(body, recipientAddressName, TransmissionCallback.NULL_CALLBACK, null, null);
+			} catch (Exception e) {
+				Log.d(TAG, "Error when claiming read ack", e);
+			}
+		});
+	}
+
+	/**
 	 * Sends personal information to a recipient.
 	 *
 	 * @param info                 The PersonalInfo protobuf object to send.
@@ -917,8 +937,9 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				nearbyRouteManager.handleIncomingRouteResponse(senderAddressName, routeResponseMessage);
 				break;
 			case ROUTED_MESSAGE:
+				Log.d(TAG, "Parsing routed message relayed by neighbor: " + senderAddressName);
 				RoutedMessage routedMessage = RoutedMessage.parseFrom(decryptedMessageBody.getEncryptedData());
-				nearbyRouteManager.handleIncomingRoutedMessage(senderAddressName, routedMessage, hostNode.getAddressName(), payloadId);
+				nearbyRouteManager.handleIncomingRoutedMessage(routedMessage, hostNode.getAddressName(), payloadId);
 				break;
 			case KNOWLEDGE:
 				// Success decryption of the body, above, is enough
@@ -927,6 +948,13 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				sendPersonalInfo(hostCopy.toPersonalInfo(true), senderAddressName);
 				hostNode.setDisplayName(hostCopy.getDisplayName());
 				break;
+			case CLAIM_READ_ACK:
+				MessageAck ack = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
+				Log.d(TAG, "Receiving claim of read ack for message with payload ID: " + ack.getPayloadId());
+				if (messageRepository.isMessageRead(ack.getPayloadId())) {
+					Log.d(TAG, "Message is really in state read, let's send the read ack.");
+					sendMessageAck(ack.getPayloadId(), senderAddressName, false, null);
+				}
 			case UNRECOGNIZED:
 			case UNKNOWN:
 			default:

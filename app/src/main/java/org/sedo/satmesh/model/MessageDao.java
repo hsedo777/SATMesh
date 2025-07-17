@@ -67,6 +67,14 @@ public interface MessageDao {
 	@Query("SELECT * FROM message WHERE payloadId = :payloadId")
 	Message getMessageByPayloadIdSync(Long payloadId);
 
+	/**
+	 * Tests if the message bound to the specified payload ID is already read.
+	 *
+	 * @param payloadId The payload ID of message to test.
+	 * @return {@code true} if and only if the message is in state read.
+	 */
+	@Query("SELECT 1 FROM message WHERE payloadId = :payloadId AND status = " + Message.MESSAGE_STATUS_READ)
+	boolean isMessageRead(long payloadId);
 
 	/**
 	 * Retrieves all messages exchanged between two specific nodes (users), ordered by timestamp.

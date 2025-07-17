@@ -62,10 +62,10 @@ public class MessageRepository {
 
 	public void updateMessage(Message message, @NotNull Consumer<Boolean> callback) {
 		executor.execute(() -> {
-			try{
+			try {
 				messageDao.update(message);
 				callback.accept(true);
-			} catch (Exception ignored){
+			} catch (Exception ignored) {
 				callback.accept(false);
 			}
 		});
@@ -92,6 +92,13 @@ public class MessageRepository {
 	 */
 	public Message getMessageByPayloadIdSync(Long payloadId) {
 		return messageDao.getMessageByPayloadIdSync(payloadId);
+	}
+
+	/**
+	 * Delegated to {@link MessageDao#isMessageRead(long)}
+	 */
+	public boolean isMessageRead(long payloadId) {
+		return messageDao.isMessageRead(payloadId);
 	}
 
 	/**

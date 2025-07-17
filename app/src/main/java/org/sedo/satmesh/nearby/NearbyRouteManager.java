@@ -1135,8 +1135,6 @@ public class NearbyRouteManager {
 	 * This method also updates the {@link RouteUsage} timestamp
 	 * for the route being utilized.
 	 *
-	 * @param senderAddressName     The {@code SignalProtocolAddress.name} of the node that sent this
-	 *                              {@code RoutedMessage} to the current node (i.e., the previous hop).
 	 * @param incomingRoutedMessage The deserialized {@link RoutedMessage} received, containing
 	 *                              routing information and the end-to-end encrypted payload.
 	 * @param localHostAddressName  The {@code SignalProtocolAddress.name} of the current local node.
@@ -1144,7 +1142,6 @@ public class NearbyRouteManager {
 	 *                              Used primarily for logging and tracking.
 	 */
 	public void handleIncomingRoutedMessage(
-			@NonNull String senderAddressName, // The previous hop
 			@NonNull RoutedMessage incomingRoutedMessage, // The deserialized RoutedMessage
 			@NonNull String localHostAddressName,
 			long payloadId
@@ -1153,8 +1150,8 @@ public class NearbyRouteManager {
 			String finalDestinationAddressName = incomingRoutedMessage.getFinalDestinationNodeId();
 			String routeUuid = incomingRoutedMessage.getRouteUuid();
 
-			Log.d(TAG, "Handling incoming RoutedMessage for final destination: " + finalDestinationAddressName +
-					" via route UUID: " + routeUuid + " from previous hop: " + senderAddressName);
+			Log.d(TAG, "Handling incoming RoutedMessage for final destination: " +
+					finalDestinationAddressName + " via route UUID: " + routeUuid);
 
 			// 1. Check if current node is the final destination
 			if (finalDestinationAddressName.equals(localHostAddressName)) {
@@ -1196,7 +1193,7 @@ public class NearbyRouteManager {
 					return;
 				}
 				if (routeUsage == null) {
-					Log.w(TAG, "Unable to locate the route usage for request ID=" + incomingRoutedMessage.getRouteUuid() + " from " + senderAddressName);
+					Log.w(TAG, "Unable to locate the route usage for request ID=" + incomingRoutedMessage.getRouteUuid());
 					return;
 				}
 

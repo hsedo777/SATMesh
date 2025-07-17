@@ -14,4 +14,9 @@
 		android:title="@string/action_copy"
 		app:showAsAction="ifRoom" />
 
+	<item
+		android:id="@+id/action_claim_ack"
+		android:icon="@drawable/ic_action_claim_ack"
+		android:title="@string/action_claim_ack"
+		app:showAsAction="ifRoom" />
 </menu>

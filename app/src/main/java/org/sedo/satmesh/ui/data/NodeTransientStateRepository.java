@@ -91,9 +91,10 @@ public class NodeTransientStateRepository {
 			if (ts == null) {
 				transientState = new NodeTransientState(newState);
 			} else {
+				ts.connectionState = newState;
 				transientState = ts;
 			}
-			Log.d(TAG, "Updating transient state for " + addressName + " from " + transientState.connectionState + " to " + newState);
+			Log.d(TAG, "Updating transient state for " + addressName + " from " + (ts != null ? ts.connectionState : "null") + " to " + newState);
 			currentStates.put(addressName, transientState);
 			transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>(currentStates)); // Post a copy to trigger observers
 

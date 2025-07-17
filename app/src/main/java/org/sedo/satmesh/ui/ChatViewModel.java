@@ -403,6 +403,10 @@ public class ChatViewModel extends AndroidViewModel {
 		messageRepository.deleteMessagesById(ids);
 	}
 
+	public void claimMessageReadAck(@NonNull Message message) {
+		nearbySignalMessenger.claimReadAck(message);
+	}
+
 	/**
 	 * Exports the current chat messages to a plain text file in the device's Downloads directory.
 	 * The exported file format includes timestamp, sender, and message content for each message.

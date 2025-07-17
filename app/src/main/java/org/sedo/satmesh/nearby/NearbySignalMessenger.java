@@ -530,12 +530,19 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 	/**
 	 * When you sent a discussion message to a remote node and had received the
-	 * delivered ack, you can claim the read ack. Thus, if the message is read and
+	 * delivered ack, you can claimMessageReadAck the read ack. Thus, if the message is read and
 	 * you don't have the ack, it'll be delivered to you.
 	 */
-	public void claimReadAck(long originalPayloadId, @NonNull String recipientAddressName) {
+	public void claimReadAck(@NonNull Message message) {
 		executor.execute(() -> {
 			try {
+				long originalPayloadId = message.getPayloadId();
+				Node recipient = nodeRepository.findNodeSync(message.getRecipientNodeId());
+				if (recipient == null) {
+					Log.d(TAG, "Unable to fetch from db the node to which to claimMessageReadAck the read ack.");
+					return;
+				}
+				String recipientAddressName = recipient.getAddressName();
 				MessageAck ack = MessageAck.newBuilder().setPayloadId(originalPayloadId).build();
 				NearbyMessageBody body = NearbyMessageBody.newBuilder()
 						.setMessageType(CLAIM_READ_ACK)
@@ -950,7 +957,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				break;
 			case CLAIM_READ_ACK:
 				MessageAck ack = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
-				Log.d(TAG, "Receiving claim of read ack for message with payload ID: " + ack.getPayloadId());
+				Log.d(TAG, "Receiving claimMessageReadAck of read ack for message with payload ID: " + ack.getPayloadId());
 				if (messageRepository.isMessageRead(ack.getPayloadId())) {
 					Log.d(TAG, "Message is really in state read, let's send the read ack.");
 					sendMessageAck(ack.getPayloadId(), senderAddressName, false, null);

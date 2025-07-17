@@ -8,6 +8,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
@@ -169,6 +170,13 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 	@NonNull
 	public Set<Long> getSelectedMessageIds() {
 		return Collections.unmodifiableSet(selectedMessageIds);
+	}
+
+	@Nullable
+	public Message getMessageById(Long messageId) {
+		return getCurrentList().stream()
+				.filter(m -> m.getId().equals(messageId))
+				.findFirst().orElse(null);
 	}
 
 	public interface OnMessageLongClickListener {

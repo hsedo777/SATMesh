@@ -54,7 +54,9 @@ public class ChatFragment extends Fragment {
 	private Long messageIdToScrollTo = null;
 
 	private ActionMode currentActionMode;
-	// Implémentation de ActionMode.Callback
+	private FragmentChatBinding binding;
+	private Node hostNode;
+	// Implementation of ActionMode.Callback
 	private final ActionMode.Callback actionModeCallback = new ActionMode.Callback() {
 		@Override
 		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
@@ -68,6 +70,11 @@ public class ChatFragment extends Fragment {
 			return true;
 		}
 
+		private boolean canClaimReadAckOn(Message message) {
+			return message != null && !message.isRead() && message.isDelivered()
+					&& Objects.equals(ChatFragment.this.hostNode.getId(), message.getSenderNodeId());
+		}
+
 		@Override
 		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
 			// Called after onCreateActionMode and whenever the ActionMode is invalidated.
@@ -76,6 +83,15 @@ public class ChatFragment extends Fragment {
 			if (copyItem != null) {
 				// Disable the copy button if more than one message is selected
 				copyItem.setVisible(adapter.getSelectedCount() == 1);
+			}
+			MenuItem claimItem = menu.findItem(R.id.action_claim_ack);
+			if (claimItem != null) {
+				if (adapter.getSelectedCount() != 1) {
+					claimItem.setVisible(false);
+				} else {
+					Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
+					claimItem.setVisible(canClaimReadAckOn(message));
+				}
 			}
 			return false;
 		}
@@ -130,6 +146,15 @@ public class ChatFragment extends Fragment {
 				}
 				mode.finish();
 				return true;
+			} else if (id == R.id.action_claim_ack) {
+				if (selectedMessageIds.size() == 1) {
+					Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
+					if (canClaimReadAckOn(message)) {
+						viewModel.claimMessageReadAck(message);
+						Toast.makeText(requireContext(), R.string.action_claim_ack_ongoing, Toast.LENGTH_SHORT).show();
+					}
+				}
+				return true;
 			}
 			return false;
 		}
@@ -140,8 +165,6 @@ public class ChatFragment extends Fragment {
 			currentActionMode = null;
 		}
 	};
-	private FragmentChatBinding binding;
-	private Node hostNode;
 	private Node remoteNode;
 
 	public ChatFragment() {

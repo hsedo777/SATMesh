@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.preference.PreferenceManager;
 
+import org.jetbrains.annotations.NotNull;
 import org.sedo.satmesh.ui.SettingsFragment;
 
 public class SettingsActivity extends AppCompatActivity {
@@ -23,6 +24,22 @@ public class SettingsActivity extends AppCompatActivity {
 		Intent intent = new Intent(context, SettingsActivity.class);
 		intent.putExtra(EXTRA_LOCAL_NODE_UUID, localNodeUuid);
 		return intent;
+	}
+
+	public static void applySettings(@NotNull Context context) {
+		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
+		String[] themes = context.getResources().getStringArray(R.array.pref_theme_values);
+		String themeValue = sharedPrefs.getString(context.getString(R.string.pref_key_theme), themes[2]);
+		switch (themeValue) {
+			case "dark":
+				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+				break;
+			case "light":
+				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+				break;
+			default:
+				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+		}
 	}
 
 	@Override
@@ -41,19 +58,7 @@ public class SettingsActivity extends AppCompatActivity {
 			return;
 		}
 
-		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String[] themes = getResources().getStringArray(R.array.pref_theme_values);
-		String themeValue = sharedPrefs.getString(getString(R.string.pref_key_theme), themes[2]);
-		switch (themeValue) {
-			case "dark":
-				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-				break;
-			case "light":
-				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-				break;
-			default:
-				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-		}
+		applySettings(this);
 
 		// Navigate only on initial creation
 		if (savedInstanceState == null) {

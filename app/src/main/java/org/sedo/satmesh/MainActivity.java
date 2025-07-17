@@ -214,6 +214,9 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		ActivityMainBinding binding = ActivityMainBinding.inflate(getLayoutInflater());
 		setContentView(binding.getRoot());
 
+		// Apply user defined settings
+		SettingsActivity.applySettings(this);
+
 		// Initialize database on the main thread ui
 		appDatabase = AppDatabase.getDB(getApplicationContext());
 

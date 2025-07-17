@@ -45,6 +45,9 @@ public interface NodeDao {
 	@Query("SELECT * FROM node WHERE addressName = :addressName")
 	Node getNodeByAddressNameSync(String addressName);
 
+	@Query("SELECT * FROM node WHERE addressName IN (:addresses)")
+	LiveData<List<Node>> getNodesByAddressName(List<String> addresses);
+
 	/**
 	 * Retrieves a Node by its primary key ID.
 	 *

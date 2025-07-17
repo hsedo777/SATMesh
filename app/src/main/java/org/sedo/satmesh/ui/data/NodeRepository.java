@@ -63,6 +63,10 @@ public class NodeRepository {
 		return dao.getNodeById(nodeId);
 	}
 
+	public LiveData<List<Node>> getNodesByAddressName(List<String> addresses){
+		return dao.getNodesByAddressName(addresses);
+	}
+
 	public Node findNodeSync(long nodeId) {
 		return dao.getNodeByIdSync(nodeId);
 	}

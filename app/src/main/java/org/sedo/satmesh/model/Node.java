@@ -136,6 +136,18 @@ public class Node {
 		return Objects.hash(displayName, addressName, trusted, lastSeen);
 	}
 
+	@NonNull
+	@Override
+	public String toString() {
+		return "Node{" +
+				"id=" + id +
+				", displayName='" + displayName + '\'' +
+				", addressName='" + addressName + '\'' +
+				", trusted=" + trusted +
+				", lastSeen=" + lastSeen +
+				'}';
+	}
+
 	public void write(@NonNull Bundle input, @NonNull String prefix) {
 		if (id != null) {
 			input.putLong(prefix + NODE_ID, id);

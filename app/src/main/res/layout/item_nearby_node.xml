@@ -63,12 +63,11 @@
 				android:textStyle="italic"
 				tools:text="@string/status_waiting_for_their_keys" />
 
-			<ImageView
+			<View
 				android:id="@+id/secure_session_icon"
 				android:layout_width="@dimen/secure_session_icon"
 				android:layout_height="@dimen/secure_session_icon"
-				android:contentDescription="@string/status_waiting_for_their_keys"
-				app:srcCompat="@drawable/ic_lock" />
+				android:background="@drawable/ic_lock"/>
 		</LinearLayout>
 	</LinearLayout>
 </com.google.android.material.card.MaterialCardView>

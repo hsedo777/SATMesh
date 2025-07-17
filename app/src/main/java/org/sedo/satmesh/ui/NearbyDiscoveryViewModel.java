@@ -1,6 +1,8 @@
 package org.sedo.satmesh.ui;
 
 import android.app.Application;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 
@@ -23,18 +25,21 @@ import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
 	private static final String TAG = "NearbyDiscoveryVM";
 
 	private final MediatorLiveData<List<NodeDiscoveryItem>> displayNodeListLiveData = new MediatorLiveData<>();
+	private final MediatorLiveData<List<Node>> dbNodesLiveDataSource = new MediatorLiveData<>();
+
 	private final MutableLiveData<Integer> recyclerVisibility = new MutableLiveData<>();
 	private final MutableLiveData<DescriptionState> descriptionState = new MutableLiveData<>();
 	private final MutableLiveData<Integer> emptyStateTextView = new MutableLiveData<>();
@@ -45,6 +50,7 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	private final NodeTransientStateRepository nodeStateRepository;
 	// Executor for ViewModel specific background tasks that are not handled by repositories
 	private final ExecutorService viewModelExecutor = Executors.newSingleThreadExecutor();
+	private LiveData<List<Node>> nodesLiveData;
 	private String hostDeviceName;
 
 	protected NearbyDiscoveryViewModel(@NonNull Application application) {
@@ -108,6 +114,25 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 		updateDisplayNodes(nodeStateRepository.getTransientNodeStates().getValue());
 	}
 
+	public void merge(List<Node> nodes) {
+		List<NodeDiscoveryItem> items = displayNodeListLiveData.getValue();
+		if (nodes == null || items == null) {
+			return;
+		}
+		Log.d(TAG, "Merging with database nodes: " + nodes.size());
+		Map<String, Node> nodeMap = nodes.stream().collect(Collectors.toMap(Node::getAddressName, Function.identity()));
+		List<NodeDiscoveryItem> newItems = new ArrayList<>();
+		for (NodeDiscoveryItem item : items) {
+			Node node = nodeMap.get(item.getAddressName());
+			if (node == null) {
+				newItems.add(new NodeDiscoveryItem(item.node, item.state, item.isSecured));
+			} else {
+				newItems.add(new NodeDiscoveryItem(node, item.state, item.isSecured));
+			}
+		}
+		displayNodeListLiveData.postValue(newItems);
+	}
+
 	/**
 	 * Helper method to combine nodes from DB and transient states for display.
 	 * This method is triggered by changes in either the connected nodes from DB
@@ -116,37 +141,40 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	 * @param transientStates The current map of transient states from NodeStateRepository.
 	 */
 	private void updateDisplayNodes(@Nullable Map<String, NodeTransientState> transientStates) {
-		viewModelExecutor.execute(() -> { // Perform logic on a background thread
-			Map<String, NodeDiscoveryItem> seenNodes = new HashMap<>(); // To handle uniqueness
+		List<NodeDiscoveryItem> items = new ArrayList<>(); // To handle uniqueness
+		Log.d(TAG, "Reading transientState=" + transientStates);
 
-			// 1. Overlay or add transient states
-			if (transientStates != null) {
+		// 1. Overlay or add transient states
+		if (transientStates != null) {
+			viewModelExecutor.execute(() -> {
 				for (Map.Entry<String, NodeTransientState> entry : transientStates.entrySet()) {
 					String addressName = entry.getKey();
 					NodeTransientState state = entry.getValue();
 
-					Node tmp = nodeRepository.findNodeSync(addressName);
-					Node node;
-					if (tmp == null) {
-						node = new Node();
-						// Do not persist the node, it is the job of `NearbySignalMessenger`
-						node.setAddressName(addressName);
-					} else {
-						node = tmp;
-					}
-					boolean isSecure = NearbySignalMessenger.getInstance().hasSession(addressName);
-					NodeDiscoveryItem nodeInList = new NodeDiscoveryItem(node, state.connectionState, isSecure);
-					seenNodes.put(addressName, nodeInList);
+					boolean isSecure = NearbySignalMessenger.getInstance().hasSession(addressName); // blocking task on db
+					Node node = new Node();
+					// Do not persist the node, it is the job of `NearbySignalMessenger`
+					node.setAddressName(addressName);
+					NodeDiscoveryItem newItem = new NodeDiscoveryItem(node, state.connectionState, isSecure);
+					items.add(newItem);
 				}
-			}
+				items.sort(Comparator.comparing(NodeDiscoveryItem::getAddressName));
+				new Handler(Looper.getMainLooper()).post(() -> {
+					displayNodeListLiveData.setValue(items);
+					updateUiVisibility(items.isEmpty());
+					// Load nodes from db
+					if (nodesLiveData != null) {
+						dbNodesLiveDataSource.removeSource(nodesLiveData);
+					}
+					nodesLiveData = nodeRepository.getNodesByAddressName(new ArrayList<>(transientStates.keySet()));
+					dbNodesLiveDataSource.addSource(nodesLiveData, dbNodesLiveDataSource::postValue);
+				});
+			});
+		}
+	}
 
-			// Ensure unique nodes and apply sorting if desired
-			List<NodeDiscoveryItem> dedupedAndSortedList = new ArrayList<>(seenNodes.values());
-			dedupedAndSortedList.sort(Comparator.comparing(NodeDiscoveryItem::getAddressName));
-
-			displayNodeListLiveData.postValue(dedupedAndSortedList);
-			updateUiVisibility(dedupedAndSortedList.isEmpty());
-		});
+	public MediatorLiveData<List<Node>> getDbNodesLiveDataSource() {
+		return dbNodesLiveDataSource;
 	}
 
 	/**
@@ -168,6 +196,10 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 	@Override
 	protected void onCleared() {
 		super.onCleared();
+		if (nodesLiveData != null) {
+			dbNodesLiveDataSource.removeSource(nodesLiveData);
+		}
+		nodesLiveData = null;
 		viewModelExecutor.shutdown();
 	}
 

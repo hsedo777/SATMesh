@@ -69,7 +69,7 @@ message NearbyMessageBody {
   * If message_type is ROUTED_MESSAGE, this field will contain the raw bytes
   * of a serialized `RoutedMessage` (which is itself encrypted hop-by-hop).
   */
-  bytes encrypted_data = 3;
+  bytes binary_data = 3;
 }
 
 //Message for types `MESSAGE_DELIVERED_ACK`, `MESSAGE_READ_ACK` and `CLAIM_READ_ACK`

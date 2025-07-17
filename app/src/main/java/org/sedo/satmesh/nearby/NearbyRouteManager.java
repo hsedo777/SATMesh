@@ -146,7 +146,7 @@ public class NearbyRouteManager {
 				Log.d(TAG, "Sending RouteRequestMessage to " + recipientAddressName + " for UUID: " + messageBody.getUuid());
 				NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
 						.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_REQ)
-						.setEncryptedData(messageBody.toByteString())
+						.setBinaryData(messageBody.toByteString())
 						.build();
 				// Encrypt message
 				SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
@@ -396,7 +396,7 @@ public class NearbyRouteManager {
 			Log.d(TAG, "Sending RouteResponseMessage to " + recipientAddressName + " for UUID: " + messageBody.getRequestUuid() + " with status: " + messageBody.getStatus());
 			NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
 					.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_RESP)
-					.setEncryptedData(messageBody.toByteString())
+					.setBinaryData(messageBody.toByteString())
 					.build();
 
 			// Encrypt message
@@ -1102,7 +1102,7 @@ public class NearbyRouteManager {
 			// 6. Encapsulate RoutedMessage into an OUTER NearbyMessageBody of type ROUTED_MESSAGE
 			NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
 					.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
-					.setEncryptedData(routedMessage.toByteString())
+					.setBinaryData(routedMessage.toByteString())
 					.build();
 
 			// 7. Send the OUTER NearbyMessageBody to the next hop
@@ -1216,7 +1216,7 @@ public class NearbyRouteManager {
 				// The `encrypted_routed_message_body` is left untouched, as it's E2E encrypted.
 				NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
 						.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
-						.setEncryptedData(routedMessage.toByteString())
+						.setBinaryData(routedMessage.toByteString())
 						.build();
 
 				// d. Send this OUTER NearbyMessageBody to the next hop

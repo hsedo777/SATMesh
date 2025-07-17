@@ -444,7 +444,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		executor.execute(() -> {
 			try {
 				// Construct NearbyMessageBody with the actual TextMessage
-				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(ENCRYPTED_MESSAGE).setEncryptedData(textMessage.toByteString()).build();
+				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(ENCRYPTED_MESSAGE).setBinaryData(textMessage.toByteString()).build();
 
 				// Send the wrapped message
 				sendNearbyMessageInternal(messageBody, recipientAddressName,
@@ -504,7 +504,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						.newBuilder().setMessageType(
 								delivered ? NearbyMessageBody.MessageType.MESSAGE_DELIVERED_ACK : NearbyMessageBody.MessageType.MESSAGE_READ_ACK
 						)
-						.setEncryptedData(messageAck.toByteString()).build();
+						.setBinaryData(messageAck.toByteString()).build();
 
 				sendNearbyMessageInternal(messageBody, recipientAddressName,
 						new TransmissionCallback() {
@@ -546,7 +546,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				MessageAck ack = MessageAck.newBuilder().setPayloadId(originalPayloadId).build();
 				NearbyMessageBody body = NearbyMessageBody.newBuilder()
 						.setMessageType(CLAIM_READ_ACK)
-						.setEncryptedData(ack.toByteString()).build();
+						.setBinaryData(ack.toByteString()).build();
 				sendNearbyMessageInternal(body, recipientAddressName, TransmissionCallback.NULL_CALLBACK, null, null);
 			} catch (Exception e) {
 				Log.d(TAG, "Error when claiming read ack", e);
@@ -563,7 +563,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	public void sendPersonalInfo(@NonNull PersonalInfo info, @NonNull String recipientAddressName) {
 		executor.execute(() -> {
 			try {
-				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(NearbyMessageBody.MessageType.PERSONAL_INFO).setEncryptedData(info.toByteString()).build();
+				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(NearbyMessageBody.MessageType.PERSONAL_INFO).setBinaryData(info.toByteString()).build();
 				sendNearbyMessageInternal(messageBody, recipientAddressName, TransmissionCallback.NULL_CALLBACK, null, null);
 
 			} catch (Exception e) {
@@ -742,7 +742,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			byte[] data = new byte[]{0, 1};
 			NearbyMessageBody body = NearbyMessageBody.newBuilder()
 					.setMessageType(NearbyMessageBody.MessageType.KNOWLEDGE)
-					.setEncryptedData(ByteString.copyFrom(data)).build();
+					.setBinaryData(ByteString.copyFrom(data)).build();
 
 			nearbyManager.sendNearbyMessageInternal(encryptBody(body, senderAddressName), senderAddressName,
 					new TransmissionCallback() {
@@ -853,7 +853,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		Message message;
 		switch (decryptedMessageBody.getMessageType()) {
 			case ENCRYPTED_MESSAGE:
-				TextMessage textMessage = TextMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				TextMessage textMessage = TextMessage.parseFrom(decryptedMessageBody.getBinaryData());
 				Node senderNode = nodeRepository.findNodeSync(senderAddressName);
 				if (senderNode == null) {
 					Log.e(TAG, "Failed to identify, in DB, the sender node at address " + senderAddress + " msg.payloadId=" + payloadId);
@@ -897,19 +897,19 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				});
 				break;
 			case MESSAGE_DELIVERED_ACK:
-				MessageAck deliveredAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
+				MessageAck deliveredAck = MessageAck.parseFrom(decryptedMessageBody.getBinaryData());
 				// Update status of the original message in DB
 				updateMessageStatus(null, Message.MESSAGE_STATUS_DELIVERED, deliveredAck.getPayloadId(), null);
 				Log.d(TAG, "Received Delivered ACK for payload " + deliveredAck.getPayloadId() + " from " + senderAddressName);
 				break;
 			case MESSAGE_READ_ACK:
-				MessageAck readAck = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
+				MessageAck readAck = MessageAck.parseFrom(decryptedMessageBody.getBinaryData());
 				// Update status of the original message in DB
 				updateMessageStatus(null, Message.MESSAGE_STATUS_READ, readAck.getPayloadId(), null);
 				Log.d(TAG, "Received Read ACK for payload " + readAck.getPayloadId() + " from " + senderAddressName);
 				break;
 			case PERSONAL_INFO:
-				PersonalInfo personalInfo = PersonalInfo.parseFrom(decryptedMessageBody.getEncryptedData());
+				PersonalInfo personalInfo = PersonalInfo.parseFrom(decryptedMessageBody.getBinaryData());
 				// Update node's display name and potentially other info in DB
 				Node nodeToUpdate = nodeRepository.findNodeSync(senderAddressName);
 				if (nodeToUpdate != null) {
@@ -929,23 +929,23 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				}
 				break;
 			case TYPING_INDICATOR:
-				// TypingIndicator typingIndicator = TypingIndicator.parseFrom(decryptedMessageBody.getEncryptedData());
+				// TypingIndicator typingIndicator = TypingIndicator.parseFrom(decryptedMessageBody.getBinaryData());
 				// Log.d(TAG, "Received TypingIndicator from " + senderAddressName + ": " + typingIndicator.getIsTyping());
 				// TODO: Notify UI via NodeStateRepository to show/hide typing indicator if needed
 				break;
 			case ROUTE_DISCOVERY_REQ:
 				Log.d(TAG, "Received ROUTE_DISCOVERY_REQ from " + senderAddressName);
-				RouteRequestMessage routeRequestMessage = RouteRequestMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				RouteRequestMessage routeRequestMessage = RouteRequestMessage.parseFrom(decryptedMessageBody.getBinaryData());
 				nearbyRouteManager.handleIncomingRouteRequest(senderAddressName, routeRequestMessage, hostNode.getAddressName());
 				break;
 			case ROUTE_DISCOVERY_RESP:
 				Log.d(TAG, "Received ROUTE_DISCOVERY_RESP from " + senderAddressName);
-				RouteResponseMessage routeResponseMessage = RouteResponseMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				RouteResponseMessage routeResponseMessage = RouteResponseMessage.parseFrom(decryptedMessageBody.getBinaryData());
 				nearbyRouteManager.handleIncomingRouteResponse(senderAddressName, routeResponseMessage);
 				break;
 			case ROUTED_MESSAGE:
 				Log.d(TAG, "Parsing routed message relayed by neighbor: " + senderAddressName);
-				RoutedMessage routedMessage = RoutedMessage.parseFrom(decryptedMessageBody.getEncryptedData());
+				RoutedMessage routedMessage = RoutedMessage.parseFrom(decryptedMessageBody.getBinaryData());
 				nearbyRouteManager.handleIncomingRoutedMessage(routedMessage, hostNode.getAddressName(), payloadId);
 				break;
 			case KNOWLEDGE:
@@ -956,7 +956,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				hostNode.setDisplayName(hostCopy.getDisplayName());
 				break;
 			case CLAIM_READ_ACK:
-				MessageAck ack = MessageAck.parseFrom(decryptedMessageBody.getEncryptedData());
+				MessageAck ack = MessageAck.parseFrom(decryptedMessageBody.getBinaryData());
 				Log.d(TAG, "Receiving claimMessageReadAck of read ack for message with payload ID: " + ack.getPayloadId());
 				if (messageRepository.isMessageRead(ack.getPayloadId())) {
 					Log.d(TAG, "Message is really in state read, let's send the read ack.");

@@ -35,12 +35,12 @@ public class NodeDiscoveryItem {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		NodeDiscoveryItem item = (NodeDiscoveryItem) o;
-		return Objects.equals(node, item.node) && state == item.state;
+		return isSecured == item.isSecured && Objects.equals(node, item.node) && state == item.state;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(node, state);
+		return Objects.hash(node, state, isSecured);
 	}
 
 	@NonNull
@@ -49,6 +49,7 @@ public class NodeDiscoveryItem {
 		return "NodeDiscoveryItem{" +
 				"node=" + node +
 				", state=" + state +
+				", isSecured=" + isSecured +
 				'}';
 	}
 }

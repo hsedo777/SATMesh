@@ -67,7 +67,7 @@ public class NearbyManager {
 	private final List<PayloadListener> payloadListeners = new CopyOnWriteArrayList<>();
 	private final ConnectionsClient connectionsClient;
 	// Use local address name as advertising name
-	private final String localName;
+	private final String localAddressName;
 	private final ExecutorService executorService;
 	/**
 	 * PayloadCallback handles incoming data payloads.
@@ -143,7 +143,7 @@ public class NearbyManager {
 				addressNameToEndpointId.put(remoteAddressName, endpointId); // Update the core mapping
 
 				deviceConnectionListeners.forEach(listener -> listener.onDeviceConnected(endpointId, remoteAddressName));
-				if (status == STATUS_INITIATED_FROM_REMOTE){
+				if (status == STATUS_INITIATED_FROM_REMOTE) {
 					NearbySignalMessenger.getInstance().handleInitialKeyExchange(remoteAddressName);
 				}
 			} else {
@@ -177,6 +177,10 @@ public class NearbyManager {
 		@Override
 		public void onEndpointFound(@NonNull String endpointId, DiscoveredEndpointInfo info) {
 			Log.d(TAG, "Endpoint found: " + info.getEndpointName() + " with ID: " + endpointId);
+			if (localAddressName.equals(info.getEndpointName())) {
+				Log.w(TAG, "Node self auto-detect, address=" + localAddressName);
+				return;
+			}
 
 			// Add to addressNameToEndpointId if not already present
 			addressNameToEndpointId.put(info.getEndpointName(), endpointId);
@@ -227,9 +231,9 @@ public class NearbyManager {
 	 */
 	private volatile boolean isDiscovering = false;
 
-	private NearbyManager(@NonNull Context context, @NonNull String localName) {
+	private NearbyManager(@NonNull Context context, @NonNull String localAddressName) {
 		this.connectionsClient = Nearby.getConnectionsClient(context);
-		this.localName = localName;
+		this.localAddressName = localAddressName;
 		this.executorService = Executors.newSingleThreadExecutor();
 	}
 
@@ -356,7 +360,7 @@ public class NearbyManager {
 		AdvertisingOptions advertisingOptions = new AdvertisingOptions.Builder()
 				.setStrategy(STRATEGY).build();
 		connectionsClient.startAdvertising(
-						this.localName,
+						this.localAddressName,
 						SERVICE_ID,
 						connectionLifecycleCallback,
 						advertisingOptions
@@ -417,7 +421,7 @@ public class NearbyManager {
 		Log.d(TAG, "Requesting connection to " + remoteAddressName + " (EndpointId: " + remoteEndpointId + ")");
 		addressNameToEndpointId.put(remoteAddressName, remoteEndpointId); // Store the mapping early
 
-		connectionsClient.requestConnection(this.localName, remoteEndpointId, connectionLifecycleCallback);
+		connectionsClient.requestConnection(this.localAddressName, remoteEndpointId, connectionLifecycleCallback);
 		putState(remoteEndpointId, remoteAddressName, STATUS_INITIATED_FROM_HOST, NodeState.ON_CONNECTING); // Mark as pending
 	}
 
@@ -581,11 +585,11 @@ public class NearbyManager {
 					if (routeAndUsage == null || routeAndUsage.routeEntry == null) {
 						Log.d(TAG, "No route found. Init route discovery.");
 						nearbyRouteManager.initiateRouteDiscovery(recipientAddressName,
-								unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, routeTransmissionCallback),
+								unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback),
 								onDiscoveryInitiatedCallback);
 					} else {
 						// There is a valid active route
-						nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localName, plainMessageBody, routeTransmissionCallback);
+						nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback);
 					}
 				} catch (Exception e) {
 					Log.e(TAG, "Handling route for message transmission failed.", e);
@@ -827,10 +831,6 @@ public class NearbyManager {
 	}
 
 	public interface TransmissionCallback {
-		void onSuccess(@NonNull Payload payload);
-
-		void onFailure(@Nullable Payload payload, @Nullable Exception cause);
-
 		TransmissionCallback NULL_CALLBACK = new TransmissionCallback() {
 			@Override
 			public void onSuccess(@NonNull Payload payload) {
@@ -840,6 +840,10 @@ public class NearbyManager {
 			public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
 			}
 		};
+
+		void onSuccess(@NonNull Payload payload);
+
+		void onFailure(@Nullable Payload payload, @Nullable Exception cause);
 	}
 
 	private static class ConnectionState {

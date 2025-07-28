@@ -50,9 +50,9 @@ public class SATMeshCommunicationService extends Service {
 	private static final int NOTIFICATION_ID = 1; // Unique ID for the foreground service notification
 	private final NotificationIdProvider idProvider;
 	// Instances of communication managers
-	private NearbyManager nearbyManager;
-	private SignalManager signalManager;
-	private NearbySignalMessenger nearbySignalMessenger;
+	private volatile NearbyManager nearbyManager;
+	private volatile SignalManager signalManager;
+	private volatile NearbySignalMessenger nearbySignalMessenger;
 	// Database and SharedPreferences
 	private AppDatabase appDatabase;
 	private SharedPreferences sharedPreferences;

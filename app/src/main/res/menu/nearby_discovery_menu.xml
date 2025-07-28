@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto">
+
+	<item
+		android:id="@+id/action_refresh"
+		android:contentDescription="@string/action_refresh_description"
+		android:icon="@drawable/ic_menu_refresh"
+		android:title="@string/action_refresh"
+		app:showAsAction="ifRoom" />
+
+	<item
+		android:id="@+id/discovery_action_overflow_menu"
+		android:icon="@drawable/ic_more_vert"
+		android:title="@string/action_more_options"
+		app:showAsAction="always">
+		<menu>
+			<item
+				android:id="@+id/discovery_menu_quit"
+				android:title="@string/menu_quit" />
+		</menu>
+	</item>
+</menu>

@@ -9,6 +9,20 @@
 	android:padding="@dimen/space_md"
 	tools:context=".ui.NearbyDiscoveryFragment">
 
+	<com.google.android.material.appbar.MaterialToolbar
+		android:id="@+id/nearby_discovery_app_bar"
+		android:layout_width="0dp"
+		android:layout_height="?attr/actionBarSize"
+		android:background="@color/secondaryColor"
+		android:elevation="@dimen/space_xs"
+		app:layout_constraintEnd_toEndOf="parent"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:menu="@menu/nearby_discovery_menu"
+		app:subtitleTextColor="@color/colorOnSecondary"
+		app:title="@string/app_name"
+		app:titleTextColor="@color/colorOnSecondary" />
+
 	<TextView
 		android:id="@+id/nearby_title"
 		android:layout_width="0dp"

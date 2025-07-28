@@ -14,6 +14,7 @@
 	<string name="internal_error">Impossible d\'exécuter cette operation</string>
 	<string name="error_missing_permissions">Impossible de lancer l\'application sans les permissions requises</string>
 
+	<!-- Nearby discovery -->
 	<string name="nearby_discovery_title">Voisins Immédiats</string>
 	<string name="nearby_discovery_description">Recherche d\'appareils SATMesh à proximité pour établir des connexions.</string>
 	<string name="no_nearby_nodes_found">Aucun appareil SATMesh trouvé. Assurez-vous qu\'ils sont à portée et que le Bluetooth/Wi-Fi est activé.</string>
@@ -84,6 +85,10 @@
 	<string name="renew_fingerprint_success">Empreinte cryptographique réinitialisée avec succès!</string>
 	<string name="renew_fingerprint_failed">Échec de réinitialisation de l\'empreinte cryptographique.</string>
 	<string name="menu_about">À propos</string>
+	<string name="menu_quit">Quitter</string>
+
+	<string name="action_refresh">Actualiser</string>
+	<string name="action_refresh_description">Actualiser la liste des appareils à proximité</string>
 
 	<string name="action_delete">Supprimer</string>
 	<string name="action_copy">Copier</string>
@@ -151,7 +156,12 @@
 	<string name="username_update_failed_no_node">Échec de la mise à jour du nom d\'utilisateur : Données du nœud local introuvables.</string>
 	<string name="title_activity_settings">Paramètres</string>
 
+	<!-- Communication -->
 	<string name="loading_message">Chargement des services, veuillez patienter…</string>
+	<string name="exit_dialog_title">Désactiver les connexions ?</string>
+	<string name="exit_dialog_message">Souhaitez-vous désactiver le Bluetooth et/ou le Wi-Fi avant de quitter l’application ?</string>
+	<string name="yes">Oui</string>
+	<string name="no">Non</string>
 	<!--
 	<string name=""></string>
 	-->

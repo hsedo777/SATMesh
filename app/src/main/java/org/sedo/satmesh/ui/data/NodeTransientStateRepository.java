@@ -119,10 +119,12 @@ public class NodeTransientStateRepository {
 	 * Clears all transient states. Useful on application shutdown or if a full refresh is needed.
 	 */
 	public NodeTransientStateRepository clearTransientStates() {
-		executor.execute(() -> {
-			Log.d(TAG, "Clearing all transient node states.");
-			transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>()); // Set to empty map
-		});
+		if (!executor.isShutdown() && !executor.isTerminated()) {
+			executor.execute(() -> {
+				Log.d(TAG, "Clearing all transient node states.");
+				transientNodeStatesLiveData.postValue(new ConcurrentHashMap<>()); // Set to empty map
+			});
+		}
 		return this;
 	}
 

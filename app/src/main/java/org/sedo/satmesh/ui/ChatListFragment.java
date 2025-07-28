@@ -27,18 +27,28 @@ import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
 import org.sedo.satmesh.ui.data.NodeRepository;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ChatListFragment extends Fragment implements ChatListAdapter.OnItemClickListener {
 
 	private static final String TAG = TAG_CHAT_LIST_FRAGMENT;
 	private static final String ARG_HOST_NODE_ID = "host_node_id";
+	private final ExecutorService executor;
 
 	private FragmentChatListBinding binding;
 	private ChatListAdapter chatListAdapter;
 	private DiscussionListener discussionListener;
 	private DiscussionMenuListener discussionMenuListener;
 	private NearbyDiscoveryListener nearbyDiscoveryListener;
+	private QuitAppListener quitAppListener;
+
+	/**
+	 * Default constructor
+	 */
+	public ChatListFragment() {
+		executor = Executors.newSingleThreadExecutor();
+	}
 
 	/**
 	 * Creates a new instance of ChatListFragment with the specified host node ID.
@@ -125,60 +135,69 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		});
 
 		binding.chatListAppBar.setOnMenuItemClickListener(item -> {
-			if (discussionMenuListener != null) {
-				int id = item.getItemId();
-				if (id == R.id.action_search) {
+			int id = item.getItemId();
+			if (id == R.id.action_search) {
+				if (discussionMenuListener != null) {
 					discussionMenuListener.moveToSearchFragment(chatListViewModel.getHostNodeId());
-					return true;
 				}
-				if (id == R.id.menu_known_nodes) {
+				return true;
+			}
+			if (id == R.id.menu_known_nodes) {
+				if (discussionMenuListener != null) {
 					discussionMenuListener.moveToKnownNodesFragment(chatListViewModel.getHostNodeId());
-					return true;
 				}
-				if (id == R.id.menu_settings) {
-					Executors.newSingleThreadExecutor().execute(() -> {
-						Long localNodeId = chatListViewModel.hostNodeIdLiveData.getValue();
-						if (localNodeId == null) {
-							Log.e(TAG, "Failed to extract the host node ID from ViewModel");
-							return;
-						}
-						Node localNode = new NodeRepository(requireContext()).findNodeSync(localNodeId);
-						if (localNode == null) {
-							Log.w(TAG, "Unable to fetch the local node from DB.");
-							return;
-						}
-						requireActivity().runOnUiThread(() -> requireActivity().startActivity(SettingsActivity.newIntent(requireContext(), localNode.getAddressName())));
-					});
-				}
-				if (id == R.id.menu_renew_fingerprint) {
-					new AlertDialog.Builder(requireContext())
-							.setTitle(R.string.menu_renew_fingerprint)
-							.setMessage(R.string.renew_fingerprint_alert_description)
-							.setPositiveButton(R.string.menu_renew_fingerprint, (dialog, which) -> {
-								Log.d(TAG, "Confirmation received. Reinitializing SignalManager");
-								Executors.newSingleThreadExecutor().execute(() -> {
-									SignalManager signalManager = SignalManager.getInstance(requireContext());
-									signalManager.reinitialize(new SignalManager.SignalInitializationCallback() {
-										@Override
-										public void onSuccess() {
-											requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_success, Toast.LENGTH_LONG).show());
-										}
+				return true;
+			}
+			if (id == R.id.menu_settings) {
+				executor.execute(() -> {
+					Long localNodeId = chatListViewModel.hostNodeIdLiveData.getValue();
+					if (localNodeId == null) {
+						Log.e(TAG, "Failed to extract the host node ID from ViewModel");
+						return;
+					}
+					Node localNode = new NodeRepository(requireContext()).findNodeSync(localNodeId);
+					if (localNode == null) {
+						Log.w(TAG, "Unable to fetch the local node from DB.");
+						return;
+					}
+					requireActivity().runOnUiThread(() -> requireActivity().startActivity(SettingsActivity.newIntent(requireContext(), localNode.getAddressName())));
+				});
+				return true;
+			}
+			if (id == R.id.menu_renew_fingerprint) {
+				new AlertDialog.Builder(requireContext())
+						.setTitle(R.string.menu_renew_fingerprint)
+						.setMessage(R.string.renew_fingerprint_alert_description)
+						.setPositiveButton(R.string.menu_renew_fingerprint, (dialog, which) -> {
+							Log.d(TAG, "Confirmation received. Reinitializing SignalManager");
+							executor.execute(() -> {
+								SignalManager signalManager = SignalManager.getInstance(requireContext());
+								signalManager.reinitialize(new SignalManager.SignalInitializationCallback() {
+									@Override
+									public void onSuccess() {
+										requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_success, Toast.LENGTH_LONG).show());
+									}
 
-										@Override
-										public void onError(Exception e) {
-											requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_failed, Toast.LENGTH_LONG).show());
-										}
-									});
+									@Override
+									public void onError(Exception e) {
+										requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_failed, Toast.LENGTH_LONG).show());
+									}
 								});
-							})
-							.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
-								Log.d(TAG, "SignalManager reinitialization cancelled by user.");
-								dialog.dismiss();
-							})
-							.setIcon(android.R.drawable.ic_dialog_alert)
-							.show();
-					return true;
+							});
+						})
+						.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+							Log.d(TAG, "SignalManager reinitialization cancelled by user.");
+							dialog.dismiss();
+						})
+						.setIcon(android.R.drawable.ic_dialog_alert)
+						.show();
+				return true;
+			}
+			if (id == R.id.chat_list_menu_quit) {
+				if (quitAppListener != null) {
+					quitAppListener.quitApp();
 				}
+				return true;
 			}
 			return false;
 		});
@@ -188,13 +207,14 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
 		if (context instanceof DiscussionListener && context instanceof NearbyDiscoveryListener
-				&& context instanceof DiscussionMenuListener) {
+				&& context instanceof DiscussionMenuListener && context instanceof QuitAppListener) {
 			discussionListener = (DiscussionListener) context;
 			nearbyDiscoveryListener = (NearbyDiscoveryListener) context;
 			discussionMenuListener = (DiscussionMenuListener) context;
+			quitAppListener = (QuitAppListener) context;
 		} else {
-			throw new RuntimeException("The activity must implement interfaces : DiscoveryFragmentListener" +
-					", DiscussionListener and DiscussionMenuListener");
+			throw new RuntimeException("The activity must implement interfaces : NearbyDiscoveryListener" +
+					", DiscussionListener, QuitAppListener and DiscussionMenuListener");
 		}
 	}
 
@@ -204,11 +224,13 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		discussionListener = null;
 		nearbyDiscoveryListener = null;
 		discussionMenuListener = null;
+		quitAppListener = null;
 	}
 
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		executor.shutdown();
 		binding = null;
 	}
 

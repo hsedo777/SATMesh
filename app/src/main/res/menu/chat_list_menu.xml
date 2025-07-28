@@ -30,6 +30,9 @@
 			<item
 				android:id="@+id/menu_about"
 				android:title="@string/menu_about" />
+			<item
+				android:id="@+id/chat_list_menu_quit"
+				android:title="@string/menu_quit" />
 		</menu>
 	</item>
 </menu>

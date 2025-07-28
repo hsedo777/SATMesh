@@ -14,6 +14,7 @@
 	<string name="internal_error">Impossible to execute the operation</string>
 	<string name="error_missing_permissions">Cannot start without required permissions</string>
 
+	<!-- Nearby discovery -->
 	<string name="nearby_discovery_title">Nearby Neighbors</string>
 	<string name="nearby_discovery_description">Searching for nearby SATMesh devices to establish connections.</string>
 	<string name="no_nearby_nodes_found">No SATMesh devices found. Make sure they are in range and Bluetooth/Wi-Fi is enabled.</string>
@@ -84,6 +85,10 @@
 	<string name="renew_fingerprint_success">Fingerprint reset successfully!</string>
 	<string name="renew_fingerprint_failed">Failed to reset the fingerprint.</string>
 	<string name="menu_about">About</string>
+	<string name="menu_quit">Quit</string>
+
+	<string name="action_refresh">Refresh</string>
+	<string name="action_refresh_description">Refresh the list of discovered nodes</string>
 
 	<string name="action_delete">Delete</string>
 	<string name="action_copy">Copy</string>
@@ -155,7 +160,12 @@
 	<string name="username_update_failed_no_node">Failed to update username: Local node data not found.</string>
 	<string name="title_activity_settings">Settings</string>
 
+	<!-- Communication -->
 	<string name="loading_message">Loading services, please wait…</string>
+	<string name="exit_dialog_title">Disable connections?</string>
+	<string name="exit_dialog_message">Would you like to disable Bluetooth and/or Wi-Fi before exiting the app?</string>
+	<string name="yes">Yes</string>
+	<string name="no">No</string>
 	<!--
 	<string name=""></string>
 	-->

@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentNearbyDiscoveryBinding;
 import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter;
 import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.OnNodeClickListener;
@@ -28,13 +29,14 @@ public class NearbyDiscoveryFragment extends Fragment {
 	private static final String HOST_DEVICE_NAME = "host_name";
 	private static final String TAG = Constants.TAG_DISCOVERY_FRAGMENT;
 
-	private DiscussionListener listener;
+	private DiscussionListener discussionListener;
+	private QuitAppListener quitAppListener;
+	private AppHomeListener homeListener;
+
 	private NearbyDiscoveryViewModel viewModel;
 	private NearbyDiscoveryAdapter adapter;
 	private FragmentNearbyDiscoveryBinding binding;
 	private String hostDeviceName;
-
-	private AppHomeListener homeListener;
 
 	public NearbyDiscoveryFragment() {
 		// Required public default constructor
@@ -51,19 +53,23 @@ public class NearbyDiscoveryFragment extends Fragment {
 	@Override
 	public void onAttach(@NonNull Context context) {
 		super.onAttach(context);
-		if (context instanceof DiscussionListener && context instanceof AppHomeListener) {
-			listener = (DiscussionListener) context;
+		if (context instanceof DiscussionListener && context instanceof AppHomeListener
+				&& context instanceof QuitAppListener) {
+			discussionListener = (DiscussionListener) context;
 			homeListener = (AppHomeListener) context;
+			quitAppListener = (QuitAppListener) context;
 		} else {
-			throw new RuntimeException("The activity must implement interface 'DiscoveryFragmentListener' and `AppHomeListener`");
+			throw new RuntimeException("The activity must implement interfaces " +
+					"'DiscoveryFragmentListener', 'QuitAppListener' and `AppHomeListener`");
 		}
 	}
 
 	@Override
 	public void onDetach() {
 		super.onDetach();
-		listener = null;
+		discussionListener = null;
 		homeListener = null;
+		quitAppListener = null;
 	}
 
 	@Override
@@ -121,8 +127,8 @@ public class NearbyDiscoveryFragment extends Fragment {
 					}
 				} else {
 					// Redirect the user to chat fragment
-					if (listener != null) {
-						listener.discussWith(item.node, false);
+					if (discussionListener != null) {
+						discussionListener.discussWith(item.node, false);
 					}
 				}
 			}
@@ -140,6 +146,18 @@ public class NearbyDiscoveryFragment extends Fragment {
 		});
 		binding.nearbyNodesRecyclerView.setAdapter(adapter);
 		binding.nearbyTitle.setOnClickListener(v -> viewModel.reloadNodes());
+		binding.nearbyDiscoveryAppBar.setOnMenuItemClickListener(item -> {
+			if (item.getItemId() == R.id.discovery_menu_quit) {
+				if (quitAppListener != null) {
+					quitAppListener.quitApp();
+				}
+				return true;
+			} else if (item.getItemId() == R.id.action_refresh) {
+				viewModel.reloadNodes();
+				return true;
+			}
+			return false;
+		});
 
 		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
 			@Override

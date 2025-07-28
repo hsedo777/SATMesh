@@ -293,6 +293,8 @@ public class NearbyRouteManager {
 	 * @param onRouteFoundCallback         A callback executed if an existing, usable route is found.
 	 *                                     The RouteEntry object representing the found route is passed to the callback.
 	 * @param onDiscoveryInitiatedCallback A callback executed to inform the caller about the status of the new discovery.
+	 *                                     A {@code true} value indicates the request was broadcasted to at least one neighbor.
+	 *                                     A {@code false} value indicates the discovery could not be initiated (e.g., no neighbors).
 	 */
 	public void initiateRouteDiscovery(
 			@NonNull String destinationNodeAddressName,
@@ -383,7 +385,7 @@ public class NearbyRouteManager {
 	 *
 	 * @param recipientAddressName The SignalProtocolAddress.name of the recipient.
 	 * @param messageBody          The RouteResponseMessage to send.
-	 * @param sendingCallback      A callback to be invoked switch sending operation result.
+	 * @param sendingCallback      A callback to be invoked with the sending operation result.
 	 */
 	private void sendRouteResponseMessage(
 			@NonNull String recipientAddressName,

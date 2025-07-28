@@ -5,16 +5,13 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.RingtoneManager;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -389,39 +386,6 @@ public class SATMeshCommunicationService extends Service {
         }
         signalManager = null;
         DataLog.close();
-        if (!SATMeshServiceStatus.getInstance().getWasBluetoothEnabled()) {
-            Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                boolean success = BluetoothAdapter.getDefaultAdapter().disable();
-                if (!success) {
-                    startActivity(intent);
-                    Log.d(TAG, "Start bluetooth settings activity in service because `BluetoothAdapter.disable`is not responded.");
-                } else {
-                    Log.d(TAG, "Bluetooth disabled directly in service.");
-                }
-            } catch (SecurityException | NullPointerException e) {
-                startActivity(intent);
-                Log.d(TAG, "Start bluetooth settings activity in service.");
-            }
-        }
-        if (!SATMeshServiceStatus.getInstance().getWasWifiEnabled()) {
-            Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                boolean success = wifiManager.setWifiEnabled(false);
-                if (!success) {
-                    startActivity(intent);
-                    Log.d(TAG, "Start wifi settings activity in service because `WifiManager.setWifiEnabled`is not responded.");
-                } else {
-                    Log.d(TAG, "Wifi disabled in service.");
-                }
-            } catch (SecurityException | NullPointerException e) {
-                startActivity(intent);
-                Log.d(TAG, "Start wifi settings activity in service.");
-            }
-        }
         Log.i(TAG, "Communication modules stopped.");
     }
 

@@ -39,6 +39,7 @@ import org.sedo.satmesh.ui.LoadingFragment;
 import org.sedo.satmesh.ui.LoadingFragment.ServiceLoadingListener;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryListener;
+import org.sedo.satmesh.ui.QuitAppListener;
 import org.sedo.satmesh.ui.SearchFragment;
 import org.sedo.satmesh.ui.WelcomeFragment;
 import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
@@ -50,7 +51,7 @@ import java.util.function.Consumer;
 
 public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener,
 		DiscussionListener, NearbyDiscoveryListener, ChatListAccessor, AppHomeListener,
-		DiscussionMenuListener, ServiceLoadingListener {
+		DiscussionMenuListener, ServiceLoadingListener, QuitAppListener {
 
 	/**
 	 * These permissions are required before connecting to Nearby Connections.
@@ -522,6 +523,15 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			Log.w(TAG, "The fragment LoadingFragment is not found onServicesReady.");
 		}
 		navigateToMainScreen();
+	}
+
+	// Implementation of `QuitAppListener`
+	@Override
+	public void quitApp() {
+		Intent shutdownIntent = new Intent(this, SATMeshCommunicationService.class);
+		shutdownIntent.setAction(SATMeshCommunicationService.ACTION_STOP_FOREGROUND_SERVICE);
+		startService(shutdownIntent); // Use startService for subsequent commands to a running service
+		finishAffinity();
 	}
 
 	/**

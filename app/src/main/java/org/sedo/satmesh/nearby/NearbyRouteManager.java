@@ -50,7 +50,7 @@ import java.util.function.Consumer;
 
 public class NearbyRouteManager {
 
-	// --- Constants ---
+	// Constants
 	private static final long ROUTE_MAX_INACTIVITY_MILLIS = 12L * 60 * 60 * 1000; // 12 hours of inactivity before considering a route stale
 	private static final int DEFAULT_ROUTE_HOPS = 10; // Default max hops for route discovery
 	private static final long DEFAULT_ROUTE_TTL_MILLIS = 5L * 60 * 1000; // 5 minutes TTL for a route request message
@@ -293,8 +293,6 @@ public class NearbyRouteManager {
 	 * @param onRouteFoundCallback         A callback executed if an existing, usable route is found.
 	 *                                     The RouteEntry object representing the found route is passed to the callback.
 	 * @param onDiscoveryInitiatedCallback A callback executed to inform the caller about the status of the new discovery.
-	 *                                     A {@code true} value indicates the request was broadcasted to at least one neighbor.
-	 *                                     A {@code false} value indicates the discovery could not be initiated (e.g., no neighbors).
 	 */
 	public void initiateRouteDiscovery(
 			@NonNull String destinationNodeAddressName,
@@ -385,8 +383,7 @@ public class NearbyRouteManager {
 	 *
 	 * @param recipientAddressName The SignalProtocolAddress.name of the recipient.
 	 * @param messageBody          The RouteResponseMessage to send.
-	 * @param sendingCallback      A callback to be invoked with the Payload and a boolean indicating
-	 *                             success (true) or failure (false) of the underlying Nearby message send.
+	 * @param sendingCallback      A callback to be invoked switch sending operation result.
 	 */
 	private void sendRouteResponseMessage(
 			@NonNull String recipientAddressName,
@@ -783,9 +780,11 @@ public class NearbyRouteManager {
 						boolean isOriginalSource = (previousHopLocalId == null);
 						Node previousHopNode = previousHopLocalId != null ? nodeRepository.findNodeSync(previousHopLocalId) : null;
 
-						// Internal helper function for common error/completion sequences
-						// This function simplifies the logic for handling various failure scenarios
-						// where a response needs to be forwarded or the source needs to be notified.
+						/*
+						 * Internal helper function for common error/completion sequences.
+						 * This function simplifies the logic for handling various failure scenarios
+						 * where a response needs to be forwarded or the source needs to be notified.
+						 */
 						Consumer<RouteResponseMessage.Status> handleCompletionSequence = (finalStatus) -> executor.execute(() -> {
 							if (broadcastStatusEntryDao.deleteAllByRequestUuid(requestUuid) != 0) {
 								DataLog.logRouteEvent(DataLog.RouteDiscoveryEvent.BROADCAST_STATUS_DEL, requestUuid,
@@ -971,12 +970,12 @@ public class NearbyRouteManager {
 		}
 
 		// 2. Find an active route to the final destination
-		RouteWithUsageTimestamp entryW = routeEntryDao.getMostRecentOpenedRouteByDestinationSync(finalDestinationNode.getId());
-		if (entryW == null) {
+		RouteWithUsageTimestamp entryUsage = routeEntryDao.getMostRecentOpenedRouteByDestinationSync(finalDestinationNode.getId());
+		if (entryUsage == null) {
 			Log.e(TAG, "No active route found for destination " + remoteAddressName + ". Please initiate route discovery.");
 			return null;
 		}
-		if (!entryW.routeEntry.isOpened()) {
+		if (!entryUsage.routeEntry.isOpened()) {
 			Log.w(TAG, "Route found but unusable.");
 			return null;
 		}
@@ -997,11 +996,11 @@ public class NearbyRouteManager {
 		long delay = System.currentTimeMillis() - lastUsageTimestamp;
 		if (delay > ROUTE_MAX_INACTIVITY_MILLIS) {
 			Log.w(TAG, "Match expired route. Delete it.");
-			routeUsageDao.deleteUsagesForRouteEntry(entryW.routeEntry.getDiscoveryUuid());
-			routeEntryDao.delete(entryW.routeEntry);
+			routeUsageDao.deleteUsagesForRouteEntry(entryUsage.routeEntry.getDiscoveryUuid());
+			routeEntryDao.delete(entryUsage.routeEntry);
 			return null;
 		}
-		return new RouteAndUsage(entryW.routeEntry, routeUsage);
+		return new RouteAndUsage(entryUsage.routeEntry, routeUsage);
 	}
 
 	/**
@@ -1027,9 +1026,8 @@ public class NearbyRouteManager {
 	 * @param internalNearbyMessageBody   The {@link NearbyMessageBody} representing the actual
 	 *                                    application-level message (e.g., chat message, personal info, ACK). This object
 	 *                                    is *unencrypted* at this stage and will be encrypted end-to-end within this method.
-	 * @param callback                    A {@link BiConsumer} callback that will be invoked with the Nearby Connections
-	 *                                    {@link Payload} and a boolean indicating whether the transmission to the {@code next hop}
-	 *                                    was successful ({@code true}) or failed ({@code false}).
+	 * @param callback                    A callback that will be invoked with the Nearby Connections
+	 *                                    {@link Payload} and match success or failure of the transmission.
 	 */
 	public void sendMessageThroughRoute(
 			@NonNull String finalDestinationAddressName,

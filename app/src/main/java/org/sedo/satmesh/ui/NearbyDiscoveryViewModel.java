@@ -55,7 +55,6 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
 	protected NearbyDiscoveryViewModel(@NonNull Application application) {
 		super(application);
-		// This map still holds transient states not directly in the DB Node model
 		nodeRepository = new NodeRepository(application);
 		nodeStateRepository = NodeTransientStateRepository.getInstance();
 		nearbyManager = NearbyManager.getInstance();

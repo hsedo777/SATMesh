@@ -11,7 +11,8 @@ import java.util.Objects;
  * Represents the global state of a specific route request being processed by a relay
  * node. This entity tracks the progress and status of a route discovery operation,
  * coordinating responses from parallel broadcasts to neighbors.
- * @author hovozounkou
+ *
+ * @author hsedo777
  */
 @Entity(tableName = "route_request_entry")
 public class RouteRequestEntry {
@@ -46,14 +47,14 @@ public class RouteRequestEntry {
 		return destinationNodeLocalId;
 	}
 
-	public Long getPreviousHopLocalId() {
-		return previousHopLocalId;
+	public void setDestinationNodeLocalId(Long destinationNodeLocalId) {
+		this.destinationNodeLocalId = destinationNodeLocalId;
 	}
 
 	// --- Setters ---
 
-	public void setDestinationNodeLocalId(Long destinationNodeLocalId) {
-		this.destinationNodeLocalId = destinationNodeLocalId;
+	public Long getPreviousHopLocalId() {
+		return previousHopLocalId;
 	}
 
 	public void setPreviousHopLocalId(Long previousHopLocalId) {

@@ -11,7 +11,7 @@ import org.sedo.satmesh.utils.Constants;
 /**
  * BroadcastReceiver to handle "Mark as Read" action from message notifications.
  *
- * @author hovozounkou
+ * @author hsedo777
  */
 public class MessageBroadcastReceiver extends BroadcastReceiver {
 

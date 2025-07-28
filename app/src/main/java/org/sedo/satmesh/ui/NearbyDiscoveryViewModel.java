@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 
 public class NearbyDiscoveryViewModel extends AndroidViewModel {
 
-	private static final String TAG = "NearbyDiscoveryVM";
+	private static final String TAG = "NearbyDiscoveryViewModel";
 
 	private final MediatorLiveData<List<NodeDiscoveryItem>> displayNodeListLiveData = new MediatorLiveData<>();
 	private final MediatorLiveData<List<Node>> dbNodesLiveDataSource = new MediatorLiveData<>();

@@ -1,4 +1,4 @@
-package org.sedo.satmesh.model.rt; // Package added as requested
+package org.sedo.satmesh.model.rt;
 
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
@@ -154,7 +154,7 @@ public class RouteEntry {
 	/**
 	 * Wrapper for {@link RouteEntry} and a date of usage (often the date of last usage).
 	 *
-	 * @author hovozounkou
+	 * @author hsedo777
 	 */
 	public static class RouteWithUsageTimestamp {
 		@Embedded

@@ -721,7 +721,7 @@ public class SATMeshCommunicationService extends Service {
 	 * Manages unique integer IDs for both individual notifications and notification groups (summaries).
 	 * It ensures that notification IDs do not conflict and that group IDs are consistently managed.
 	 *
-	 * @author hovozounkou
+	 * @author hsedo777
 	 */
 	private static class NotificationIdProvider {
 
@@ -830,7 +830,7 @@ public class SATMeshCommunicationService extends Service {
 	 * Represents the data for a notification group, tracking its unique ID
 	 * and the number of child notifications within it.
 	 *
-	 * @author hovozounkou
+	 * @author hsedo777
 	 */
 	private static class GroupData {
 		/**

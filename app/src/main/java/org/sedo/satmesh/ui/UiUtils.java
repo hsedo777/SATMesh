@@ -8,7 +8,7 @@ import org.sedo.satmesh.model.Message;
 /**
  * Provides static utility methods for UI-related tasks.
  *
- * @author hovozounkou
+ * @author hsedo777
  */
 public class UiUtils {
 

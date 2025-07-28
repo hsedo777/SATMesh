@@ -224,22 +224,5 @@ public abstract class AppDatabase extends RoomDatabase {
 
 	public abstract RouteRequestEntryDao routeRequestEntryDao();
 
-	/* Sample of hook for actions to execute before db encryption or after db decryption
-	private static final SQLiteDatabaseHook databaseHook = new SQLiteDatabaseHook() {
-		@Override
-		public void preKey(SQLiteConnection database) {
-			// This method is called before db encryption
-			// You can execute "PRAGMA"S here if needed before encryption
-		}
-
-		@Override
-		public void postKey(SQLiteConnection database) {
-			// Called after db encryption
-			database.execSQL("PRAGMA cipher_memory_security = ON;");
-			database.execSQL("PRAGMA secure_delete = ON;");
-		}
-	};
-	 */
-
 	public abstract BroadcastStatusEntryDao broadcastStatusEntryDao();
 }

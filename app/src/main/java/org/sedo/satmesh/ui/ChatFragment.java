@@ -553,7 +553,7 @@ public class ChatFragment extends Fragment {
 		NearbySignalMessenger.getInstance().setCurrentRemote(null);
 	}
 
-	// Implémentation of OnMessageLongClickListener
+	// Implementation of OnMessageLongClickListener
 	public void onMessageLongClick(@NonNull Message message, @NonNull ChatAdapter.MessageViewHolder ignoredHolder) {
 		if (currentActionMode == null) {
 			currentActionMode = ((AppCompatActivity) requireActivity()).startSupportActionMode(actionModeCallback);
@@ -565,7 +565,7 @@ public class ChatFragment extends Fragment {
 		}
 	}
 
-	// Implémentation of OnMessageClickListener
+	// Implementation of OnMessageClickListener
 	public void onMessageClick(@NonNull Message message, @NonNull ChatAdapter.MessageViewHolder holder) {
 		if (currentActionMode != null) {
 			toggleMessageSelection(message.getId());

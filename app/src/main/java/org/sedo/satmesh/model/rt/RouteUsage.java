@@ -18,7 +18,7 @@ import java.util.Objects;
  * Each entry in this table signifies that a specific application request (identified by 'usageRequestUuid')
  * is currently utilizing a particular discovered route (identified by 'routeEntryDiscoveryUuid').
  *
- * @author hovozounkou
+ * @author hsedo777
  * @see RouteEntry
  */
 @Entity(tableName = "route_usage",

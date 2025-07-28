@@ -549,7 +549,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
                                 }
                             } catch (SecurityException | NullPointerException e) {
                                 startActivity(intent);
-                                Log.d(TAG, "Start bluetooth settings activity on app exiting.");
+                                Log.w(TAG, "Failed to disable bluetooth programmatically, opening settings.", e);
                             }
                         }
                         if (serviceStatus.needToDisableWifi()) {
@@ -566,7 +566,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
                                 }
                             } catch (SecurityException | NullPointerException e) {
                                 startActivity(intent);
-                                Log.d(TAG, "Start wifi settings activity on app exiting.");
+                                Log.w(TAG, "Failed to disable wifi programmatically, opening settings.", e);
                             }
                         }
                         exit();

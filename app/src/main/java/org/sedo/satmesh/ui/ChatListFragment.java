@@ -170,7 +170,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 						.setMessage(R.string.renew_fingerprint_alert_description)
 						.setPositiveButton(R.string.menu_renew_fingerprint, (dialog, which) -> {
 							Log.d(TAG, "Confirmation received. Reinitializing SignalManager");
-							Executors.newSingleThreadExecutor().execute(() -> {
+							executor.execute(() -> {
 								SignalManager signalManager = SignalManager.getInstance(requireContext());
 								signalManager.reinitialize(new SignalManager.SignalInitializationCallback() {
 									@Override

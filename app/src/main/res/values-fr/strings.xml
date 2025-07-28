@@ -156,7 +156,12 @@
 	<string name="username_update_failed_no_node">Échec de la mise à jour du nom d\'utilisateur : Données du nœud local introuvables.</string>
 	<string name="title_activity_settings">Paramètres</string>
 
+	<!-- Communication -->
 	<string name="loading_message">Chargement des services, veuillez patienter…</string>
+	<string name="exit_dialog_title">Désactiver les connexions ?</string>
+	<string name="exit_dialog_message">Souhaitez-vous désactiver le Bluetooth et/ou le Wi-Fi avant de quitter l’application ?</string>
+	<string name="yes">Oui</string>
+	<string name="no">Non</string>
 	<!--
 	<string name=""></string>
 	-->

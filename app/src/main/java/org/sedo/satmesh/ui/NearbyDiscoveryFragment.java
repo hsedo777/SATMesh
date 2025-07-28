@@ -69,6 +69,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 		super.onDetach();
 		discussionListener = null;
 		homeListener = null;
+		quitAppListener = null;
 	}
 
 	@Override

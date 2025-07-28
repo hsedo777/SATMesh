@@ -160,7 +160,12 @@
 	<string name="username_update_failed_no_node">Failed to update username: Local node data not found.</string>
 	<string name="title_activity_settings">Settings</string>
 
+	<!-- Communication -->
 	<string name="loading_message">Loading services, please wait…</string>
+	<string name="exit_dialog_title">Disable connections?</string>
+	<string name="exit_dialog_message">Would you like to disable Bluetooth and/or Wi-Fi before exiting the app?</string>
+	<string name="yes">Yes</string>
+	<string name="no">No</string>
 	<!--
 	<string name=""></string>
 	-->

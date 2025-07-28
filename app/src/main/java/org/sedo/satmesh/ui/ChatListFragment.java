@@ -27,12 +27,14 @@ import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
 import org.sedo.satmesh.ui.data.NodeRepository;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ChatListFragment extends Fragment implements ChatListAdapter.OnItemClickListener {
 
 	private static final String TAG = TAG_CHAT_LIST_FRAGMENT;
 	private static final String ARG_HOST_NODE_ID = "host_node_id";
+	private final ExecutorService executor;
 
 	private FragmentChatListBinding binding;
 	private ChatListAdapter chatListAdapter;
@@ -40,6 +42,13 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	private DiscussionMenuListener discussionMenuListener;
 	private NearbyDiscoveryListener nearbyDiscoveryListener;
 	private QuitAppListener quitAppListener;
+
+	/**
+	 * Default constructor
+	 */
+	public ChatListFragment() {
+		executor = Executors.newSingleThreadExecutor();
+	}
 
 	/**
 	 * Creates a new instance of ChatListFragment with the specified host node ID.
@@ -140,7 +149,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 				return true;
 			}
 			if (id == R.id.menu_settings) {
-				Executors.newSingleThreadExecutor().execute(() -> {
+				executor.execute(() -> {
 					Long localNodeId = chatListViewModel.hostNodeIdLiveData.getValue();
 					if (localNodeId == null) {
 						Log.e(TAG, "Failed to extract the host node ID from ViewModel");
@@ -204,7 +213,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 			discussionMenuListener = (DiscussionMenuListener) context;
 			quitAppListener = (QuitAppListener) context;
 		} else {
-			throw new RuntimeException("The activity must implement interfaces : DiscoveryFragmentListener" +
+			throw new RuntimeException("The activity must implement interfaces : NearbyDiscoveryListener" +
 					", DiscussionListener, QuitAppListener and DiscussionMenuListener");
 		}
 	}
@@ -215,11 +224,13 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		discussionListener = null;
 		nearbyDiscoveryListener = null;
 		discussionMenuListener = null;
+		quitAppListener = null;
 	}
 
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		executor.shutdown();
 		binding = null;
 	}
 

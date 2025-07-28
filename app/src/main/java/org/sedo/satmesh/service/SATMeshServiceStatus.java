@@ -1,24 +1,49 @@
 package org.sedo.satmesh.service;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 public class SATMeshServiceStatus {
-	private static final SATMeshServiceStatus INSTANCE = new SATMeshServiceStatus();
-	private final MutableLiveData<Boolean> serviceReady = new MutableLiveData<>(false);
+    private static final SATMeshServiceStatus INSTANCE = new SATMeshServiceStatus();
 
-	private SATMeshServiceStatus() {
-	}
+    private final MutableLiveData<Boolean> serviceReady = new MutableLiveData<>(false);
+    private volatile Boolean wasBluetoothEnabled;
+    private volatile Boolean wasWifiEnabled;
 
-	public static SATMeshServiceStatus getInstance() {
-		return INSTANCE;
-	}
+    private SATMeshServiceStatus() {
+    }
 
-	public LiveData<Boolean> getServiceReady() {
-		return serviceReady;
-	}
+    public static SATMeshServiceStatus getInstance() {
+        return INSTANCE;
+    }
 
-	public void setServiceReady(boolean ready) {
-		serviceReady.postValue(ready);
-	}
+    @NonNull
+    public LiveData<Boolean> getServiceReady() {
+        return serviceReady;
+    }
+
+    public void setServiceReady(boolean ready) {
+        serviceReady.postValue(ready);
+    }
+
+    public synchronized boolean getWasBluetoothEnabled() {
+        return wasBluetoothEnabled != null && wasBluetoothEnabled;
+    }
+
+    public synchronized void setWasBluetoothEnabled(boolean wasBluetoothEnabled) {
+        if (this.wasBluetoothEnabled == null) {
+            this.wasBluetoothEnabled = wasBluetoothEnabled;
+        }
+    }
+
+    public synchronized boolean getWasWifiEnabled() {
+        return wasWifiEnabled != null && wasWifiEnabled;
+    }
+
+    public synchronized void setWasWifiEnabled(boolean wasWifiEnabled) {
+        if (this.wasWifiEnabled == null) {
+            this.wasWifiEnabled = wasWifiEnabled;
+        }
+    }
 }

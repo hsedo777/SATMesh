@@ -1,4 +1,4 @@
-package org.sedo.satmesh.ui.data; // Or org.sedo.satmesh.ui.model;
+package org.sedo.satmesh.ui.data;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -49,7 +49,7 @@ public class ChatListItem {
 	 * This method assumes the hostNodeId is passed to the ViewHolder and is available for comparison.
 	 *
 	 * @param hostNodeId The ID of the currently logged-in host node.
-	 * @return {@code true} if the last message was sent by the host, false otherwise (i.e., by the remote node).
+	 * @return {@code true} if the last message was sent by the host, false otherwise.
 	 */
 	public boolean isLastMessageSentByHost(@NonNull Long hostNodeId) {
 		return lastMessage.getSenderNodeId().equals(hostNodeId);
@@ -61,7 +61,7 @@ public class ChatListItem {
 	 * Requires hostNodeId to be passed from the Adapter.
 	 *
 	 * @param hostNodeId The ID of the currently logged-in host node.
-	 * @param youString  The localized string for "You" (e.g., from R.string.you).
+	 * @param youString  The localized string for "You".
 	 * @return The display name of the sender.
 	 */
 	public String getLastMessageSenderDisplayName(@NonNull Long hostNodeId, @NonNull String youString) {

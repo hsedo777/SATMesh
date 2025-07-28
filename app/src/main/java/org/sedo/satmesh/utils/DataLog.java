@@ -17,8 +17,9 @@ import java.util.Map;
  * It uses a structured format for each log entry to facilitate parsing.
  * <p>
  * This class ensures thread-safe operations for logging.
+ * </p>
  *
- * @author hovozounkou
+ * @author hsedo777
  */
 public class DataLog {
 
@@ -297,7 +298,7 @@ public class DataLog {
 	 * These events are intended to be used for detailed logging and analysis
 	 * of the routing algorithm's behavior and performance.
 	 *
-	 * @author hovozounkou
+	 * @author hsedo777
 	 */
 	public enum RouteDiscoveryEvent {
 		/**

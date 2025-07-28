@@ -12,7 +12,7 @@ import java.util.Objects;
  * Represents the persistent state of a Signal Protocol key exchange process
  * with a specific remote node. This tracks whether our PreKeyBundle has been
  * sent to them and when their PreKeyBundle was last received and processed by us.
- * @author hovozounkou
+ * @author hsedo777
  */
 @Entity(tableName = "signal_key_exchange_states", indices = @Index(value = "remote_address", unique = true))
 public class SignalKeyExchangeState {
@@ -49,6 +49,7 @@ public class SignalKeyExchangeState {
 	}
 
 	// Getters and Setters
+
 	public Long getId() {
 		return id;
 	}

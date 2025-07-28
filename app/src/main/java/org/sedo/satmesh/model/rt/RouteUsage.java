@@ -18,7 +18,7 @@ import java.util.Objects;
  * Each entry in this table signifies that a specific application request (identified by 'usageRequestUuid')
  * is currently utilizing a particular discovered route (identified by 'routeEntryDiscoveryUuid').
  *
- * @author hovozounkou
+ * @author hsedo777
  * @see RouteEntry
  */
 @Entity(tableName = "route_usage",
@@ -77,7 +77,7 @@ public class RouteUsage {
 		this.usageRequestUuid = usageRequestUuid;
 	}
 
-	// --- Getters ---
+	// Getters & Setters
 
 	@NonNull
 	public String getUsageRequestUuid() {
@@ -91,8 +91,6 @@ public class RouteUsage {
 	public void setRouteEntryDiscoveryUuid(String routeEntryDiscoveryUuid) {
 		this.routeEntryDiscoveryUuid = routeEntryDiscoveryUuid;
 	}
-
-	// --- Setters ---
 
 	public Long getLastUsedTimestamp() {
 		return lastUsedTimestamp;

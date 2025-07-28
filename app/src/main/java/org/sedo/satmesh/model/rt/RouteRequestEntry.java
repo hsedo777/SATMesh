@@ -36,7 +36,7 @@ public class RouteRequestEntry {
 		this.requestUuid = requestUuid;
 	}
 
-	// --- Getters ---
+	// Getters & setters
 
 	@NonNull
 	public String getRequestUuid() {
@@ -50,8 +50,6 @@ public class RouteRequestEntry {
 	public void setDestinationNodeLocalId(Long destinationNodeLocalId) {
 		this.destinationNodeLocalId = destinationNodeLocalId;
 	}
-
-	// --- Setters ---
 
 	public Long getPreviousHopLocalId() {
 		return previousHopLocalId;

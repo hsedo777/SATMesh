@@ -49,6 +49,7 @@ public class SignalKeyExchangeState {
 	}
 
 	// Getters and Setters
+
 	public Long getId() {
 		return id;
 	}

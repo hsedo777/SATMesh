@@ -77,7 +77,7 @@ public class RouteUsage {
 		this.usageRequestUuid = usageRequestUuid;
 	}
 
-	// --- Getters ---
+	// Getters & Setters
 
 	@NonNull
 	public String getUsageRequestUuid() {
@@ -91,8 +91,6 @@ public class RouteUsage {
 	public void setRouteEntryDiscoveryUuid(String routeEntryDiscoveryUuid) {
 		this.routeEntryDiscoveryUuid = routeEntryDiscoveryUuid;
 	}
-
-	// --- Setters ---
 
 	public Long getLastUsedTimestamp() {
 		return lastUsedTimestamp;

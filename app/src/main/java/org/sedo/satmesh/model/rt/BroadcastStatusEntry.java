@@ -67,7 +67,7 @@ public class BroadcastStatusEntry {
 		this.neighborNodeLocalId = neighborNodeLocalId;
 	}
 
-	// --- Getters ---
+	// Getters & setters
 
 	@NonNull
 	public String getRequestUuid() {

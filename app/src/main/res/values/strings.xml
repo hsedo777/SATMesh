@@ -14,6 +14,7 @@
 	<string name="internal_error">Impossible to execute the operation</string>
 	<string name="error_missing_permissions">Cannot start without required permissions</string>
 
+	<!-- Nearby discovery -->
 	<string name="nearby_discovery_title">Nearby Neighbors</string>
 	<string name="nearby_discovery_description">Searching for nearby SATMesh devices to establish connections.</string>
 	<string name="no_nearby_nodes_found">No SATMesh devices found. Make sure they are in range and Bluetooth/Wi-Fi is enabled.</string>
@@ -84,6 +85,10 @@
 	<string name="renew_fingerprint_success">Fingerprint reset successfully!</string>
 	<string name="renew_fingerprint_failed">Failed to reset the fingerprint.</string>
 	<string name="menu_about">About</string>
+	<string name="menu_quit">Quit</string>
+
+	<string name="action_refresh">Refresh</string>
+	<string name="action_refresh_description">Refresh the list of discovered nodes</string>
 
 	<string name="action_delete">Delete</string>
 	<string name="action_copy">Copy</string>

@@ -27,7 +27,7 @@ SATMesh is a **secure messaging** application that works **without Internet**. I
    ```
 2. Open the project in **Android Studio**
 3. Let Android Studio automatically install all dependencies
-4. Build and run the app on a physical Android device
+4. Build and run the app on a physical Android device (requires Android 7.0 / API 24 or higher)
 
 ## 📱 Usage
 
@@ -47,7 +47,7 @@ Contributions are welcome! To propose changes:
 
 ## 📄 License
 
-This project is licensed under the [Apache 2.0 License](https://github.com/hsedo777/SATMesh/blob/main/LICENSE).
+This project is licensed under the [Apache 2.0 License](./LICENSE).
 
 ## 🙏 Acknowledgments
 

@@ -23,7 +23,7 @@ SATMesh is a **secure messaging** application that works **without Internet**. I
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/hsedo777/SATMesh.git
    ```
 2. Open the project in **Android Studio**
 3. Let Android Studio automatically install all dependencies

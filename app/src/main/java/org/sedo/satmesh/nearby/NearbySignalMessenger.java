@@ -424,9 +424,14 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param recipientAddressName The SignalProtocolAddress name of the recipient device.
 	 * @param textMessage          The plaintext TextMessage to encrypt and send.
 	 * @param messageDbId          The ID of the message in the local database (used for updates).
+	 * @param transmissionCallback This method already execute setting message to matched transmission status.
+	 *                             Anyway, this callback is added to track all specific behavior
+	 *                             according to caller on transmission success/failure.
+	 *                             It may be very useful when this method is called in a loop.
 	 */
-	public void sendEncryptedTextMessage(@NonNull String recipientAddressName, @NonNull TextMessage textMessage,
-										 long messageDbId, @NonNull TransmissionCallback transmissionCallback) {
+	public void sendEncryptedTextMessage(
+			@NonNull String recipientAddressName, @NonNull TextMessage textMessage,
+			long messageDbId, @NonNull TransmissionCallback transmissionCallback) {
 		executor.execute(() -> {
 			try {
 				// Construct NearbyMessageBody with the actual TextMessage
@@ -514,7 +519,30 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 								Log.e(TAG, "Failed to send " + (delivered ? "Delivered" : "Read") + " ACK for payload " + originalPayloadId + " to " + recipientAddressName);
 								finalCallback.accept(false);
 							}
-						}, null, null);
+						},
+						new TransmissionCallback() {
+							@Override
+							public void onSuccess(@NonNull Payload payload) {
+								/*
+								 * In case of read ack, even if the ack is not really delivered to
+								 * the recipient, it has the possibility to claim the message read
+								 * ack. So, by host side, let's mark the message as read.
+								 */
+								if (!delivered) {
+									// The message is to mark as read
+									Log.d(TAG, "Read ACK put on route for payload " + originalPayloadId + " to " + recipientAddressName);
+									updateMessageStatus(null, Message.MESSAGE_STATUS_READ, originalPayloadId, finalCallback);
+								} else {
+									Log.d(TAG, "Delivered ACK put on route for payload " + originalPayloadId + " to " + recipientAddressName);
+								}
+							}
+
+							@Override
+							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+								Log.e(TAG, "Failed to put " + (delivered ? "Delivered" : "Read") + " ACK on a route for payload " + originalPayloadId + " to " + recipientAddressName);
+								finalCallback.accept(false);
+							}
+						}, null);
 
 			} catch (Exception e) {
 				Log.e(TAG, "Error sending ACK for payload " + originalPayloadId + " to " + recipientAddressName, e);
@@ -578,7 +606,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 */
 	public void attemptResendFailedMessagesTo(@NonNull Node remoteNode, @Nullable Consumer<Void> onFirstSuccess) {
 		executor.execute(() -> {
-			List<Message> failedMessages = messageRepository.getMessagesInStatusesForRecipientSync(remoteNode.getId(),
+			List<Message> messages = messageRepository.getMessagesInStatusesForRecipientSync(
+					remoteNode.getId(),
 					Arrays.asList(Message.MESSAGE_STATUS_FAILED,
 							Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
 							Message.MESSAGE_STATUS_PENDING,
@@ -586,25 +615,32 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					)
 			);
 
-			if (failedMessages != null && !failedMessages.isEmpty()) {
+			if (messages != null && !messages.isEmpty()) {
 				final ObjectHolder<Boolean> toContinue = new ObjectHolder<>();
 				toContinue.post(true);
 				final ObjectHolder<Boolean> firstSucceed = new ObjectHolder<>();
 				firstSucceed.post(false);
-				Log.d(TAG, "Found " + failedMessages.size() + " failed messages to resend for " + remoteNode.getDisplayName());
-				for (Message message : failedMessages) {
+				Log.d(TAG, "Found " + messages.size() + " message(s) to resend to " + remoteNode.getAddressName());
+				for (Message message : messages) {
 					if (!toContinue.getValue()) {
 						break;
 					}
 					Long lastAttempt = message.getLastSendingAttempt();
 					if (lastAttempt != null) {
+						Log.d(TAG, "Last attempt for message " + message.getId() + " was at " + lastAttempt
+								+ ". Wait attempt ending before resend.");
+						continue;
+					} else {
+						Log.d(TAG, "The last attempt for message " + message.getId() + " left message in status: " + message.getStatus() + ".");
 						long delay;
 						if (Message.MESSAGE_STATUS_ROUTING == message.getStatus()) {
-							delay = MESSAGE_RESEND_DELAY_MS * 6;
+							delay = MESSAGE_RESEND_DELAY_MS * 3; // 30 seconds
+						} else if (Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE == message.getStatus()) {
+							delay = MESSAGE_RESEND_DELAY_MS * 2; // 20 seconds
 						} else {
 							delay = MESSAGE_RESEND_DELAY_MS;
 						}
-						if (System.currentTimeMillis() - lastAttempt < delay) {
+						if (System.currentTimeMillis() - message.getTimestamp() < delay) {
 							// Wait few time, expecting possible response
 							continue;
 						}
@@ -858,8 +894,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				Log.d(TAG, "Received TextMessage from " + senderAddressName);
 				if (textMessage.getPayloadId() != 0L) {
 					// We are in case of retransmission
-					payloadId = textMessage.getPayloadId();
-					Message retransmitted = messageRepository.getMessageByPayloadIdSync(payloadId);
+					long tmpPayloadId = textMessage.getPayloadId();
+					Message retransmitted = messageRepository.getMessageByPayloadIdSync(tmpPayloadId);
 					if (retransmitted != null) {
 						Log.d(TAG, "Message multiple retransmission");
 						int oldStatus = retransmitted.getStatus();
@@ -871,6 +907,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 								// Ensure the message status is maintained locally
 								oldStatus == Message.MESSAGE_STATUS_DELIVERED, null);
 						return;
+					}
+					// Else, continue execution normally
+					if (payloadId != tmpPayloadId) {
+						Log.w(TAG, "Alert: receiving encrypted message with payloadId=" + tmpPayloadId + " where attempting to link payloadId=" + payloadId + ".");
+						payloadId = tmpPayloadId;
 					}
 				}
 				Log.d(TAG, "Persisting the message.");

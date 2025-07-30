@@ -1,16 +1,17 @@
 plugins {
     alias(libs.plugins.android.application)
     id("androidx.room")
-    id("com.google.protobuf") //Protocol Buffers
+    id("com.google.protobuf")
 }
 
 android {
     namespace = "org.sedo.satmesh"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "org.sedo.satmesh"
         minSdk = 24
+        //noinspection OldTargetApi
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -28,8 +29,14 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    // Java explicit toolchain
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
     }
     buildFeatures{
         viewBinding = true

@@ -1,6 +1,7 @@
 package org.sedo.satmesh.ui.data;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -21,6 +22,7 @@ import java.util.function.Consumer;
  */
 public class MessageRepository {
 
+	private static final String TAG = "MessageRepository";
 	private final MessageDao messageDao;
 	private final Executor executor;
 
@@ -41,9 +43,11 @@ public class MessageRepository {
 		executor.execute(() -> {
 			try {
 				message.setId(messageDao.insert(message));
+				Log.i(TAG, "Inserted message with ID: " + message.getId());
 				if (callback != null)
 					callback.accept(true);
 			} catch (Exception e) {
+				Log.w(TAG, "Error inserting message", e);
 				if (callback != null)
 					callback.accept(false);
 			}
@@ -60,12 +64,22 @@ public class MessageRepository {
 		executor.execute(() -> messageDao.update(message));
 	}
 
+	/**
+	 * Updates an existing message in the database.
+	 * This method is executed in an executor thread
+	 *
+	 * @param message  The message to update.
+	 * @param callback A consumer to receive the success status
+	 *                 (true for success, false for failure).
+	 */
 	public void updateMessage(Message message, @NotNull Consumer<Boolean> callback) {
 		executor.execute(() -> {
 			try {
 				messageDao.update(message);
+				Log.i(TAG, "Updated message with ID: " + message.getId());
 				callback.accept(true);
-			} catch (Exception ignored) {
+			} catch (Exception e) {
+				Log.e(TAG, "Error updating message", e);
 				callback.accept(false);
 			}
 		});

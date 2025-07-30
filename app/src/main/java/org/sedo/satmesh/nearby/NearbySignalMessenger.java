@@ -66,11 +66,6 @@ import java.util.function.Consumer;
  */
 public class NearbySignalMessenger implements DeviceConnectionListener, PayloadListener {
 
-	/*
-	 * Minimum delay, in millisecond, to be elapsed before accept new request of
-	 * sending PreKeyBundle when there is an old
-	 */
-	//public static final long DEBOUNCE_TIME_MS = 90L * 24 * 60 * 60 * 1000; // 90 days
 	/**
 	 * Minimum delay, in millisecond, to be elapsed before accept to resend message
 	 * when we don't have any result about its last transmission.
@@ -313,10 +308,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	/**
 	 * Delegated method to {@code NearbyManager#sendRoutableNearbyMessageInternal(...)}
 	 */
-	protected void sendNearbyMessageInternal(@NonNull NearbyMessageBody plainNearbyMessage, @NonNull String recipientAddressName,
-	                                         @NonNull TransmissionCallback transmissionCallback,
-	                                         @Nullable TransmissionCallback routeTransmissionCallback,
-	                                         @Nullable Consumer<Boolean> routeDiscoveryCallback) {
+	protected void sendNearbyMessageInternal(
+			@NonNull NearbyMessageBody plainNearbyMessage, @NonNull String recipientAddressName,
+			@NonNull TransmissionCallback transmissionCallback,
+			@Nullable TransmissionCallback routeTransmissionCallback,
+			@Nullable Consumer<Boolean> routeDiscoveryCallback) {
 		final Consumer<Boolean> finalDiscoveryCallback = onSuccess -> {
 			executor.execute(() -> {
 				Node target = nodeRepository.findNodeSync(recipientAddressName);
@@ -363,14 +359,15 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					message.setStatus(status);
 					message.setLastSendingAttempt(null);
 					message.setPayloadId(payloadId); // Apply the Nearby Payload ID, only if the value is not previously defined
+					// The following message update is VERY IMPORTANT
 					if (callback != null) {
 						messageRepository.updateMessage(message, callback);
 					} else {
 						messageRepository.updateMessage(message);
 					}
-					Log.d(TAG, "Message ID " + messageDbId + " status updated to " + status + ".");
+					Log.d(TAG, "Message ID " + messageDbId + ", payloadId=" + payloadId + " status updated to " + status + ".");
 				} else {
-					Log.w(TAG, "Message with ID " + messageDbId + " not found for status update.");
+					Log.w(TAG, "Message with ID=" + messageDbId + ", payloadId=" + payloadId + " is not found for status update.");
 				}
 			} catch (Exception e) {
 				Log.e(TAG, "Error updating message status for ID " + messageDbId + ": " + e.getMessage(), e);
@@ -419,18 +416,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		});
 	}
 
-	private void consumeSendingEncryptedTextMessage(Payload payload, Boolean success, int messageStatusOnSuccess, long messageDbId, String recipientAddressName, TextMessage textMessage) {
-		if (success) {
-			Log.d(TAG, "TextMessage sent successfully to " + recipientAddressName + ". Payload ID: " + payload.getId());
-			// Update message in DB with sent status and payload ID. Set status pending to message ack
-			updateMessageStatus(messageDbId, messageStatusOnSuccess, payload.getId(), null);
-		} else {
-			Log.e(TAG, "Failed to send TextMessage to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
-			// Update message in DB with failed status
-			updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId(), null);
-		}
-	}
-
 	/**
 	 * Sends an encrypted message to a specific remote device.
 	 * Before calling this method, the message should already be stored in the database
@@ -440,39 +425,49 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @param textMessage          The plaintext TextMessage to encrypt and send.
 	 * @param messageDbId          The ID of the message in the local database (used for updates).
 	 */
-	public void sendEncryptedTextMessage(@NonNull String recipientAddressName, @NonNull TextMessage textMessage, long messageDbId, @NonNull TransmissionCallback transmissionCallback) {
+	public void sendEncryptedTextMessage(@NonNull String recipientAddressName, @NonNull TextMessage textMessage,
+										 long messageDbId, @NonNull TransmissionCallback transmissionCallback) {
 		executor.execute(() -> {
 			try {
 				// Construct NearbyMessageBody with the actual TextMessage
-				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(ENCRYPTED_MESSAGE).setBinaryData(textMessage.toByteString()).build();
+				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder()
+						.setMessageType(ENCRYPTED_MESSAGE).setBinaryData(textMessage.toByteString()).build();
 
 				// Send the wrapped message
 				sendNearbyMessageInternal(messageBody, recipientAddressName,
 						new TransmissionCallback() {
 							@Override
 							public void onSuccess(@NonNull Payload payload) {
-								consumeSendingEncryptedTextMessage(payload, true, Message.MESSAGE_STATUS_PENDING/*wait for ack*/, messageDbId, recipientAddressName, textMessage);
+								Log.d(TAG, "TextMessage sent successfully to " + recipientAddressName + ". Payload ID: " + payload.getId());
+								// Update message in DB with sent status and payload ID. Set status pending to message ack
+								updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_PENDING/* wait for ack */, payload.getId(), null);
 								transmissionCallback.onSuccess(payload);
 							}
 
 							@Override
 							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+								Log.w(TAG, "Failed to send TextMessage to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
 								if (cause instanceof NoSessionException || cause instanceof InvalidMessageException) {
 									handleInitialKeyExchange(recipientAddressName);
 								}
-								consumeSendingEncryptedTextMessage(payload, false, Message.MESSAGE_STATUS_PENDING, messageDbId, recipientAddressName, textMessage);
+								updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, payload != null ? payload.getId() : textMessage.getPayloadId(), null);
 								transmissionCallback.onFailure(payload, cause);
 							}
 						},
 						new TransmissionCallback() {
 							@Override
 							public void onSuccess(@NonNull Payload payload) {
-								consumeSendingEncryptedTextMessage(payload, true, Message.MESSAGE_STATUS_ROUTING, messageDbId, recipientAddressName, textMessage);
+								Log.d(TAG, "TextMessage put successfully on a route to " + recipientAddressName + ". Payload ID: " + payload.getId());
+								updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_ROUTING, payload.getId(), null);
 							}
 
 							@Override
 							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-								consumeSendingEncryptedTextMessage(payload, false, Message.MESSAGE_STATUS_ROUTING, messageDbId, recipientAddressName, textMessage);
+								Log.w(TAG, "Failed to put TextMessage on a route to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
+								if (cause instanceof NoSessionException || cause instanceof InvalidMessageException) {
+									handleInitialKeyExchange(recipientAddressName);
+								}
+								updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, payload != null ? payload.getId() : textMessage.getPayloadId(), null);
 							}
 						},
 						initiated -> updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_FAILED, textMessage.getPayloadId(), null));

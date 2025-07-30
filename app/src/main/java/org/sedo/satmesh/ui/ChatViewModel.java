@@ -327,17 +327,24 @@ public class ChatViewModel extends AndroidViewModel {
 				if (success) {
 					if (isSessionSecure) {
 						message.setLastSendingAttempt(System.currentTimeMillis());
-						messageRepository.updateMessage(message);
-						TextMessage text = TextMessage.newBuilder()
-								.setContent(message.getContent())
-								.setPayloadId(0L) // Payload ID will be set by NearbySignalManager on send
-								.setTimestamp(message.getTimestamp())
-								.build();
-						nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text,
-								message.getId(), NearbyManager.TransmissionCallback.NULL_CALLBACK);
+						messageRepository.updateMessage(message, ok -> {
+							if (ok) {
+								TextMessage text = TextMessage.newBuilder()
+										.setContent(message.getContent())
+										.setPayloadId(0L) // Payload ID will be set by NearbySignalManager on send
+										.setTimestamp(message.getTimestamp())
+										.build();
+								nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text,
+										message.getId(), NearbyManager.TransmissionCallback.NULL_CALLBACK);
+							} else {
+								Log.w(TAG, "Failed to update message sending attempt date.");
+								uiMessage.postValue(getApplication().getString(R.string.error_message_persistence_failed));
+							}
+						});
 					}
 				} else {
 					// Damageable
+					Log.w(TAG, "Failed to insert message.");
 					uiMessage.postValue(getApplication().getString(R.string.error_message_persistence_failed));
 				}
 			});

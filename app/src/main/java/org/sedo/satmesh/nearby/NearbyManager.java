@@ -524,10 +524,12 @@ public class NearbyManager {
 			return;
 		}
 		// Disconnect from all active connections
-		for (String endpoint : getConnectedEndpointsAddressNames()) {
-			// Iterate on copy to avoid ConcurrentModificationException
-			connectionsClient.disconnectFromEndpoint(endpoint);
-		}
+		long count = endpointStates.entrySet().stream()
+				.filter(entry -> entry.getValue().status == STATUS_CONNECTED)
+				.map(Map.Entry::getKey)
+				.peek(connectionsClient::disconnectFromEndpoint)
+				.count();
+		Log.d(TAG, "Disconnected from " + count + " active connections.");
 		stopDiscovery();
 		stopAdvertising();
 		// Clear all maps

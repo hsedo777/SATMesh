@@ -33,22 +33,17 @@ public class UiUtils {
      * or -1 if the status is unknown.
      */
     public static @DrawableRes int getMessageStatusIcon(int messageStatus) {
-        switch (messageStatus) {
-            case Message.MESSAGE_STATUS_DELIVERED:
-                return R.drawable.ic_message_status_delivered;
-            case Message.MESSAGE_STATUS_PENDING:
-                return R.drawable.ic_message_status_pending;
-            case Message.MESSAGE_STATUS_READ:
-                return R.drawable.ic_message_status_read;
-            case Message.MESSAGE_STATUS_FAILED:
-                return R.drawable.ic_message_status_failed;
-            case Message.MESSAGE_STATUS_ROUTING:
-                return R.drawable.ic_message_status_routing;
-            case Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE:
-                return R.drawable.ic_message_status_key_exchange;
-            default:
-                return -1;
-        }
+		return switch (messageStatus) {
+			case Message.MESSAGE_STATUS_DELIVERED -> R.drawable.ic_message_status_delivered;
+            case Message.MESSAGE_STATUS_PENDING -> R.drawable.ic_message_status_pending;
+            case Message.MESSAGE_STATUS_SENT -> R.drawable.ic_message_status_sent;
+			case Message.MESSAGE_STATUS_READ -> R.drawable.ic_message_status_read;
+			case Message.MESSAGE_STATUS_FAILED -> R.drawable.ic_message_status_failed;
+			case Message.MESSAGE_STATUS_ROUTING -> R.drawable.ic_message_status_routing;
+			case Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE ->
+					R.drawable.ic_message_status_key_exchange;
+			default -> -1;
+		};
     }
 
     /**

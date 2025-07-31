@@ -10,6 +10,7 @@ import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -31,7 +32,7 @@ import java.util.Objects;
 		indices = {@Index(value = "payloadId", unique = true), @Index(value = "senderNodeId"), @Index("recipientNodeId")})
 public class Message {
 
-	//For messages status, we opt to use integer constants instead of enum constants
+	//For messages statuses, we opt to use integer constants instead of enum constants
 	/**
 	 * Message status code when the message is pending (waiting to be sent/routed).
 	 */
@@ -58,12 +59,18 @@ public class Message {
 	 * session between the implied nodes.
 	 */
 	public static final int MESSAGE_STATUS_PENDING_KEY_EXCHANGE = 6;
+	/**
+	 * Message status code when the message has been successfully
+	 * sent (when receiver is a neighbor) and is awaiting delivery confirmation.
+	 */
+	public static final int MESSAGE_STATUS_SENT = 7;
 
-	//For message type, we opt to integer constants instead of enum constants
 	/**
 	 * Code for a text message.
 	 */
 	public static final int MESSAGE_TYPE_TEXT = 0;
+
+	//For message type, we opt to integer constants instead of enum constants
 	/**
 	 * Code for an image message. (Note: Current implementation might not support this yet)
 	 */
@@ -76,6 +83,21 @@ public class Message {
 	 * Code for a file message. (Note: Current implementation might not support this yet)
 	 */
 	public static final int MESSAGE_TYPE_FILE = 3;
+	// List of messages statuses
+	private static final List<Integer> MESSAGE_STATUSES = Arrays.asList(
+			MESSAGE_STATUS_DELIVERED,
+			MESSAGE_STATUS_PENDING,
+			MESSAGE_STATUS_ROUTING,
+			MESSAGE_STATUS_READ,
+			MESSAGE_STATUS_FAILED,
+			MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
+			MESSAGE_STATUS_SENT);
+	// List of message types
+	private static final List<Integer> MESSAGE_TYPES = Arrays.asList(
+			MESSAGE_TYPE_TEXT,
+			MESSAGE_TYPE_IMAGE,
+			MESSAGE_TYPE_AUDIO,
+			MESSAGE_TYPE_FILE);
 
 	@PrimaryKey(autoGenerate = true)
 	private Long id;
@@ -137,13 +159,7 @@ public class Message {
 	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_STATUS}.
 	 */
 	public static boolean isValidStatusCode(int status) {
-		return Arrays.asList(Message.MESSAGE_STATUS_DELIVERED,
-						Message.MESSAGE_STATUS_PENDING,
-						Message.MESSAGE_STATUS_ROUTING,
-						Message.MESSAGE_STATUS_READ,
-						Message.MESSAGE_STATUS_FAILED,
-						MESSAGE_STATUS_PENDING_KEY_EXCHANGE)
-				.contains(status);
+		return MESSAGE_STATUSES.contains(status);
 	}
 
 	/**
@@ -153,11 +169,7 @@ public class Message {
 	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_TYPE}.
 	 */
 	public static boolean isValidMessageTpe(int type) {
-		return Arrays.asList(Message.MESSAGE_TYPE_TEXT,
-						Message.MESSAGE_TYPE_AUDIO,
-						Message.MESSAGE_TYPE_FILE,
-						Message.MESSAGE_TYPE_IMAGE)
-				.contains(type);
+		return MESSAGE_TYPES.contains(type);
 	}
 
 	public Long getId() {

@@ -11,8 +11,7 @@ android {
     defaultConfig {
         applicationId = "org.sedo.satmesh"
         minSdk = 24
-        //noinspection OldTargetApi
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 

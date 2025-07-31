@@ -34,6 +34,7 @@ import org.sedo.satmesh.utils.DataLog.TransmissionStatus;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -524,12 +525,12 @@ public class NearbyManager {
 			return;
 		}
 		// Disconnect from all active connections
-		long count = endpointStates.entrySet().stream()
+		Set<String> endpointsToDisconnect = endpointStates.entrySet().stream()
 				.filter(entry -> entry.getValue().status == STATUS_CONNECTED)
 				.map(Map.Entry::getKey)
-				.peek(connectionsClient::disconnectFromEndpoint)
-				.count();
-		Log.d(TAG, "Disconnected from " + count + " active connections.");
+				.collect(java.util.stream.Collectors.toSet());
+		Log.d(TAG, "Disconnecting from " + endpointsToDisconnect.size() + " active connections.");
+		endpointsToDisconnect.forEach(connectionsClient::disconnectFromEndpoint);
 		stopDiscovery();
 		stopAdvertising();
 		// Clear all maps

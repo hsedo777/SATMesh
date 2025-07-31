@@ -65,12 +65,11 @@ public class Message {
 	 */
 	public static final int MESSAGE_STATUS_SENT = 7;
 
+	//For message type, we opt to integer constants instead of enum constants
 	/**
 	 * Code for a text message.
 	 */
 	public static final int MESSAGE_TYPE_TEXT = 0;
-
-	//For message type, we opt to integer constants instead of enum constants
 	/**
 	 * Code for an image message. (Note: Current implementation might not support this yet)
 	 */

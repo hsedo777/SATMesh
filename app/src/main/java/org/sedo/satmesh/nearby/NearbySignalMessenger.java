@@ -89,7 +89,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			Message.MESSAGE_STATUS_ROUTING,
 			Message.MESSAGE_STATUS_SENT
 	);
-	;
 	private static final String TAG = "NearbySignalMessenger";
 	private static volatile NearbySignalMessenger INSTANCE;
 
@@ -656,7 +655,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						};
 						if (System.currentTimeMillis() - lastAttempt < delay) {
 							// Wait few time, expecting possible response
-							Log.d(TAG, "Wait few minute before resend message with ID " + message.getId() + ". Last attempt: " + lastAttempt);
+							Log.d(TAG, "Wait few secondes before resend message with ID " + message.getId() + ". Last attempt: " + lastAttempt);
 							continue;
 						}
 						Log.d(TAG, "Attempt to resend message with ID " + message.getId() + " that has last attempt at " + lastAttempt + ". Status: " + status + ".");

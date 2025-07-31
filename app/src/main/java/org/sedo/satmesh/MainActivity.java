@@ -28,6 +28,7 @@ import androidx.fragment.app.FragmentTransaction;
 
 import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
+import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.service.SATMeshCommunicationService;
 import org.sedo.satmesh.service.SATMeshServiceStatus;
 import org.sedo.satmesh.ui.AppHomeListener;
@@ -536,6 +537,8 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
                     .setTitle(R.string.exit_dialog_title)
                     .setMessage(R.string.exit_dialog_message)
                     .setPositiveButton(R.string.yes, (dialog, which) -> {
+                        // Prevent bluetooth/wifi re-enabling by Nearby Connections
+                        NearbyManager.getInstance().stopNearby();
                         if (serviceStatus.needToDisableBluetooth()) {
                             Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
                             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

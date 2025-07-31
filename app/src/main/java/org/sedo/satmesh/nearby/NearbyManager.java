@@ -34,6 +34,7 @@ import org.sedo.satmesh.utils.DataLog.TransmissionStatus;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -519,13 +520,19 @@ public class NearbyManager {
 	 * Stop all Nearby API interactions
 	 */
 	public void stopNearby() {
+		if (!isAdvertising && !isDiscovering) {
+			Log.i(TAG, "Not advertising or discovering, skipping stopNearby call.");
+			return;
+		}
+		// Disconnect from all active connections
+		Set<String> endpointsToDisconnect = endpointStates.entrySet().stream()
+				.filter(entry -> entry.getValue().status == STATUS_CONNECTED)
+				.map(Map.Entry::getKey)
+				.collect(java.util.stream.Collectors.toSet());
+		Log.d(TAG, "Disconnecting from " + endpointsToDisconnect.size() + " active connections.");
+		endpointsToDisconnect.forEach(connectionsClient::disconnectFromEndpoint);
 		stopDiscovery();
 		stopAdvertising();
-		// Disconnect from all active connections
-		for (String endpoint : getConnectedEndpointsAddressNames()) {
-			// Iterate on copy to avoid ConcurrentModificationException
-			connectionsClient.disconnectFromEndpoint(endpoint);
-		}
 		// Clear all maps
 		endpointStates.clear();
 		addressNameToEndpointId.clear();
@@ -570,11 +577,11 @@ public class NearbyManager {
 	 *                                     or not needed/failed to initiate ({@code false}). This callback
 	 *                                     is only relevant when a route needs to be discovered.
 	 */
-	protected void sendRoutableNearbyMessageInternal(@NonNull NearbyMessageBody plainMessageBody,
-	                                                 @NonNull String recipientAddressName,
-	                                                 @NonNull TransmissionCallback transmissionCallback,
-	                                                 @NonNull TransmissionCallback routeTransmissionCallback,
-	                                                 @Nullable Consumer<Boolean> onDiscoveryInitiatedCallback) {
+	protected void sendRoutableNearbyMessageInternal(
+			@NonNull NearbyMessageBody plainMessageBody,
+			@NonNull String recipientAddressName, @NonNull TransmissionCallback transmissionCallback,
+			@NonNull TransmissionCallback routeTransmissionCallback,
+			@Nullable Consumer<Boolean> onDiscoveryInitiatedCallback) {
 		executorService.execute(() -> {
 			final String endpointId = getLinkedEndpointId(recipientAddressName);
 			if (endpointId == null) {
@@ -616,9 +623,9 @@ public class NearbyManager {
 	 * @param recipientAddressName The Signal Protocol address name of the recipient.
 	 * @param callback             Callback for success or failure of the Nearby Connections send operation.
 	 */
-	protected void sendNearbyMessageInternal(@NonNull NearbyMessage nearbyMessage,
-	                                         @NonNull String recipientAddressName,
-	                                         @NonNull TransmissionCallback callback) {
+	protected void sendNearbyMessageInternal(
+			@NonNull NearbyMessage nearbyMessage, @NonNull String recipientAddressName,
+			@NonNull TransmissionCallback callback) {
 		final String endpointId = getLinkedEndpointId(recipientAddressName);
 		if (endpointId == null) {
 			Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");

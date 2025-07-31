@@ -50,7 +50,6 @@ import org.whispersystems.libsignal.protocol.PreKeySignalMessage;
 import org.whispersystems.libsignal.protocol.SignalMessage;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -84,33 +83,15 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	/**
 	 * List of message statues that are considered "standby".
 	 */
-	private static final List<Integer> MESSAGE_STANDBY_STATUSES;
-	/**
-	 * List of message statues that are considered "standby" with compatibility
-	 * with the app's olds version.
-	 */
-	private static final List<Integer> MESSAGE_STANDBY_STATUSES_COMPATIBILITY;
+	private static final List<Integer> MESSAGE_STANDBY_STATUSES = Arrays.asList(
+			Message.MESSAGE_STATUS_FAILED,
+			Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
+			Message.MESSAGE_STATUS_ROUTING,
+			Message.MESSAGE_STATUS_SENT
+	);
+	;
 	private static final String TAG = "NearbySignalMessenger";
 	private static volatile NearbySignalMessenger INSTANCE;
-
-	static {
-		List<Integer> status = Arrays.asList(
-				Message.MESSAGE_STATUS_FAILED,
-				Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
-				Message.MESSAGE_STATUS_ROUTING,
-				Message.MESSAGE_STATUS_SENT
-		);
-		MESSAGE_STANDBY_STATUSES = Collections.unmodifiableList(status);
-		List<Integer> compatibility = new ArrayList<>(status);
-		/*
-		 * Add `Message.MESSAGE_STATUS_PENDING` just to maintain compatibility
-		 * with the app's olds version. Remember, for the olds version, value of
-		 * attribute `Message.lastSendingAttempt` must be null before re-sending
-		 * the message.
-		 */
-		compatibility.add(Message.MESSAGE_STATUS_PENDING);
-		MESSAGE_STANDBY_STATUSES_COMPATIBILITY = Collections.unmodifiableList(compatibility);
-	}
 
 	private final SignalManager signalManager;
 	private final NearbyManager nearbyManager;
@@ -650,7 +631,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	public void attemptResendFailedMessagesTo(@NonNull Node remoteNode, @Nullable Consumer<Void> onFirstSuccess) {
 		executor.execute(() -> {
 			List<Message> messages = messageRepository.getMessagesInStatusesForRecipientSync(
-					remoteNode.getId(), MESSAGE_STANDBY_STATUSES_COMPATIBILITY
+					remoteNode.getId(), MESSAGE_STANDBY_STATUSES
 			);
 
 			if (messages != null && !messages.isEmpty()) {
@@ -666,12 +647,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Long lastAttempt = message.getLastSendingAttempt();
 					int status = message.getStatus();
 					if (lastAttempt != null) {
-						if (status == Message.MESSAGE_STATUS_PENDING) {
-							Log.d(TAG, "The last attempt for message with ID " + message.getId() + " was at " + lastAttempt +
-									" and it's not terminated. Wait for the transmission ending");
-							continue;
-						}
-						// Else, host has been noticed of ending of the last message transmission, analyze status
+						// The host has been noticed of ending of the message last transmission, analyze status
 						long delay = switch (message.getStatus()) {
 							case Message.MESSAGE_STATUS_ROUTING -> ROUTED_MESSAGE_RESEND_DELAY_MS;
 							case Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE ->
@@ -685,13 +661,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						}
 						Log.d(TAG, "Attempt to resend message with ID " + message.getId() + " that has last attempt at " + lastAttempt + ". Status: " + status + ".");
 					} else {
-						// Only `Message.MESSAGE_STATUS_PENDING` is allowed to match compatibility with app's olds version.
-						if (status != Message.MESSAGE_STATUS_PENDING) {
-							// This should not happen
-							Log.w(TAG, "Message with ID " + message.getId() + " has no last attempt while having status " + status + ".");
-						} else {
-							Log.d(TAG, "User is using app's old version. Message with ID " + message.getId() + " has no last attempt date mapped.");
-						}
+						// This should not happen
+						Log.w(TAG, "Message with ID " + message.getId() + " has no last attempt while having status " + status + ".");
 					}
 					// Before attempting to resend, update its status to PENDING
 					message.setStatus(Message.MESSAGE_STATUS_PENDING);

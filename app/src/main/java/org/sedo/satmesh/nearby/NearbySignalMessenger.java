@@ -50,6 +50,7 @@ import org.whispersystems.libsignal.protocol.PreKeySignalMessage;
 import org.whispersystems.libsignal.protocol.SignalMessage;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -71,8 +72,45 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * when we don't have any result about its last transmission.
 	 */
 	public static final long MESSAGE_RESEND_DELAY_MS = 10_000L; // 10 seconds
+	/**
+	 * Minimum delay, in millisecond, to be elapsed before accept to resend routed message
+	 */
+	public static final long ROUTED_MESSAGE_RESEND_DELAY_MS = 30_000L; // 30 seconds
+	/**
+	 * Minimum delay, in millisecond, to be elapsed before accept to resend message that
+	 * is pending for key exchange
+	 */
+	public static final long PENDING_KEY_EXCHANGE_MESSAGE_RESEND_DELAY_MS = 20_000L; // 20 seconds
+	/**
+	 * List of message statues that are considered "standby".
+	 */
+	private static final List<Integer> MESSAGE_STANDBY_STATUSES;
+	/**
+	 * List of message statues that are considered "standby" with compatibility
+	 * with the app's olds version.
+	 */
+	private static final List<Integer> MESSAGE_STANDBY_STATUSES_COMPATIBILITY;
 	private static final String TAG = "NearbySignalMessenger";
 	private static volatile NearbySignalMessenger INSTANCE;
+
+	static {
+		List<Integer> status = Arrays.asList(
+				Message.MESSAGE_STATUS_FAILED,
+				Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
+				Message.MESSAGE_STATUS_ROUTING,
+				Message.MESSAGE_STATUS_SENT
+		);
+		MESSAGE_STANDBY_STATUSES = Collections.unmodifiableList(status);
+		List<Integer> compatibility = new ArrayList<>(status);
+		/*
+		 * Add `Message.MESSAGE_STATUS_PENDING` just to maintain compatibility
+		 * with the app's olds version. Remember, for the olds version, value of
+		 * attribute `Message.lastSendingAttempt` must be null before re-sending
+		 * the message.
+		 */
+		compatibility.add(Message.MESSAGE_STATUS_PENDING);
+		MESSAGE_STANDBY_STATUSES_COMPATIBILITY = Collections.unmodifiableList(compatibility);
+	}
 
 	private final SignalManager signalManager;
 	private final NearbyManager nearbyManager;
@@ -357,7 +395,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				}
 				if (message != null) {
 					message.setStatus(status);
-					message.setLastSendingAttempt(null);
+					if (MESSAGE_STANDBY_STATUSES.contains(status)) {
+						message.setLastSendingAttempt(System.currentTimeMillis());
+					} else {
+						// The message is known from receiver. Clear last sending attempt
+						message.setLastSendingAttempt(null);
+					}
 					message.setPayloadId(payloadId); // Apply the Nearby Payload ID, only if the value is not previously defined
 					// The following message update is VERY IMPORTANT
 					if (callback != null) {
@@ -370,7 +413,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Log.w(TAG, "Message with ID=" + messageDbId + ", payloadId=" + payloadId + " is not found for status update.");
 				}
 			} catch (Exception e) {
-				Log.e(TAG, "Error updating message status for ID " + messageDbId + ": " + e.getMessage(), e);
+				Log.e(TAG, "Error updating message status for ID " + messageDbId, e);
 			}
 		});
 	}
@@ -443,15 +486,15 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						new TransmissionCallback() {
 							@Override
 							public void onSuccess(@NonNull Payload payload) {
-								Log.d(TAG, "TextMessage sent successfully to " + recipientAddressName + ". Payload ID: " + payload.getId());
+								Log.d(TAG, "TextMessage sent successfully to " + recipientAddressName);
 								// Update message in DB with sent status and payload ID. Set status pending to message ack
-								updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_PENDING/* wait for ack */, payload.getId(), null);
+								updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_SENT, payload.getId(), null);
 								transmissionCallback.onSuccess(payload);
 							}
 
 							@Override
 							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-								Log.w(TAG, "Failed to send TextMessage to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
+								Log.w(TAG, "Failed to send TextMessage to " + recipientAddressName);
 								if (cause instanceof NoSessionException || cause instanceof InvalidMessageException) {
 									handleInitialKeyExchange(recipientAddressName);
 								}
@@ -462,13 +505,13 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						new TransmissionCallback() {
 							@Override
 							public void onSuccess(@NonNull Payload payload) {
-								Log.d(TAG, "TextMessage put successfully on a route to " + recipientAddressName + ". Payload ID: " + payload.getId());
+								Log.d(TAG, "TextMessage put successfully on a route to " + recipientAddressName);
 								updateMessageStatus(messageDbId, Message.MESSAGE_STATUS_ROUTING, payload.getId(), null);
 							}
 
 							@Override
 							public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-								Log.w(TAG, "Failed to put TextMessage on a route to " + recipientAddressName + " (Payload ID: " + (payload != null ? payload.getId() : "N/A") + ")");
+								Log.w(TAG, "Failed to put TextMessage on a route to " + recipientAddressName);
 								if (cause instanceof NoSessionException || cause instanceof InvalidMessageException) {
 									handleInitialKeyExchange(recipientAddressName);
 								}
@@ -607,12 +650,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	public void attemptResendFailedMessagesTo(@NonNull Node remoteNode, @Nullable Consumer<Void> onFirstSuccess) {
 		executor.execute(() -> {
 			List<Message> messages = messageRepository.getMessagesInStatusesForRecipientSync(
-					remoteNode.getId(),
-					Arrays.asList(Message.MESSAGE_STATUS_FAILED,
-							Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
-							Message.MESSAGE_STATUS_PENDING,
-							Message.MESSAGE_STATUS_ROUTING
-					)
+					remoteNode.getId(), MESSAGE_STANDBY_STATUSES_COMPATIBILITY
 			);
 
 			if (messages != null && !messages.isEmpty()) {
@@ -626,23 +664,35 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						break;
 					}
 					Long lastAttempt = message.getLastSendingAttempt();
+					int status = message.getStatus();
 					if (lastAttempt != null) {
-						Log.d(TAG, "Last attempt for message " + message.getId() + " was at " + lastAttempt
-								+ ". Wait attempt ending before resend.");
-						continue;
-					} else {
-						Log.d(TAG, "The last attempt for message " + message.getId() + " left message in status: " + message.getStatus() + ".");
+						if (status == Message.MESSAGE_STATUS_PENDING) {
+							Log.d(TAG, "The last attempt for message with ID " + message.getId() + " was at " + lastAttempt +
+									" and it's not terminated. Wait for the transmission ending");
+							continue;
+						}
+						// Else, host has been noticed of ending of the last message transmission, analyze status
 						long delay;
 						if (Message.MESSAGE_STATUS_ROUTING == message.getStatus()) {
-							delay = MESSAGE_RESEND_DELAY_MS * 3; // 30 seconds
+							delay = ROUTED_MESSAGE_RESEND_DELAY_MS;
 						} else if (Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE == message.getStatus()) {
-							delay = MESSAGE_RESEND_DELAY_MS * 2; // 20 seconds
+							delay = PENDING_KEY_EXCHANGE_MESSAGE_RESEND_DELAY_MS;
 						} else {
 							delay = MESSAGE_RESEND_DELAY_MS;
 						}
-						if (System.currentTimeMillis() - message.getTimestamp() < delay) {
+						if (System.currentTimeMillis() - lastAttempt < delay) {
 							// Wait few time, expecting possible response
+							Log.d(TAG, "Wait few minute before resend message with ID " + message.getId() + ". Last attempt: " + lastAttempt);
 							continue;
+						}
+						Log.d(TAG, "Attempt to resend message with ID " + message.getId() + " that has last attempt at " + lastAttempt + ". Status: " + status + ".");
+					} else {
+						// Only `Message.MESSAGE_STATUS_PENDING` is allowed to match compatibility with app's olds version.
+						if (status != Message.MESSAGE_STATUS_PENDING) {
+							// This should not happen
+							Log.w(TAG, "Message with ID " + message.getId() + " has no last attempt while having status " + status + ".");
+						} else {
+							Log.d(TAG, "User is using app's old version. Message with ID " + message.getId() + " has no last attempt date mapped.");
 						}
 					}
 					// Before attempting to resend, update its status to PENDING

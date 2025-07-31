@@ -147,7 +147,9 @@ public class Message {
 
 	/**
 	 * The last time the message has been transmitted but without
-	 * transmission result even if success or failure
+	 * transmission result even if success or failure. It is also
+	 * used to retain the last time the message was sent but without
+	 * any ack from the recipient.
 	 */
 	@ColumnInfo(name = "lastAttempt")
 	private Long lastSendingAttempt;

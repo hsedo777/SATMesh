@@ -377,7 +377,7 @@ public class ChatViewModel extends AndroidViewModel {
 			// This will appear more times, so I didn't log it.
 			return;
 		}
-		if (message.getStatus() == Message.MESSAGE_STATUS_READ) {
+		if (message.isRead()) {
 			// This will appear more times, that is why I do not log it.
 			return;
 		}

@@ -20,7 +20,7 @@ import org.sedo.satmesh.utils.Utils;
 public class ChatListAdapter extends ListAdapter<ChatListItem, ChatListAdapter.ChatListItemViewHolder> {
 
 	// DiffUtil.ItemCallback for efficient list updates
-	private static final DiffUtil.ItemCallback<ChatListItem> DIFF_CALLBACK = new DiffUtil.ItemCallback<ChatListItem>() {
+	private static final DiffUtil.ItemCallback<ChatListItem> DIFF_CALLBACK = new DiffUtil.ItemCallback<>() {
 		@Override
 		public boolean areItemsTheSame(@NonNull ChatListItem oldItem, @NonNull ChatListItem newItem) {
 			// Items are the same if they represent the same conversation.

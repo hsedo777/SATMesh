@@ -672,14 +672,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 							continue;
 						}
 						// Else, host has been noticed of ending of the last message transmission, analyze status
-						long delay;
-						if (Message.MESSAGE_STATUS_ROUTING == message.getStatus()) {
-							delay = ROUTED_MESSAGE_RESEND_DELAY_MS;
-						} else if (Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE == message.getStatus()) {
-							delay = PENDING_KEY_EXCHANGE_MESSAGE_RESEND_DELAY_MS;
-						} else {
-							delay = MESSAGE_RESEND_DELAY_MS;
-						}
+						long delay = switch (message.getStatus()) {
+							case Message.MESSAGE_STATUS_ROUTING -> ROUTED_MESSAGE_RESEND_DELAY_MS;
+							case Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE ->
+									PENDING_KEY_EXCHANGE_MESSAGE_RESEND_DELAY_MS;
+							default -> MESSAGE_RESEND_DELAY_MS;
+						};
 						if (System.currentTimeMillis() - lastAttempt < delay) {
 							// Wait few time, expecting possible response
 							Log.d(TAG, "Wait few minute before resend message with ID " + message.getId() + ". Last attempt: " + lastAttempt);

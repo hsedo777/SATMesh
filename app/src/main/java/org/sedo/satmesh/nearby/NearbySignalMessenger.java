@@ -643,8 +643,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						.build();
 				sendEncryptedTextMessage(recipientAddressName, text, message.getId(),
 						Objects.requireNonNullElse(callback, TransmissionCallback.NULL_CALLBACK));
-			} else if (aborted != null) { // if updating fails, abort the whole process
-				aborted.accept(true);
+			} else { // if updating fails, abort the whole process
+				if (aborted != null) {
+					aborted.accept(true);
+				} else {
+					Log.w(TAG, "Message update failed for " + message.getId() + " during resend, but no abort callback was provided.");
+				}
 			}
 		});
 	}

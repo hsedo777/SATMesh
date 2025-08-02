@@ -40,8 +40,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 
 public class ChatFragment extends Fragment {
 
@@ -94,18 +92,13 @@ public class ChatFragment extends Fragment {
 			}
 			MenuItem claimItem = menu.findItem(R.id.action_claim_ack);
 			MenuItem resendItem = menu.findItem(R.id.action_resend);
-			BiConsumer<MenuItem, Predicate<Message>> oneItemConsumer = (item, predicate) -> {
-				if (item != null) {
-					if (adapter.getSelectedCount() != 1) {
-						item.setVisible(false);
-					} else {
-						Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
-						item.setVisible(predicate.test(message));
-					}
-				}
-			};
-			oneItemConsumer.accept(claimItem, this::canClaimReadAckOn);
-			oneItemConsumer.accept(resendItem, this::canBeResend);
+			Message message = adapter.getIfSingleSelected();
+			if (claimItem != null) {
+				claimItem.setVisible(canClaimReadAckOn(message));
+			}
+			if (resendItem != null) {
+				resendItem.setVisible(canBeResend(message));
+			}
 			return false;
 		}
 

@@ -96,6 +96,8 @@
 	<string name="action_claim_ack_ongoing">Demande en cours de traitement</string>
 	<string name="selected_count">%d sélectionné.s</string>
 	<string name="message_copied">Message copié</string>
+	<string name="action_resend">Renvoyer</string>
+	<string name="message_resend_failed">Échec de renvoi du message</string>
 
 	<string name="search_hint">Rechercher messages ou discussions</string>
 	<string name="no_results_found">Aucun résultat trouvé</string>

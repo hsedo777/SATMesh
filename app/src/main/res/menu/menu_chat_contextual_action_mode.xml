@@ -19,4 +19,10 @@
 		android:icon="@drawable/ic_action_claim_ack"
 		android:title="@string/action_claim_ack"
 		app:showAsAction="ifRoom" />
+
+	<item
+		android:id="@+id/action_resend"
+		android:icon="@drawable/ic_action_resend"
+		android:title="@string/action_resend"
+		app:showAsAction="ifRoom" />
 </menu>

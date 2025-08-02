@@ -164,8 +164,8 @@ public class ChatFragment extends Fragment {
 			} else if (id == R.id.action_resend) {
 				Message message = adapter.getIfSingleSelected();
 				if (canBeResend(message)) {
-					viewModel.requestManualResend(Objects.requireNonNull(message), aborted -> {
-						if (aborted) {
+					viewModel.requestManualResend(Objects.requireNonNull(message), isAborted -> {
+						if (isAborted) {
 							requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.message_resend_failed, Toast.LENGTH_SHORT).show());
 						}
 					});

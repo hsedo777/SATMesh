@@ -3,6 +3,7 @@ package org.sedo.satmesh.model;
 
 import static androidx.room.ForeignKey.CASCADE;
 
+import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
@@ -258,6 +259,25 @@ public class Message {
 
 	public void setLastSendingAttempt(Long lastSendingAttempt) {
 		this.lastSendingAttempt = lastSendingAttempt;
+	}
+
+	/**
+	 * Checks if the message has received an ack from the recipient.
+	 *
+	 * @param recipient The recipient Node.
+	 * @return {@code true} if the message has received an ack from the recipient.
+	 */
+	public boolean hadReceivedAckFrom(@NonNull Node recipient) {
+		return Objects.equals(recipientNodeId, recipient.getId()) && (status == MESSAGE_STATUS_DELIVERED || status == MESSAGE_STATUS_READ);
+	}
+
+	/**
+	 * Checks if the message is currently in the transmission queue.
+	 *
+	 * @return {@code true} if the message is currently in the transmission queue.
+	 */
+	public boolean isOnTransmissionQueue() {
+		return status == MESSAGE_STATUS_PENDING && lastSendingAttempt != null;
 	}
 
 	@Override

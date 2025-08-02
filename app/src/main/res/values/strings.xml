@@ -96,6 +96,8 @@
 	<string name="action_claim_ack_ongoing">Request being processed</string>
 	<string name="selected_count">%d selected</string>
 	<string name="message_copied">Message copied to clipboard</string>
+	<string name="action_resend">Resend</string>
+	<string name="message_resend_failed">Failed to resend message</string>
 
 	<string name="search_hint">Search messages or discussions</string>
 	<string name="no_results_found">No results found</string>

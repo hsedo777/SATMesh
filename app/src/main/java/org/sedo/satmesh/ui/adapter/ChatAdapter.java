@@ -179,6 +179,19 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 				.findFirst().orElse(null);
 	}
 
+	/**
+	 * Gets the selected message if ony one is selected
+	 *
+	 * @return {@code null} if no message is selected or more than on are selected.
+	 */
+	@Nullable
+	public Message getIfSingleSelected() {
+		if (getSelectedCount() != 1) {
+			return null;
+		}
+		return getMessageById(selectedMessageIds.iterator().next());
+	}
+
 	public interface OnMessageLongClickListener {
 		void onMessageLongClick(@NonNull Message message, @NonNull MessageViewHolder holder);
 	}

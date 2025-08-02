@@ -40,6 +40,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 public class ChatFragment extends Fragment {
 
@@ -75,6 +77,12 @@ public class ChatFragment extends Fragment {
 					&& Objects.equals(ChatFragment.this.hostNode.getId(), message.getSenderNodeId());
 		}
 
+		private boolean canBeResend(Message message) {
+			Node recipient = viewModel.getRemoteNodeLiveData().getValue();
+			return message != null && recipient != null && !message.hadReceivedAckFrom(recipient)
+					&& !message.isOnTransmissionQueue();
+		}
+
 		@Override
 		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
 			// Called after onCreateActionMode and whenever the ActionMode is invalidated.
@@ -85,14 +93,19 @@ public class ChatFragment extends Fragment {
 				copyItem.setVisible(adapter.getSelectedCount() == 1);
 			}
 			MenuItem claimItem = menu.findItem(R.id.action_claim_ack);
-			if (claimItem != null) {
-				if (adapter.getSelectedCount() != 1) {
-					claimItem.setVisible(false);
-				} else {
-					Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
-					claimItem.setVisible(canClaimReadAckOn(message));
+			MenuItem resendItem = menu.findItem(R.id.action_resend);
+			BiConsumer<MenuItem, Predicate<Message>> oneItemConsumer = (item, predicate) -> {
+				if (item != null) {
+					if (adapter.getSelectedCount() != 1) {
+						item.setVisible(false);
+					} else {
+						Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
+						item.setVisible(predicate.test(message));
+					}
 				}
-			}
+			};
+			oneItemConsumer.accept(claimItem, this::canClaimReadAckOn);
+			oneItemConsumer.accept(resendItem, this::canBeResend);
 			return false;
 		}
 
@@ -148,11 +161,21 @@ public class ChatFragment extends Fragment {
 				return true;
 			} else if (id == R.id.action_claim_ack) {
 				if (selectedMessageIds.size() == 1) {
-					Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
+					Message message = adapter.getIfSingleSelected();
 					if (canClaimReadAckOn(message)) {
 						viewModel.claimMessageReadAck(message);
 						Toast.makeText(requireContext(), R.string.action_claim_ack_ongoing, Toast.LENGTH_SHORT).show();
 					}
+				}
+				return true;
+			} else if (id == R.id.action_resend) {
+				Message message = adapter.getIfSingleSelected();
+				if (canBeResend(message)) {
+					viewModel.requestManualResend(Objects.requireNonNull(message), aborted -> {
+						if (aborted) {
+							Toast.makeText(requireContext(), R.string.message_resend_failed, Toast.LENGTH_SHORT).show();
+						}
+					});
 				}
 				return true;
 			}

@@ -1,7 +1,5 @@
 package org.sedo.satmesh.nearby;
 
-import static org.sedo.satmesh.signal.SignalManager.getAddress;
-
 import android.content.Context;
 import android.util.Log;
 
@@ -24,18 +22,15 @@ import org.sedo.satmesh.model.rt.RouteRequestEntryDao;
 import org.sedo.satmesh.model.rt.RouteUsage;
 import org.sedo.satmesh.model.rt.RouteUsageDao;
 import org.sedo.satmesh.nearby.NearbyManager.TransmissionCallback;
-import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.proto.RoutedMessage;
 import org.sedo.satmesh.proto.RoutedMessageBody;
-import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeRepository.NodeCallback;
 import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.ObjectHolder;
-import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
 
 import java.util.HashMap;
@@ -58,7 +53,6 @@ public class NearbyRouteManager {
 	private static final String TAG = "NearbyRouteManager";
 
 	private final NearbyManager nearbyManager;
-	private final SignalManager signalManager;
 	private final NodeRepository nodeRepository;
 	private final RouteEntryDao routeEntryDao;
 	private final RouteUsageDao routeUsageDao;
@@ -75,11 +69,8 @@ public class NearbyRouteManager {
 	 */
 	protected NearbyRouteManager(
 			@NonNull NearbyManager nearbyManager,
-			@NonNull SignalManager signalManager,
-			@NonNull Context context,
-			@NonNull ExecutorService executor) {
+			@NonNull Context context, @NonNull ExecutorService executor) {
 		this.nearbyManager = nearbyManager;
-		this.signalManager = signalManager;
 		AppDatabase appDatabase = AppDatabase.getDB(context);
 		this.nodeRepository = new NodeRepository(context);
 		this.routeEntryDao = appDatabase.routeEntryDao();
@@ -103,10 +94,8 @@ public class NearbyRouteManager {
 	 * @return A {@code Map<String, String>} containing only the non-null parameters.
 	 */
 	private static Map<String, String> params(
-			String destNodeUuid,
-			String interactingNodeUuid,
-			String statusOrReason,
-			int hops) {
+			String destNodeUuid, String interactingNodeUuid,
+			String statusOrReason, int hops) {
 
 		Map<String, String> map = new HashMap<>();
 
@@ -139,8 +128,9 @@ public class NearbyRouteManager {
 	 *                             of the broadcast event. This is to help log of
 	 *                             request init first, in the corresponding case.
 	 */
-	private void sendRouteRequestMessage(@NonNull String recipientAddressName, @NonNull RouteRequestMessage messageBody,
-	                                     @NonNull BroadcastRequestCallback broadcastCallback) {
+	private void sendRouteRequestMessage(
+			@NonNull String recipientAddressName, @NonNull RouteRequestMessage messageBody,
+			@NonNull BroadcastRequestCallback broadcastCallback) {
 		executor.execute(() -> {
 			try {
 				Log.d(TAG, "Sending RouteRequestMessage to " + recipientAddressName + " for UUID: " + messageBody.getUuid());
@@ -148,18 +138,11 @@ public class NearbyRouteManager {
 						.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_REQ)
 						.setBinaryData(messageBody.toByteString())
 						.build();
-				// Encrypt message
-				SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
-				CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, nearbyMessageBody.toByteArray());
-
-				// Encapsulate the message
-				NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
-						.setExchange(false)
-						.setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
 
 				// NearbyManager handles encryption and payload sending
 				// The callback needs to handle the payload ID for tracking
-				nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName,
+				nearbyManager.encryptAndSendInternal( // endpoint ID will be automatically evaluated
+						null, recipientAddressName, nearbyMessageBody,
 						new TransmissionCallback() {
 							@Override
 							public void onSuccess(@NonNull Payload payload) {
@@ -398,15 +381,6 @@ public class NearbyRouteManager {
 					.setBinaryData(messageBody.toByteString())
 					.build();
 
-			// Encrypt message
-			SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
-			CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, nearbyMessageBody.toByteArray());
-
-			// Encapsulate the message
-			NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
-					.setExchange(false)
-					.setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
-
 			TransmissionCallback sendingCallbackWrapper = new TransmissionCallback() {
 				@Override
 				public void onSuccess(@NonNull Payload payload) {
@@ -420,7 +394,7 @@ public class NearbyRouteManager {
 					sendingCallback.onFailure(payload, cause);
 				}
 			};
-			nearbyManager.sendNearbyMessageInternal(nearbyMessage, recipientAddressName, sendingCallbackWrapper);
+			nearbyManager.encryptAndSendInternal(null, recipientAddressName, nearbyMessageBody, sendingCallbackWrapper);
 		} catch (Exception e) {
 			Log.e(TAG, "Error building or sending RouteResponseMessage to " + recipientAddressName + ": " + e.getMessage(), e);
 			sendingCallback.onFailure(null, e);
@@ -945,18 +919,8 @@ public class NearbyRouteManager {
 		try {
 			Log.d(TAG, "Sending RoutedMessage (outer) to next hop: " + nextHopAddressName);
 
-			// Encrypt the OUTER NearbyMessageBody for the next hop (hop-by-hop encryption)
-			SignalProtocolAddress nextHopAddress = getAddress(nextHopAddressName);
-			CiphertextMessage ciphertextMessage = signalManager.encryptMessage(nextHopAddress, outerNearbyMessageBody.toByteArray());
-
-			// Encapsulate into the final NearbyMessage
-			NearbyMessage nearbyMessage = NearbyMessage.newBuilder()
-					.setExchange(false)
-					.setBody(ByteString.copyFrom(ciphertextMessage.serialize()))
-					.build();
-
 			// Use NearbyManager to send the raw payload bytes
-			nearbyManager.sendNearbyMessageInternal(nearbyMessage, nextHopAddressName,
+			nearbyManager.encryptAndSendInternal(null, nextHopAddressName, outerNearbyMessageBody,
 					Objects.requireNonNullElse(callback, TransmissionCallback.NULL_CALLBACK));
 		} catch (Exception e) {
 			Log.e(TAG, "Error building or sending RoutedMessage to " + nextHopAddressName + ": " + e.getMessage(), e);
@@ -1081,8 +1045,8 @@ public class NearbyRouteManager {
 			CiphertextMessage encryptedRoutedMessageBody;
 			try {
 				// Encrypt RoutedMessageBody with final destination's public key (E2E encryption)
-				SignalProtocolAddress finalDestinationAddress = getAddress(finalDestinationAddressName);
-				encryptedRoutedMessageBody = signalManager.encryptMessage(finalDestinationAddress, routedMessageBody.toByteArray());
+				encryptedRoutedMessageBody = NearbySignalMessenger.getInstance().encrypt(routedMessageBody.toByteArray(), finalDestinationAddressName);
+				Log.d(TAG, "RoutedMessageBody encrypted for " + finalDestinationAddressName);
 			} catch (Exception e) {
 				Log.e(TAG, "Failed to E2E encrypt RoutedMessageBody for " + finalDestinationAddressName + ": " + e.getMessage(), e);
 				callback.onFailure(null, e);

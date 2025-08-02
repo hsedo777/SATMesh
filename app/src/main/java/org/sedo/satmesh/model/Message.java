@@ -3,6 +3,7 @@ package org.sedo.satmesh.model;
 
 import static androidx.room.ForeignKey.CASCADE;
 
+import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
@@ -152,6 +153,21 @@ public class Message {
 	 */
 	@ColumnInfo(name = "lastAttempt")
 	private Long lastSendingAttempt;
+
+	public Message() {
+	}
+
+	public Message(@NonNull Message message) {
+		this.id = message.id;
+		this.payloadId = message.payloadId;
+		this.content = message.content;
+		this.timestamp = message.timestamp;
+		this.status = message.status;
+		this.type = message.type;
+		this.senderNodeId = message.senderNodeId;
+		this.recipientNodeId = message.recipientNodeId;
+		this.lastSendingAttempt = message.lastSendingAttempt;
+	}
 
 	/**
 	 * Test if the input integer value is a valid status code

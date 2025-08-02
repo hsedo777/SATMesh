@@ -631,17 +631,19 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	private void resendMessage(
 			@NonNull Message message, @NonNull String recipientAddressName,
 			@Nullable TransmissionCallback callback, @Nullable Consumer<Boolean> aborted) {
+		// Create a copy to avoid mutating the original object in the UI layer directly.
+		Message messageToResend = new Message(message);
 		// Before attempting to resend, update its status to PENDING
-		message.setStatus(Message.MESSAGE_STATUS_PENDING);
-		message.setLastSendingAttempt(System.currentTimeMillis());
-		messageRepository.updateMessage(message, onSuccess -> {
+		messageToResend.setStatus(Message.MESSAGE_STATUS_PENDING);
+		messageToResend.setLastSendingAttempt(System.currentTimeMillis());
+		messageRepository.updateMessage(messageToResend, onSuccess -> {
 			if (onSuccess) {
 				TextMessage text = TextMessage.newBuilder()
-						.setContent(message.getContent())
-						.setPayloadId(Objects.requireNonNullElse(message.getPayloadId(), 0L))
-						.setTimestamp(message.getTimestamp())
+						.setContent(messageToResend.getContent())
+						.setPayloadId(Objects.requireNonNullElse(messageToResend.getPayloadId(), 0L))
+						.setTimestamp(messageToResend.getTimestamp())
 						.build();
-				sendEncryptedTextMessage(recipientAddressName, text, message.getId(),
+				sendEncryptedTextMessage(recipientAddressName, text, messageToResend.getId(),
 						Objects.requireNonNullElse(callback, TransmissionCallback.NULL_CALLBACK));
 			} else { // if updating fails, abort the whole process
 				if (aborted != null) {

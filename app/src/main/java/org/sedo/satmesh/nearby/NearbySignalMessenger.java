@@ -709,7 +709,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						// This should not happen
 						Log.w(TAG, "Message with ID " + message.getId() + " has no last attempt while having status " + status + ".");
 					}
-					resendMessage(message, remoteNode.getAddressName(), callback, toContinue::post); // This will update UI if it observes
+					resendMessage(message, remoteNode.getAddressName(), callback, isAborted -> toContinue.post(!isAborted));
 				}
 			} else {
 				Log.d(TAG, "No failed messages found to resend for " + remoteNode.getDisplayName());

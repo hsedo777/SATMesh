@@ -426,6 +426,7 @@ public class ChatViewModel extends AndroidViewModel {
 		Node currentRemoteNode = remoteNodeLiveData.getValue();
 		if (currentRemoteNode == null || currentRemoteNode.getAddressName() == null) {
 			Log.w(TAG, "requestManualResend: Remote node not set, cannot resend message.");
+			aborted.accept(true);
 			return;
 		}
 		nearbySignalMessenger.handleMessageManualResend(message, currentRemoteNode, aborted);

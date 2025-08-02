@@ -35,6 +35,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 public class ChatViewModel extends AndroidViewModel {
 
@@ -412,6 +413,22 @@ public class ChatViewModel extends AndroidViewModel {
 
 	public void claimMessageReadAck(@NonNull Message message) {
 		nearbySignalMessenger.claimReadAck(message);
+	}
+
+	/**
+	 * Requests manual resend of a message.
+	 *
+	 * @param message The message to be resent.
+	 * @param aborted Called if the resend operation was been rollback
+	 * @see NearbySignalMessenger#handleMessageManualResend(Message, Node, Consumer)
+	 */
+	public void requestManualResend(@NonNull Message message, @NonNull Consumer<Boolean> aborted) {
+		Node currentRemoteNode = remoteNodeLiveData.getValue();
+		if (currentRemoteNode == null || currentRemoteNode.getAddressName() == null) {
+			Log.w(TAG, "requestManualResend: Remote node not set, cannot resend message.");
+			return;
+		}
+		nearbySignalMessenger.handleMessageManualResend(message, currentRemoteNode, aborted);
 	}
 
 	/**

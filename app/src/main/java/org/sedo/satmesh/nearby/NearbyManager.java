@@ -20,6 +20,7 @@ import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
+import com.google.protobuf.ByteString;
 
 import org.sedo.satmesh.model.rt.RouteEntry;
 import org.sedo.satmesh.nearby.NearbyRouteManager.RouteAndUsage;
@@ -31,6 +32,7 @@ import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.DataLog.TransmissionEventType;
 import org.sedo.satmesh.utils.DataLog.TransmissionStatus;
+import org.whispersystems.libsignal.protocol.CiphertextMessage;
 
 import java.util.List;
 import java.util.Map;
@@ -541,6 +543,37 @@ public class NearbyManager {
 	}
 
 	/**
+	 * Encrypts a {@link NearbyMessageBody} and sends it to a specified recipient, assumed directly connected.
+	 *
+	 * @param endpointId           The ID of the endpoint to send the message to. If {@code null},
+	 *                             it will be looked up using {@link #getLinkedEndpointId(String)}.
+	 * @param recipientAddressName The address name of the recipient.
+	 * @param plainMessageBody     The unencrypted {@link NearbyMessageBody} containing the application-level
+	 * @param transmissionCallback A callback that receives the {@link Payload}
+	 * @see #sendNearbyMessage(String, byte[], TransmissionCallback)
+	 */
+	protected void encryptAndSendInternal(
+			@Nullable String endpointId, @NonNull String recipientAddressName,
+			@NonNull NearbyMessageBody plainMessageBody, @NonNull TransmissionCallback transmissionCallback) {
+		try {
+			final String endpoint = endpointId == null ? getLinkedEndpointId(recipientAddressName) : endpointId;
+			if (endpoint == null) {
+				Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");
+				transmissionCallback.onFailure(null, null); // Notify failure
+				return;
+			}
+			CiphertextMessage ciphertextMessage = NearbySignalMessenger.getInstance().encrypt(plainMessageBody.toByteArray(), recipientAddressName);
+			// Encapsulate the message
+			NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(false).setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
+			sendNearbyMessage(endpoint, nearbyMessage.toByteArray(), transmissionCallback);
+			Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
+		} catch (Exception e) {
+			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
+			transmissionCallback.onFailure(null, e); // Notify failure
+		}
+	}
+
+	/**
 	 * Sends a {@link NearbyMessageBody} to a specified recipient, attempting to use a direct Nearby Connections
 	 * link if available, or initiating route discovery and forwarding through the mesh network otherwise.
 	 * <p>
@@ -605,42 +638,8 @@ public class NearbyManager {
 				return;
 			}
 
-			try {
-				byte[] messageBytes = NearbySignalMessenger.getInstance().encryptBody(plainMessageBody, recipientAddressName).toByteArray();
-				sendNearbyMessage(endpointId, messageBytes, transmissionCallback);
-				Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
-			} catch (Exception e) {
-				Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-				transmissionCallback.onFailure(null, e); // Notify failure
-			}
+			encryptAndSendInternal(endpointId, recipientAddressName, plainMessageBody, transmissionCallback);
 		});
-	}
-
-	/**
-	 * This method handles the serialization of the NearbyMessage object and sends it via Nearby Connections.
-	 *
-	 * @param nearbyMessage        The NearbyMessage protobuf object to send.
-	 * @param recipientAddressName The Signal Protocol address name of the recipient.
-	 * @param callback             Callback for success or failure of the Nearby Connections send operation.
-	 */
-	protected void sendNearbyMessageInternal(
-			@NonNull NearbyMessage nearbyMessage, @NonNull String recipientAddressName,
-			@NonNull TransmissionCallback callback) {
-		final String endpointId = getLinkedEndpointId(recipientAddressName);
-		if (endpointId == null) {
-			Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");
-			callback.onFailure(null, null); // Notify failure
-			return;
-		}
-
-		try {
-			byte[] messageBytes = nearbyMessage.toByteArray();
-			sendNearbyMessage(endpointId, messageBytes, callback);
-			Log.d(TAG, "NearbyMessage (type: " + (nearbyMessage.getExchange() ? "KEY_EXCHANGE" : "ENCRYPTED_DATA") + ") sent to " + recipientAddressName);
-		} catch (Exception e) {
-			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-			callback.onFailure(null, e); // Notify failure
-		}
 	}
 
 	/**
@@ -652,7 +651,7 @@ public class NearbyManager {
 	 * @param callback   A callback that accepts the sent {@link Payload}
 	 *                   The {@link Payload} argument will be null if the `data` was null or if the send operation failed before payload creation.
 	 */
-	private void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable TransmissionCallback callback) {
+	protected void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable TransmissionCallback callback) {
 		if (data.length == 0) {
 			Log.e(TAG, "Attempted to send null or empty data to " + endpointId);
 			if (callback != null) callback.onFailure(null, null);

@@ -619,6 +619,43 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	}
 
 	/**
+	 * Resends a message to a recipient.
+	 *
+	 * @param message              The message to resend
+	 * @param recipientAddressName The recipient address name
+	 * @param callback             The callback to notify the caller of the success/failure
+	 *                             of sending the message
+	 * @param aborted              If not null, it's called on transmission aborted caused by
+	 *                             a failure of setting message up to date in the database.
+	 */
+	private void resendMessage(
+			@NonNull Message message, @NonNull String recipientAddressName,
+			@Nullable TransmissionCallback callback, @Nullable Consumer<Boolean> aborted) {
+		// Create a copy to avoid mutating the original object in the UI layer directly.
+		Message messageToResend = new Message(message);
+		// Before attempting to resend, update its status to PENDING
+		messageToResend.setStatus(Message.MESSAGE_STATUS_PENDING);
+		messageToResend.setLastSendingAttempt(System.currentTimeMillis());
+		messageRepository.updateMessage(messageToResend, onSuccess -> {
+			if (onSuccess) {
+				TextMessage text = TextMessage.newBuilder()
+						.setContent(messageToResend.getContent())
+						.setPayloadId(Objects.requireNonNullElse(messageToResend.getPayloadId(), 0L))
+						.setTimestamp(messageToResend.getTimestamp())
+						.build();
+				sendEncryptedTextMessage(recipientAddressName, text, messageToResend.getId(),
+						Objects.requireNonNullElse(callback, TransmissionCallback.NULL_CALLBACK));
+			} else { // if updating fails, abort the whole process
+				if (aborted != null) {
+					aborted.accept(true);
+				} else {
+					Log.w(TAG, "Message update failed for " + message.getId() + " during resend, but no abort callback was provided.");
+				}
+			}
+		});
+	}
+
+	/**
 	 * Attempts to resend messages that previously failed to send to the
 	 * remote node and tries to send delivery ack for messages the previous attempt failed.
 	 * This method should be called when a secure session is established.
@@ -638,6 +675,21 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				toContinue.post(true);
 				final ObjectHolder<Boolean> firstSucceed = new ObjectHolder<>();
 				firstSucceed.post(false);
+				TransmissionCallback callback = new TransmissionCallback() {
+					@Override
+					public void onSuccess(@NonNull Payload payload) {
+						// Great
+						if (!firstSucceed.getValue() && onFirstSuccess != null) {
+							onFirstSuccess.accept(null);
+						}
+						firstSucceed.post(true);
+					}
+
+					@Override
+					public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+						toContinue.post(false);
+					}
+				};
 				Log.d(TAG, "Found " + messages.size() + " message(s) to resend to " + remoteNode.getAddressName());
 				for (Message message : messages) {
 					if (!toContinue.getValue()) {
@@ -663,36 +715,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						// This should not happen
 						Log.w(TAG, "Message with ID " + message.getId() + " has no last attempt while having status " + status + ".");
 					}
-					// Before attempting to resend, update its status to PENDING
-					message.setStatus(Message.MESSAGE_STATUS_PENDING);
-					message.setLastSendingAttempt(System.currentTimeMillis());
-					messageRepository.updateMessage(message, onSuccess -> {
-						if (onSuccess) {
-							TextMessage text = TextMessage.newBuilder()
-									.setContent(message.getContent())
-									.setPayloadId(Objects.requireNonNullElse(message.getPayloadId(), 0L))
-									.setTimestamp(message.getTimestamp())
-									.build();
-							// Send the message. nearbySignalMessenger will handle success/failure status update.
-							sendEncryptedTextMessage(remoteNode.getAddressName(), text, message.getId(), new TransmissionCallback() {
-								@Override
-								public void onSuccess(@NonNull Payload payload) {
-									// Great
-									if (!firstSucceed.getValue() && onFirstSuccess != null) {
-										onFirstSuccess.accept(null);
-									}
-									firstSucceed.post(true);
-								}
-
-								@Override
-								public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-									toContinue.post(false);
-								}
-							});
-						} else {
-							toContinue.post(false);
-						}
-					}); // This will update UI if it observes
+					resendMessage(message, remoteNode.getAddressName(), callback, isAborted -> toContinue.post(!isAborted));
 				}
 			} else {
 				Log.d(TAG, "No failed messages found to resend for " + remoteNode.getDisplayName());
@@ -706,6 +729,27 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				}
 			}
 		});
+	}
+
+	/**
+	 * Handles manual resend of a message.
+	 *
+	 * @param message    The message to resend
+	 * @param remoteNode The remote node
+	 * @param aborted    It's called on transmission aborted caused by a failure of setting message
+	 *                   up to date in the database or not eligibility of the message for resend.
+	 */
+	public void handleMessageManualResend(@NonNull Message message, @NonNull Node remoteNode, @NonNull Consumer<Boolean> aborted) {
+		if (!message.isSentTo(remoteNode) || message.hadReceivedAck()) {
+			aborted.accept(true);
+			return;
+		}
+		if (message.isOnTransmissionQueue()) {
+			// The message is currently on transmission
+			aborted.accept(true);
+			return;
+		}
+		resendMessage(message, remoteNode.getAddressName(), null, aborted);
 	}
 
 	/**

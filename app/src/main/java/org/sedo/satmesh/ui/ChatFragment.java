@@ -75,6 +75,12 @@ public class ChatFragment extends Fragment {
 					&& Objects.equals(ChatFragment.this.hostNode.getId(), message.getSenderNodeId());
 		}
 
+		private boolean canBeResend(Message message) {
+			Node recipient = viewModel.getRemoteNodeLiveData().getValue();
+			return message != null && message.isSentTo(recipient) && !message.hadReceivedAck()
+					&& !message.isOnTransmissionQueue();
+		}
+
 		@Override
 		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
 			// Called after onCreateActionMode and whenever the ActionMode is invalidated.
@@ -85,13 +91,13 @@ public class ChatFragment extends Fragment {
 				copyItem.setVisible(adapter.getSelectedCount() == 1);
 			}
 			MenuItem claimItem = menu.findItem(R.id.action_claim_ack);
+			MenuItem resendItem = menu.findItem(R.id.action_resend);
+			Message message = adapter.getIfSingleSelected();
 			if (claimItem != null) {
-				if (adapter.getSelectedCount() != 1) {
-					claimItem.setVisible(false);
-				} else {
-					Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
-					claimItem.setVisible(canClaimReadAckOn(message));
-				}
+				claimItem.setVisible(canClaimReadAckOn(message));
+			}
+			if (resendItem != null) {
+				resendItem.setVisible(canBeResend(message));
 			}
 			return false;
 		}
@@ -148,11 +154,21 @@ public class ChatFragment extends Fragment {
 				return true;
 			} else if (id == R.id.action_claim_ack) {
 				if (selectedMessageIds.size() == 1) {
-					Message message = adapter.getMessageById(adapter.getSelectedMessageIds().iterator().next());
+					Message message = adapter.getIfSingleSelected();
 					if (canClaimReadAckOn(message)) {
 						viewModel.claimMessageReadAck(message);
 						Toast.makeText(requireContext(), R.string.action_claim_ack_ongoing, Toast.LENGTH_SHORT).show();
 					}
+				}
+				return true;
+			} else if (id == R.id.action_resend) {
+				Message message = adapter.getIfSingleSelected();
+				if (canBeResend(message)) {
+					viewModel.requestManualResend(Objects.requireNonNull(message), isAborted -> {
+						if (isAborted) {
+							requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.message_resend_failed, Toast.LENGTH_SHORT).show());
+						}
+					});
 				}
 				return true;
 			}

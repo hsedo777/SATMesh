@@ -3,6 +3,7 @@ package org.sedo.satmesh.model;
 
 import static androidx.room.ForeignKey.CASCADE;
 
+import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
@@ -153,6 +154,21 @@ public class Message {
 	@ColumnInfo(name = "lastAttempt")
 	private Long lastSendingAttempt;
 
+	public Message() {
+	}
+
+	public Message(@NonNull Message message) {
+		this.id = message.id;
+		this.payloadId = message.payloadId;
+		this.content = message.content;
+		this.timestamp = message.timestamp;
+		this.status = message.status;
+		this.type = message.type;
+		this.senderNodeId = message.senderNodeId;
+		this.recipientNodeId = message.recipientNodeId;
+		this.lastSendingAttempt = message.lastSendingAttempt;
+	}
+
 	/**
 	 * Test if the input integer value is a valid status code
 	 *
@@ -258,6 +274,34 @@ public class Message {
 
 	public void setLastSendingAttempt(Long lastSendingAttempt) {
 		this.lastSendingAttempt = lastSendingAttempt;
+	}
+
+	/**
+	 * Checks if the message is sent to the specified recipient.
+	 *
+	 * @param recipient The recipient Node.
+	 * @return {@code true} if the message is sent to the specified recipient.
+	 */
+	public boolean isSentTo(Node recipient) {
+		return recipient != null && Objects.equals(recipientNodeId, recipient.getId());
+	}
+
+	/**
+	 * Checks if the message has received an ack from the message's recipient.
+	 *
+	 * @return {@code true} if the message has received an ack from the message's recipient.
+	 */
+	public boolean hadReceivedAck() {
+		return status == MESSAGE_STATUS_DELIVERED || status == MESSAGE_STATUS_READ;
+	}
+
+	/**
+	 * Checks if the message is currently in the transmission queue.
+	 *
+	 * @return {@code true} if the message is currently in the transmission queue.
+	 */
+	public boolean isOnTransmissionQueue() {
+		return status == MESSAGE_STATUS_PENDING && lastSendingAttempt != null;
 	}
 
 	@Override

@@ -166,7 +166,7 @@ public class ChatFragment extends Fragment {
 				if (canBeResend(message)) {
 					viewModel.requestManualResend(Objects.requireNonNull(message), aborted -> {
 						if (aborted) {
-							Toast.makeText(requireContext(), R.string.message_resend_failed, Toast.LENGTH_SHORT).show();
+							requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.message_resend_failed, Toast.LENGTH_SHORT).show());
 						}
 					});
 				}

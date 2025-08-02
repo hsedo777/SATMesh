@@ -180,9 +180,9 @@ public class ChatAdapter extends ListAdapter<Message, ChatAdapter.MessageViewHol
 	}
 
 	/**
-	 * Gets the selected message if ony one is selected
+	 * Gets the selected message if only one is selected
 	 *
-	 * @return {@code null} if no message is selected or more than on are selected.
+	 * @return {@code null} if no message is selected or more than one are selected.
 	 */
 	@Nullable
 	public Message getIfSingleSelected() {

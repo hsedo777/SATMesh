@@ -3,7 +3,6 @@ package org.sedo.satmesh.model;
 
 import static androidx.room.ForeignKey.CASCADE;
 
-import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
@@ -262,13 +261,22 @@ public class Message {
 	}
 
 	/**
-	 * Checks if the message has received an ack from the recipient.
+	 * Checks if the message is sent to the specified recipient.
 	 *
 	 * @param recipient The recipient Node.
-	 * @return {@code true} if the message has received an ack from the recipient.
+	 * @return {@code true} if the message is sent to the specified recipient.
 	 */
-	public boolean hadReceivedAckFrom(@NonNull Node recipient) {
-		return Objects.equals(recipientNodeId, recipient.getId()) && (status == MESSAGE_STATUS_DELIVERED || status == MESSAGE_STATUS_READ);
+	public boolean isSentTo(Node recipient) {
+		return recipient != null && Objects.equals(recipientNodeId, recipient.getId());
+	}
+
+	/**
+	 * Checks if the message has received an ack from the message's recipient.
+	 *
+	 * @return {@code true} if the message has received an ack from the message's recipient.
+	 */
+	public boolean hadReceivedAck() {
+		return status == MESSAGE_STATUS_DELIVERED || status == MESSAGE_STATUS_READ;
 	}
 
 	/**

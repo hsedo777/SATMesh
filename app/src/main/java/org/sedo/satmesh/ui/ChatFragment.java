@@ -77,7 +77,7 @@ public class ChatFragment extends Fragment {
 
 		private boolean canBeResend(Message message) {
 			Node recipient = viewModel.getRemoteNodeLiveData().getValue();
-			return message != null && recipient != null && !message.hadReceivedAckFrom(recipient)
+			return message != null && message.isSentTo(recipient) && !message.hadReceivedAck()
 					&& !message.isOnTransmissionQueue();
 		}
 

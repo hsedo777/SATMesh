@@ -738,7 +738,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 *                   up to date in the database or not eligibility of the message for resend.
 	 */
 	public void handleMessageManualResend(@NonNull Message message, @NonNull Node remoteNode, @NonNull Consumer<Boolean> aborted) {
-		if (message.hadReceivedAckFrom(remoteNode)) {
+		if (!message.isSentTo(remoteNode) || message.hadReceivedAck()) {
 			aborted.accept(true);
 			return;
 		}

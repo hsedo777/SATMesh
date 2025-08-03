@@ -53,13 +53,18 @@ public class RouteEntry {
 	@ColumnInfo(name = "hop_count")
 	private Integer hopCount;
 
+	/*
+	 * The date of last use of this route.
+	 * This timestamp is critical for implementing the 12-hour inactivity expiration logic.
+	 */
+	@ColumnInfo(name = "last_use_timestamp")
+	private Long lastUseTimestamp;
+
 	/**
 	 * Default constructor. Room requires a public no-argument constructor.
 	 */
 	public RouteEntry() {
 	}
-
-	// --- Getters ---
 
 	public Long getId() {
 		return id;
@@ -85,8 +90,6 @@ public class RouteEntry {
 		this.destinationNodeLocalId = destinationNodeLocalId;
 	}
 
-	// --- Setters ---
-
 	public Long getNextHopLocalId() {
 		return nextHopLocalId;
 	}
@@ -111,18 +114,24 @@ public class RouteEntry {
 		this.hopCount = hopCount;
 	}
 
+	public Long getLastUseTimestamp() {
+		return lastUseTimestamp;
+	}
+
+	public void setLastUseTimestamp(Long lastUseTimestamp) {
+		this.lastUseTimestamp = lastUseTimestamp;
+	}
+
 	/**
-	 * Checks if the route path is "opened" or fully established,
-	 * meaning the next hop is defined. Note that the next hop is defined at time of handling
-	 * a positive route request response. And the previous hop is always known at the route
-	 * entry creation. Its value is {@code null} if the creator is the initiator of the route
-	 * request, and a non-null value else.
-	 * This indicates that the discovery process for this segment of the route is complete.
+	 * Checks if the route path is "opened" or fully established, meaning the date of last
+	 * use of the route is defined. Note that the value is defined at time of handling
+	 * a positive route request response.
+	 * This indicates that the discovery process for this segment of the route is completed.
 	 *
-	 * @return true if nextHopLocalId is not null, false otherwise.
+	 * @return {@code true} if {@code lastUseTimestamp} is not null, {@code false} otherwise.
 	 */
 	public boolean isOpened() {
-		return nextHopLocalId != null;
+		return lastUseTimestamp != null;
 	}
 
 	@Override
@@ -130,12 +139,17 @@ public class RouteEntry {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		RouteEntry that = (RouteEntry) o;
-		return Objects.equals(discoveryUuid, that.discoveryUuid) && Objects.equals(destinationNodeLocalId, that.destinationNodeLocalId) && Objects.equals(nextHopLocalId, that.nextHopLocalId) && Objects.equals(previousHopLocalId, that.previousHopLocalId) && Objects.equals(hopCount, that.hopCount);
+		return Objects.equals(discoveryUuid, that.discoveryUuid)
+				&& Objects.equals(destinationNodeLocalId, that.destinationNodeLocalId)
+				&& Objects.equals(nextHopLocalId, that.nextHopLocalId)
+				&& Objects.equals(previousHopLocalId, that.previousHopLocalId)
+				&& Objects.equals(hopCount, that.hopCount)
+				&& Objects.equals(lastUseTimestamp, that.lastUseTimestamp);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(discoveryUuid, destinationNodeLocalId, nextHopLocalId, previousHopLocalId, hopCount);
+		return Objects.hash(discoveryUuid, destinationNodeLocalId, nextHopLocalId, previousHopLocalId, hopCount, lastUseTimestamp);
 	}
 
 	@NonNull
@@ -148,6 +162,7 @@ public class RouteEntry {
 				", nextHopLocalId=" + nextHopLocalId +
 				", previousHopLocalId=" + previousHopLocalId +
 				", hopCount=" + hopCount +
+				", lastUseTimestamp=" + lastUseTimestamp +
 				'}';
 	}
 
@@ -156,46 +171,47 @@ public class RouteEntry {
 	 *
 	 * @author hsedo777
 	 */
-	public static class RouteWithUsageTimestamp {
+	public static class RouteWithUsage {
 		@Embedded
-		public RouteEntry routeEntry;
-		public long last_used_timestamp;
-
-		public RouteWithUsageTimestamp(@NonNull RouteEntry routeEntry, long last_used_timestamp) {
-			this.routeEntry = routeEntry;
-			this.last_used_timestamp = last_used_timestamp;
-		}
-
-		// Getter methods
 		@NonNull
-		public RouteEntry getRouteEntry() {
-			return routeEntry;
+		public RouteEntry routeEntry;
+		@Embedded(prefix = "usage_")
+		public RouteUsage routeUsage;
+		@Embedded(prefix = "backtracking_")
+		public RouteUsageBacktracking backtracking;
+
+		public RouteWithUsage(@NonNull RouteEntry routeEntry, RouteUsage routeUsage, RouteUsageBacktracking backtracking) {
+			this.routeEntry = routeEntry;
+			this.routeUsage = routeUsage;
+			this.backtracking = backtracking;
 		}
 
-		public long getLastUsedTimestamp() {
-			return last_used_timestamp;
+		public boolean isForBacktracking() {
+			return backtracking != null;
+		}
+
+		public boolean isWithoutUsage() {
+			return routeUsage == null && backtracking == null;
 		}
 
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) return true;
 			if (o == null || getClass() != o.getClass()) return false;
-			RouteWithUsageTimestamp that = (RouteWithUsageTimestamp) o;
-			return last_used_timestamp == that.last_used_timestamp &&
-					Objects.equals(routeEntry, that.routeEntry);
+			RouteWithUsage that = (RouteWithUsage) o;
+			return Objects.equals(routeEntry, that.routeEntry);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(routeEntry, last_used_timestamp);
+			return Objects.hash(routeEntry);
 		}
 
 		@NonNull
 		@Override
 		public String toString() {
-			return "RouteWithUsageTimestamp{" +
+			return "RouteWithUsage{" +
 					"routeEntry=" + routeEntry +
-					", last_used_timestamp=" + last_used_timestamp +
 					'}';
 		}
 	}

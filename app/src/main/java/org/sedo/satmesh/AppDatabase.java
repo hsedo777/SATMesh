@@ -25,6 +25,8 @@ import org.sedo.satmesh.model.rt.RouteEntryDao;
 import org.sedo.satmesh.model.rt.RouteRequestEntry;
 import org.sedo.satmesh.model.rt.RouteRequestEntryDao;
 import org.sedo.satmesh.model.rt.RouteUsage;
+import org.sedo.satmesh.model.rt.RouteUsageBacktracking;
+import org.sedo.satmesh.model.rt.RouteUsageBacktrackingDao;
 import org.sedo.satmesh.model.rt.RouteUsageDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyEntity;
@@ -40,8 +42,8 @@ import org.sedo.satmesh.utils.AndroidKeyManager;
 		SignalSessionEntity.class, SignalPreKeyEntity.class,
 		SignalSignedPreKeyEntity.class, SignalIdentityKeyEntity.class,
 		SignalKeyExchangeState.class, RouteEntry.class, RouteRequestEntry.class,
-		RouteUsage.class, BroadcastStatusEntry.class},
-		version = 5)
+		RouteUsage.class, BroadcastStatusEntry.class, RouteUsageBacktracking.class},
+		version = 6)
 public abstract class AppDatabase extends RoomDatabase {
 
 	// Define migrations here
@@ -225,4 +227,6 @@ public abstract class AppDatabase extends RoomDatabase {
 	public abstract RouteRequestEntryDao routeRequestEntryDao();
 
 	public abstract BroadcastStatusEntryDao broadcastStatusEntryDao();
+
+	public abstract RouteUsageBacktrackingDao routeUsageBacktrackingDao();
 }

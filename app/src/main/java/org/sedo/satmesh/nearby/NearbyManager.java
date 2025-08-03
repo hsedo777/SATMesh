@@ -23,7 +23,6 @@ import com.google.android.gms.nearby.connection.Strategy;
 import com.google.protobuf.ByteString;
 
 import org.sedo.satmesh.model.rt.RouteEntry;
-import org.sedo.satmesh.nearby.NearbyRouteManager.RouteAndUsage;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.RouteResponseMessage;
@@ -588,7 +587,7 @@ public class NearbyManager {
 	 * <li>If an active route exists, the {@code plainMessageBody} is immediately sent
 	 * through that route using {@link NearbyRouteManager#sendMessageThroughRoute(String, String, NearbyMessageBody, TransmissionCallback)}.</li>
 	 * <li>If no active route is found, route discovery is initiated via
-	 * {@link NearbyRouteManager#initiateRouteDiscovery(String, java.util.function.Consumer, java.util.function.Consumer)}.
+	 * {@link NearbyRouteManager#discoverRouteIfNeeded(String, java.util.function.Consumer, java.util.function.Consumer, String)}.
 	 * Upon successful route discovery, the message will then be sent through the newly found route.</li>
 	 * </ul>
 	 * </li>
@@ -621,16 +620,9 @@ public class NearbyManager {
 				Log.e(TAG, "There is no direct connection to address '" + recipientAddressName + "', we are going to attempt to find a route.");
 				try {
 					NearbyRouteManager nearbyRouteManager = NearbySignalMessenger.getInstance().getNearbyRouteManager();
-					RouteAndUsage routeAndUsage = nearbyRouteManager.getIfExistRouteAndUsageFor(recipientAddressName);
-					if (routeAndUsage == null || routeAndUsage.routeEntry == null) {
-						Log.d(TAG, "No route found. Init route discovery.");
-						nearbyRouteManager.initiateRouteDiscovery(recipientAddressName,
-								unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback),
-								onDiscoveryInitiatedCallback);
-					} else {
-						// There is a valid active route
-						nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback);
-					}
+					nearbyRouteManager.discoverRouteIfNeeded(recipientAddressName,
+							unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback),
+							onDiscoveryInitiatedCallback, localAddressName);
 				} catch (Exception e) {
 					Log.e(TAG, "Handling route for message transmission failed.", e);
 					transmissionCallback.onFailure(null, e); // Notify failure

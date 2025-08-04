@@ -60,6 +60,7 @@ message NearbyMessageBody {
     ROUTED_MESSAGE = 8;
     KNOWLEDGE = 9;
     CLAIM_READ_ACK = 10;
+    ROUTE_DESTROY = 11;
   }
   MessageType message_type = 1;
   /*
@@ -165,3 +166,8 @@ message RoutedMessage {
   bool for_backtracking = 7;
 }
 
+// For wrapping data when dispatching route destroying
+message RouteDestroyMessage {
+  // The UUID of the route to destroy.
+  string route_uuid = 1;
+}

@@ -16,6 +16,7 @@ import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.nearby.NearbySignalMessenger;
+import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.PersonalInfo;
 import org.sedo.satmesh.proto.TextMessage;
 import org.sedo.satmesh.ui.data.MessageRepository;
@@ -336,7 +337,7 @@ public class ChatViewModel extends AndroidViewModel {
 										.setTimestamp(message.getTimestamp())
 										.build();
 								nearbySignalMessenger.sendEncryptedTextMessage(currentRemoteNode.getAddressName(), text,
-										message.getId(), NearbyManager.TransmissionCallback.NULL_CALLBACK);
+										message.getId(), TransmissionCallback.NULL_CALLBACK);
 							} else {
 								Log.w(TAG, "Failed to update message sending attempt date.");
 								uiMessage.postValue(getApplication().getString(R.string.error_message_persistence_failed));

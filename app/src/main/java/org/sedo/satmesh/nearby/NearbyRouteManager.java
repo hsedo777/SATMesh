@@ -17,7 +17,7 @@ import org.sedo.satmesh.model.rt.RouteEntry.RouteWithUsage;
 import org.sedo.satmesh.model.rt.RouteRequestEntry;
 import org.sedo.satmesh.model.rt.RouteUsage;
 import org.sedo.satmesh.model.rt.RouteUsageBacktracking;
-import org.sedo.satmesh.nearby.NearbyManager.TransmissionCallback;
+import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.nearby.data.RouteRepository;
 import org.sedo.satmesh.nearby.data.SelectionCallback;
 import org.sedo.satmesh.proto.NearbyMessageBody;

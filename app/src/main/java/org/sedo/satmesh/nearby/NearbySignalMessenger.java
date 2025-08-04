@@ -1,7 +1,5 @@
 package org.sedo.satmesh.nearby;
 
-import static org.sedo.satmesh.nearby.NearbyManager.DeviceConnectionListener;
-import static org.sedo.satmesh.nearby.NearbyManager.PayloadListener;
 import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.CLAIM_READ_ACK;
 import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MESSAGE;
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
@@ -22,7 +20,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
-import org.sedo.satmesh.nearby.NearbyManager.TransmissionCallback;
+import org.sedo.satmesh.nearby.data.DeviceConnectionListener;
+import org.sedo.satmesh.nearby.data.PayloadListener;
+import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.MessageAck;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
@@ -302,10 +302,10 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * {@link NearbyMessage}. The {@code exchange} field of the {@link NearbyMessage} is
 	 * set to {@code false}, indicating that it's a standard message and not a key exchange.
 	 *
-	 * @param plainMessage The data to be encrypted.
-	 *                               It is assumed to be unencrypted at this point.
-	 * @param recipientAddressName   The {@code SignalProtocolAddress.name} of the
-	 *                               recipient to whom this encrypted message is intended.
+	 * @param plainMessage         The data to be encrypted.
+	 *                             It is assumed to be unencrypted at this point.
+	 * @param recipientAddressName The {@code SignalProtocolAddress.name} of the
+	 *                             recipient to whom this encrypted message is intended.
 	 * @return A {@link NearbyMessage} containing the encrypted {@link NearbyMessageBody}
 	 * ready to be sent over Nearby Connections.
 	 * @throws Exception If an error occurs during the encryption process, such as issues with
@@ -435,7 +435,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(true) // Indicate it's a key exchange message
 						.setKeyExchangeMessage(preKeyBundleExchange).build();
 
-				nearbyManager.sendNearbyMessage(endpointId,nearbyMessage.toByteArray(), TransmissionCallback.NULL_CALLBACK);
+				nearbyManager.sendNearbyMessage(endpointId, nearbyMessage.toByteArray(), TransmissionCallback.NULL_CALLBACK);
 			} catch (Exception e) {
 				Log.e(TAG, "Error initiating key exchange with " + remoteAddressName, e);
 			}

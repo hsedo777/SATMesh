@@ -296,7 +296,7 @@ public class NearbyRouteManager {
 					executor.execute(() -> {
 						// 2. Check for an existing, active, and recently used route to the destination
 						RouteWithUsage routeWithUsage = routeRepository.findMostRecentRouteByDestinationSync(node.getId());
-						if (routeWithUsage != null && routeWithUsage.routeEntry.isOpened()) {
+						if (routeWithUsage != null) {
 							Log.d(TAG, "Existing active route found for " + destinationNodeAddressName + ". Using it.");
 							// Notify the higher layer that a route is available
 							onRouteFoundCallback.accept(routeWithUsage);
@@ -568,7 +568,7 @@ public class NearbyRouteManager {
 	private void handleIncomingRouteRequestForRouteReuse(RouteRequestMessage routeRequest, Node sender, Consumer<Boolean> stopProcessing) {
 		executor.execute(() -> {
 			RouteWithUsage routeWithUsage = getIfExistRouteAndUsageFor(routeRequest.getDestinationNodeId());
-			if (routeWithUsage != null && routeWithUsage.routeEntry.isOpened()) {
+			if (routeWithUsage != null) {
 				Log.d(TAG, "Route already exists for intermediate node.");
 				if (routeRequest.getRemainingHops() >= routeWithUsage.routeEntry.getHopCount()) {
 					Log.d(TAG, "Route is usable. Sending ROUTE_FOUND response.");
@@ -619,7 +619,7 @@ public class NearbyRouteManager {
 					stopProcessing.accept(true);
 					return;
 				} else {
-					// Else the existing opened route is not usable, continue processing.
+					// Else the existing route is not usable, continue processing.
 					Log.d(TAG, "Route is stale. Continuing processing.");
 				}
 			}
@@ -967,7 +967,7 @@ public class NearbyRouteManager {
 		//       ii. Next_hop of this RouteEntry = N_sender of this response (the node that just sent us the ROUTE_FOUND)
 		//          and Previous_hop = N_previous_hop_of_the_request (the node that sent us the original request).
 		//       iii. Hop count = message_response_route.hop_count `+ ifSource ? 0 : 1` (the total hops from the original source).
-		//       iv. Mark the RouteEntry as "opened".
+		//       iv. Sets the RouteEntry `last_use_timestamp` to the current time.
 		//       v. Save the RouteEntry in the database.
 		//       vi. Delete all BroadcastStatusEntry entries for this UUID.
 		//    c. If N_previous_hop_of_the_request is NULL (meaning N_current is the original source node):
@@ -1242,7 +1242,7 @@ public class NearbyRouteManager {
 			Log.e(TAG, "No active route found for destination " + remoteAddressName + ". Please initiate route discovery.");
 			return null;
 		}
-		if (!entryUsage.routeEntry.isOpened()) {
+		if (entryUsage.routeEntry.getLastUseTimestamp() == null) {
 			Log.w(TAG, "Route found but unusable.");
 			return null;
 		}

@@ -122,18 +122,6 @@ public class RouteEntry {
 		this.lastUseTimestamp = lastUseTimestamp;
 	}
 
-	/**
-	 * Checks if the route path is "opened" or fully established, meaning the date of last
-	 * use of the route is defined. Note that the value is defined at time of handling
-	 * a positive route request response.
-	 * This indicates that the discovery process for this segment of the route is completed.
-	 *
-	 * @return {@code true} if {@code lastUseTimestamp} is not null, {@code false} otherwise.
-	 */
-	public boolean isOpened() {
-		return lastUseTimestamp != null;
-	}
-
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
@@ -192,15 +180,16 @@ public class RouteEntry {
 
 		@Override
 		public boolean equals(Object o) {
-			if (this == o) return true;
 			if (o == null || getClass() != o.getClass()) return false;
 			RouteWithUsage that = (RouteWithUsage) o;
-			return Objects.equals(routeEntry, that.routeEntry);
+			return Objects.equals(routeEntry, that.routeEntry) &&
+					Objects.equals(routeUsage, that.routeUsage) &&
+					Objects.equals(backtracking, that.backtracking);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(routeEntry);
+			return Objects.hash(routeEntry, routeUsage, backtracking);
 		}
 
 		@NonNull
@@ -208,6 +197,8 @@ public class RouteEntry {
 		public String toString() {
 			return "RouteWithUsage{" +
 					"routeEntry=" + routeEntry +
+					", routeUsage=" + routeUsage +
+					", backtracking=" + backtracking +
 					'}';
 		}
 	}

@@ -17,10 +17,11 @@ import org.sedo.satmesh.model.rt.RouteEntry.RouteWithUsage;
 import org.sedo.satmesh.model.rt.RouteRequestEntry;
 import org.sedo.satmesh.model.rt.RouteUsage;
 import org.sedo.satmesh.model.rt.RouteUsageBacktracking;
-import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.nearby.data.RouteRepository;
 import org.sedo.satmesh.nearby.data.SelectionCallback;
+import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.NearbyMessageBody;
+import org.sedo.satmesh.proto.RouteDestroyMessage;
 import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.proto.RoutedMessage;
@@ -31,11 +32,15 @@ import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.ObjectHolder;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -1072,6 +1077,112 @@ public class NearbyRouteManager {
 		});
 	}
 
+	// Route destroying methods
+
+	/**
+	 * Adds non-null items to the provided collection.
+	 *
+	 * @param <T>   The generic type of the items and the collection.
+	 * @param list  The collection to add items to.
+	 * @param items The items to add. Only non-null items will be added.
+	 */
+	@SafeVarargs
+	private <T> void addIfNotNull(Collection<T> list, T... items) {
+		for (T item : items) {
+			if (item != null) {
+				list.add(item);
+			}
+		}
+	}
+
+	/**
+	 * Sends a {@link RouteDestroyMessage} to a specific neighbor to invalidate a given route.
+	 *
+	 * @param neighborAddressName The address name of the neighbor to send the message to.
+	 * @param routeUuid           The UUID of the route in destruction.
+	 */
+	private void dispatchRouteDestroyToNeighbor(@NonNull String neighborAddressName, @NonNull String routeUuid) {
+		RouteDestroyMessage routeDestroyMessage = RouteDestroyMessage.newBuilder()
+				.setRouteUuid(routeUuid).build();
+		NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
+				.setMessageType(NearbyMessageBody.MessageType.ROUTE_DESTROY)
+				.setBinaryData(routeDestroyMessage.toByteString()).build();
+		nearbyManager.encryptAndSendInternal(null, neighborAddressName, nearbyMessageBody, TransmissionCallback.NULL_CALLBACK);
+	}
+
+	/**
+	 * Finds all unique node addresses that are part of a given route or its usages.
+	 * This includes the previous and next hops of the main route entry (if provided)
+	 * and the previous hops recorded in any {@link RouteUsage} entries associated with the route UUID.
+	 *
+	 * @param routeUuid The UUID of the route for which to find affected addresses.
+	 * @param route     The {@link RouteEntry} corresponding to the route UUID. Can be null if the route itself
+	 *                  is already deleted but usages might still exist.
+	 * @return A list of unique node address names that were part of the route or its usages about the host node,
+	 * or {@code null} if no nodes could be resolved.
+	 */
+	@Nullable
+	private List<String> findRouteAffectedAddresses(String routeUuid, RouteEntry route) {
+		List<RouteUsage> usages = routeRepository.findRouteUsagesByRouteUuidSync(routeUuid);
+		Set<Long> uniques = new HashSet<>();
+		if (route != null) {
+			addIfNotNull(uniques, route.getPreviousHopLocalId(), route.getNextHopLocalId());
+		}
+		if (usages != null) {
+			for (RouteUsage usage : usages) {
+				addIfNotNull(uniques, usage.getPreviousHopLocalId());
+			}
+		}
+		List<Long> ids = new ArrayList<>(uniques);
+		return nodeRepository.findAddressesForSync(ids);
+	}
+
+	/**
+	 * Dispatches a {@link RouteDestroyMessage} to all relevant neighbors (participants of the route)
+	 * to inform them about the destruction of a specific route.
+	 * It also cleans up the route and its usages from the local repository.
+	 *
+	 * @param routeUuid     The UUID of the route to be destroyed.
+	 * @param exceptAddress An optional node address name that should be excluded from receiving the
+	 *                      {@link RouteDestroyMessage}. This is typically the node from which a
+	 *                      route destruction message was received.
+	 */
+	private void dispatchRouteDestroy(@NonNull String routeUuid, @Nullable String exceptAddress) {
+		executor.execute(() -> {
+			Log.d(TAG, "Dispatching RouteDestroyMessage to all neighbors for route " + routeUuid);
+			RouteEntry route = routeRepository.findRouteByDiscoveryUuidSync(routeUuid);
+			List<String> addresses = findRouteAffectedAddresses(routeUuid, route);
+			if (addresses != null) {
+				if (exceptAddress != null) {
+					addresses.remove(exceptAddress);
+				}
+				for (String address : addresses) {
+					dispatchRouteDestroyToNeighbor(address, routeUuid);
+				}
+			}
+			if (route != null) {
+				routeRepository.dropRouteAndItsUsages(route);
+			} else {
+				// If the route entry is gone, try to drop usages by UUID
+				routeRepository.dropRouteUsages(routeUuid);
+			}
+		});
+	}
+
+	/**
+	 * Handles an incoming {@link RouteDestroyMessage} received from a neighbor.
+	 * This method will propagate the route destruction to other relevant neighbors
+	 * and clean up the local route information.
+	 *
+	 * @param routeDestroyMessage The received {@link RouteDestroyMessage}.
+	 * @param senderAddressName   The address name of the node that sent the destroy message.
+	 *                            This address will be excluded from further propagation of this message.
+	 */
+	protected void handleIncomingRouteDestroyMessage(
+			@NonNull RouteDestroyMessage routeDestroyMessage, @NonNull String senderAddressName) {
+		dispatchRouteDestroy(routeDestroyMessage.getRouteUuid(), senderAddressName);
+	}
+
 	// Routed messages exchange methods
 
 	/**
@@ -1138,7 +1249,7 @@ public class NearbyRouteManager {
 		long delay = System.currentTimeMillis() - Objects.requireNonNullElse(entryUsage.routeEntry.getLastUseTimestamp(), 0L);
 		if (delay > ROUTE_MAX_INACTIVITY_MILLIS) {
 			Log.w(TAG, "Match expired route. Delete it.");
-			routeRepository.dropRouteAndItsUsages(entryUsage.routeEntry);
+			dispatchRouteDestroy(entryUsage.routeEntry.getDiscoveryUuid(), null);
 			return null;
 		}
 		return entryUsage;
@@ -1220,7 +1331,7 @@ public class NearbyRouteManager {
 			Node nextHopNode;
 			if (nextHopLocalId == null || (nextHopNode = nodeRepository.findNodeSync(nextHopLocalId)) == null) {
 				Log.e(TAG, "Next hop node for route " + activeRoute.getDiscoveryUuid() + " not found. Route might be stale/invalid.");
-				routeRepository.dropRouteAndItsUsages(activeRoute); // Invalidate the bad route
+				dispatchRouteDestroy(activeRoute.getDiscoveryUuid(), null); // Invalidate the bad route
 				callback.onFailure(null, null);
 				return;
 			}
@@ -1326,6 +1437,8 @@ public class NearbyRouteManager {
 
 				if (activeRoute == null) {
 					Log.e(TAG, "Unable to locate the route for request ID: " + routeUuid);
+					// The route is probably invalidated
+					dispatchRouteDestroy(routeUuid, null);
 					return;
 				}
 				Long nextHopLocalId;
@@ -1346,7 +1459,7 @@ public class NearbyRouteManager {
 				Node nextHopNode;
 				if (nextHopLocalId == null || (nextHopNode = nodeRepository.findNodeSync(nextHopLocalId)) == null) {
 					Log.e(TAG, "Next hop node for route " + activeRoute.getDiscoveryUuid() + " not found on intermediate node. Route might be stale/invalid.");
-					routeRepository.dropRouteAndItsUsages(activeRoute); // Invalidate the bad route
+					dispatchRouteDestroy(routeUuid, null); // Invalidate the bad route
 					return;
 				}
 				String nextHopAddressName = nextHopNode.getAddressName();

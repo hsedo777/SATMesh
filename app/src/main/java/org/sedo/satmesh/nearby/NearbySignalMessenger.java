@@ -28,6 +28,7 @@ import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.PersonalInfo;
 import org.sedo.satmesh.proto.PreKeyBundleExchange;
+import org.sedo.satmesh.proto.RouteDestroyMessage;
 import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.proto.RoutedMessage;
@@ -1063,6 +1064,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Log.d(TAG, "Message is really in state read, let's send the read ack.");
 					sendMessageAck(ack.getPayloadId(), senderAddressName, false, null);
 				}
+				break;
+			case ROUTE_DESTROY:
+				Log.d(TAG, "Received ROUTE_DESTROY from " + senderAddressName);
+				RouteDestroyMessage destroy = RouteDestroyMessage.parseFrom(decryptedMessageBody.getBinaryData());
+				nearbyRouteManager.handleIncomingRouteDestroyMessage(destroy, senderAddressName);
+				break;
 			case UNRECOGNIZED:
 			case UNKNOWN:
 			default:

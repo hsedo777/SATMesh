@@ -44,6 +44,14 @@ public class NodeRepository {
 		});
 	}
 
+	/**
+	 * Updates a node in the database.
+	 * The result of the operation is returned via a callback.
+	 * This method runs operations on the executor.
+	 *
+	 * @param node     The node to update.
+	 * @param callback The callback to be invoked with the result of the operation.
+	 */
 	public void update(@NonNull Node node, @NonNull Consumer<Boolean> callback) {
 		executor.execute(() -> {
 			try {
@@ -55,22 +63,52 @@ public class NodeRepository {
 		});
 	}
 
+	/**
+	 * Updates a node in the database.
+	 * This method runs operations on the executor.
+	 *
+	 * @param node The node to update.
+	 */
 	public void update(@NonNull Node node) {
 		executor.execute(() -> dao.update(node));
 	}
 
+	/**
+	 * Finds a node by its ID and returns it as a LiveData object.
+	 *
+	 * @param nodeId The ID of the node to find.
+	 * @return A LiveData object containing the node.
+	 */
 	public LiveData<Node> findLiveNode(long nodeId) {
 		return dao.getNodeById(nodeId);
 	}
 
-	public LiveData<List<Node>> getNodesByAddressName(List<String> addresses){
+	/**
+	 * Retrieves a LiveData list of Node objects from the database that match the given address names.
+	 *
+	 * @param addresses A list of address names to search for.
+	 * @return A LiveData object containing a list of matching Node objects.
+	 */
+	public LiveData<List<Node>> getNodesByAddressName(List<String> addresses) {
 		return dao.getNodesByAddressName(addresses);
 	}
 
+	/**
+	 * Finds a node by its ID and returns it synchronously.
+	 *
+	 * @param nodeId The ID of the node to find.
+	 * @return The node, or null if not found.
+	 */
 	public Node findNodeSync(long nodeId) {
 		return dao.getNodeByIdSync(nodeId);
 	}
 
+	/**
+	 * Finds a node by its address name and returns it synchronously.
+	 *
+	 * @param addressName The address name of the node to find.
+	 * @return The node, or null if not found.
+	 */
 	public Node findNodeSync(String addressName) {
 		return dao.getNodeByAddressNameSync(addressName);
 	}
@@ -123,9 +161,35 @@ public class NodeRepository {
 		executor.execute(() -> dao.delete(nodes));
 	}
 
+	/**
+	 * Finds a list of address names for a given list of node IDs.
+	 *
+	 * @param ids The list of node IDs.
+	 * @return A list of address names.
+	 */
+	public List<String> findAddressesForSync(List<Long> ids) {
+		return dao.findAddressesFor(ids);
+	}
+
+	/**
+	 * Callback interface for asynchronous node operations.
+	 *
+	 * @author hsedo777
+	 */
 	public interface NodeCallback {
+		/**
+		 * Called when the node is ready.
+		 *
+		 * @param node The node that is ready.
+		 */
 		void onNodeReady(@NonNull Node node);
 
+		/**
+		 * Called when an error occurs during the node operation.
+		 *
+		 * @param errorMessage The error message.
+		 */
 		void onError(@NonNull String errorMessage);
 	}
 }
+

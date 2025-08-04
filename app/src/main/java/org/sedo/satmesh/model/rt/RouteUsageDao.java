@@ -7,6 +7,8 @@ import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
 
+import java.util.List;
+
 /**
  * Data Access Object (DAO) for the RouteUsage entity.
  * Provides methods to manage the usage tracking of RouteEntry instances.
@@ -60,4 +62,13 @@ public interface RouteUsageDao {
 	 */
 	@Query("SELECT * FROM route_usage WHERE usage_request_uuid = :requestUuid")
 	RouteUsage findByUsageRequestUuid(String requestUuid);
+
+	/**
+	 * Retrieves RouteUsage records associated with a specific RouteEntry.
+	 *
+	 * @param routeUuid The discovery UUID of the RouteEntry.
+	 * @return A list of RouteUsage objects associated with the given route discovery UUID.
+	 */
+	@Query("SELECT * FROM route_usage WHERE route_entry_discovery_uuid = :routeUuid")
+	List<RouteUsage> findByRouteUuid(String routeUuid);
 }

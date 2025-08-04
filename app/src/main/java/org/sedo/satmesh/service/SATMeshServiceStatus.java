@@ -27,7 +27,7 @@ public class SATMeshServiceStatus {
         serviceReady.postValue(ready);
     }
 
-    public synchronized boolean needToDisableBluetooth() {
+    public synchronized boolean needsToDisableBluetooth() {
         return wasBluetoothEnabled == null || !wasBluetoothEnabled;
     }
 
@@ -37,7 +37,7 @@ public class SATMeshServiceStatus {
         }
     }
 
-    public synchronized boolean needToDisableWifi() {
+    public synchronized boolean needsToDisableWifi() {
         return wasWifiEnabled == null || !wasWifiEnabled;
     }
 

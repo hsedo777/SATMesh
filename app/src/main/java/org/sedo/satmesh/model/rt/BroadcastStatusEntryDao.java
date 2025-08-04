@@ -1,12 +1,11 @@
 package org.sedo.satmesh.model.rt;
 
 import androidx.room.Dao;
+import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
-
-import java.util.List;
 
 /**
  * Data Access Object (DAO) for the BroadcastStatusEntry entity.
@@ -36,15 +35,12 @@ public interface BroadcastStatusEntryDao {
 	int update(BroadcastStatusEntry broadcastStatusEntry);
 
 	/**
-	 * Deletes a specific BroadcastStatusEntry based on its composite primary key.
-	 * This is used when the status for a specific request to a specific neighbor is no longer needed.
+	 * Deletes a BroadcastStatusEntry.
 	 *
-	 * @param requestUuid         The UUID of the route request.
-	 * @param neighborNodeLocalId The local ID of the neighbor.
-	 * @return The number of rows deleted.
+	 * @param broadcastStatus The BroadcastStatusEntry to delete.
 	 */
-	@Query("DELETE FROM broadcast_status_entry WHERE request_uuid = :requestUuid AND neighbor_node_local_id = :neighborNodeLocalId")
-	int delete(String requestUuid, Long neighborNodeLocalId);
+	@Delete
+	void delete(BroadcastStatusEntry broadcastStatus);
 
 	/**
 	 * Deletes all BroadcastStatusEntry based on the route request UUID.
@@ -63,24 +59,14 @@ public interface BroadcastStatusEntryDao {
 	 * @return The matched {@link BroadcastStatusEntry}
 	 */
 	@Query("SELECT *  FROM broadcast_status_entry WHERE request_uuid = :requestUuid AND neighbor_node_local_id = :neighborNodeLocalId")
-	BroadcastStatusEntry getBroadcastStatusEntrySync(String requestUuid, Long neighborNodeLocalId);
-
-	/**
-	 * Retrieves all BroadcastStatusEntries associated with a specific route request UUID.
-	 * This is crucial for a node to track the responses from all its neighbors for a given request.
-	 *
-	 * @param requestUuid The UUID of the route request.
-	 * @return A list of BroadcastStatusEntry objects for the specified request.
-	 */
-	@Query("SELECT * FROM broadcast_status_entry WHERE request_uuid = :requestUuid")
-	List<BroadcastStatusEntry> getBroadcastStatusesForRequest(String requestUuid);
+	BroadcastStatusEntry findBroadcastStatus(String requestUuid, Long neighborNodeLocalId);
 
 	/**
 	 * Checks if there's any BroadcastStatusEntry for a given request UUID
 	 * with progress pending value to {@code pendingInProgress}.
 	 * This is used to determine if a priority "already in progress" response has been received or not.
 	 *
-	 * @param requestUuid The UUID of the route request.
+	 * @param requestUuid       The UUID of the route request.
 	 * @param pendingInProgress Value of the progress pending to match.
 	 * @return True if at least one such entry exists, false otherwise.
 	 */

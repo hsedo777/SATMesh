@@ -1,7 +1,5 @@
 package org.sedo.satmesh.nearby;
 
-import static org.sedo.satmesh.nearby.NearbyManager.DeviceConnectionListener;
-import static org.sedo.satmesh.nearby.NearbyManager.PayloadListener;
 import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.CLAIM_READ_ACK;
 import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MESSAGE;
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
@@ -22,12 +20,15 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.model.Node;
-import org.sedo.satmesh.nearby.NearbyManager.TransmissionCallback;
+import org.sedo.satmesh.nearby.data.DeviceConnectionListener;
+import org.sedo.satmesh.nearby.data.PayloadListener;
+import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.MessageAck;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.PersonalInfo;
 import org.sedo.satmesh.proto.PreKeyBundleExchange;
+import org.sedo.satmesh.proto.RouteDestroyMessage;
 import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.proto.RoutedMessage;
@@ -113,7 +114,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		messageRepository = new MessageRepository(context);
 		nodeRepository = new NodeRepository(context);
 		this.executor = Executors.newSingleThreadExecutor(); // Single thread for ordered message processing
-		this.nearbyRouteManager = new NearbyRouteManager(nearbyManager, signalManager, context, executor);
+		this.nearbyRouteManager = new NearbyRouteManager(nearbyManager, context, executor);
 		Log.d(TAG, "NearbySignalMessenger instance created with dependencies.");
 
 		applicationContext = context.getApplicationContext();
@@ -302,25 +303,23 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * {@link NearbyMessage}. The {@code exchange} field of the {@link NearbyMessage} is
 	 * set to {@code false}, indicating that it's a standard message and not a key exchange.
 	 *
-	 * @param plainNearbyMessageBody The {@link NearbyMessageBody} to be encrypted.
-	 *                               It is assumed to be unencrypted at this point.
-	 * @param recipientAddressName   The {@code SignalProtocolAddress.name} of the
-	 *                               recipient to whom this encrypted message is intended.
+	 * @param plainMessage         The data to be encrypted.
+	 *                             It is assumed to be unencrypted at this point.
+	 * @param recipientAddressName The {@code SignalProtocolAddress.name} of the
+	 *                             recipient to whom this encrypted message is intended.
 	 * @return A {@link NearbyMessage} containing the encrypted {@link NearbyMessageBody}
 	 * ready to be sent over Nearby Connections.
 	 * @throws Exception If an error occurs during the encryption process, such as issues with
 	 *                   retrieving recipient keys or Signal Protocol session management.
 	 */
-	NearbyMessage encryptBody(@NonNull NearbyMessageBody plainNearbyMessageBody, @NonNull String recipientAddressName) throws Exception {
+	protected CiphertextMessage encrypt(@NonNull byte[] plainMessage, @NonNull String recipientAddressName) throws Exception {
 		// Encrypt message
 		SignalProtocolAddress recipientAddress = getAddress(recipientAddressName);
-		CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, plainNearbyMessageBody.toByteArray());
+		CiphertextMessage ciphertextMessage = signalManager.encryptMessage(recipientAddress, plainMessage);
 		if (ciphertextMessage.getType() == CiphertextMessage.PREKEY_TYPE) {
 			Log.d(TAG, "OCCURRENCE OF CIPHER MESSAGE OF TYPE 'PREKEY_TYPE'");
 		}
-
-		// Encapsulate the message
-		return NearbyMessage.newBuilder().setExchange(false).setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
+		return ciphertextMessage;
 	}
 
 	/**
@@ -422,6 +421,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Log.d(TAG, "Signal session already exists for: " + remoteAddressName);
 					return;
 				}
+				String endpointId = nearbyManager.getLinkedEndpointId(remoteAddressName);
+				if (endpointId == null) {
+					Log.w(TAG, "No endpointId found for " + remoteAddressName);
+					return;
+				}
 				// Prepare packet and sent
 				PreKeyBundle localPreKeyBundle = signalManager.generateOurPreKeyBundle();
 				byte[] serializedPreKeyBundle = signalManager.serializePreKeyBundle(localPreKeyBundle);
@@ -432,7 +436,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(true) // Indicate it's a key exchange message
 						.setKeyExchangeMessage(preKeyBundleExchange).build();
 
-				nearbyManager.sendNearbyMessageInternal(nearbyMessage, remoteAddressName, TransmissionCallback.NULL_CALLBACK);
+				nearbyManager.sendNearbyMessage(endpointId, nearbyMessage.toByteArray(), TransmissionCallback.NULL_CALLBACK);
 			} catch (Exception e) {
 				Log.e(TAG, "Error initiating key exchange with " + remoteAddressName, e);
 			}
@@ -837,7 +841,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					.setMessageType(NearbyMessageBody.MessageType.KNOWLEDGE)
 					.setBinaryData(ByteString.copyFrom(data)).build();
 
-			nearbyManager.sendNearbyMessageInternal(encryptBody(body, senderAddressName), senderAddressName,
+			nearbyManager.encryptAndSendInternal(null, senderAddressName, body,
 					new TransmissionCallback() {
 						@Override
 						public void onSuccess(@NonNull Payload payload) {
@@ -1060,6 +1064,12 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Log.d(TAG, "Message is really in state read, let's send the read ack.");
 					sendMessageAck(ack.getPayloadId(), senderAddressName, false, null);
 				}
+				break;
+			case ROUTE_DESTROY:
+				Log.d(TAG, "Received ROUTE_DESTROY from " + senderAddressName);
+				RouteDestroyMessage destroy = RouteDestroyMessage.parseFrom(decryptedMessageBody.getBinaryData());
+				nearbyRouteManager.handleIncomingRouteDestroyMessage(destroy, senderAddressName);
+				break;
 			case UNRECOGNIZED:
 			case UNKNOWN:
 			default:

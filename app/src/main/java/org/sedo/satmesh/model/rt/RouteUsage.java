@@ -12,10 +12,8 @@ import androidx.room.PrimaryKey;
 import java.util.Objects;
 
 /**
- * Represents a record of a specific route entry being used by a particular application request or session.
- * This entity's primary purpose is to track the last time a {@link RouteEntry} was actively used
- * in the context of a given request UUID, enabling the 12-hour inactivity logic.
- * Each entry in this table signifies that a specific application request (identified by 'usageRequestUuid')
+ * Represents a record of a specific route entry being used by a particular Node.
+ * Each entry in this table signifies that a specific Node (identified by 'usageRequestUuid')
  * is currently utilizing a particular discovered route (identified by 'routeEntryDiscoveryUuid').
  *
  * @author hsedo777
@@ -61,12 +59,10 @@ public class RouteUsage {
 	private String routeEntryDiscoveryUuid;
 
 	/*
-	 * The timestamp (e.g., System.currentTimeMillis()) when this RouteEntry was last actively
-	 * used specifically by the application request or session identified by 'usageRequestUuid'.
-	 * This timestamp is critical for implementing the 12-hour inactivity expiration logic.
+	 * The local ID of the previous node in the route, in case of route reuse.
 	 */
-	@ColumnInfo(name = "last_used_timestamp")
-	private Long lastUsedTimestamp;
+	@ColumnInfo(name = "previous_hop_local_id")
+	private Long previousHopLocalId;
 
 	/**
 	 * Create new {@code RouteUsage} with the usage UUID
@@ -92,12 +88,12 @@ public class RouteUsage {
 		this.routeEntryDiscoveryUuid = routeEntryDiscoveryUuid;
 	}
 
-	public Long getLastUsedTimestamp() {
-		return lastUsedTimestamp;
+	public Long getPreviousHopLocalId() {
+		return previousHopLocalId;
 	}
 
-	public void setLastUsedTimestamp(Long lastUsedTimestamp) {
-		this.lastUsedTimestamp = lastUsedTimestamp;
+	public void setPreviousHopLocalId(Long previousHopLocalId) {
+		this.previousHopLocalId = previousHopLocalId;
 	}
 
 	@Override
@@ -105,12 +101,14 @@ public class RouteUsage {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		RouteUsage that = (RouteUsage) o;
-		return Objects.equals(usageRequestUuid, that.usageRequestUuid) && Objects.equals(routeEntryDiscoveryUuid, that.routeEntryDiscoveryUuid) && Objects.equals(lastUsedTimestamp, that.lastUsedTimestamp);
+		return Objects.equals(usageRequestUuid, that.usageRequestUuid)
+				&& Objects.equals(routeEntryDiscoveryUuid, that.routeEntryDiscoveryUuid)
+				&& Objects.equals(previousHopLocalId, that.previousHopLocalId);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(usageRequestUuid, routeEntryDiscoveryUuid, lastUsedTimestamp);
+		return Objects.hash(usageRequestUuid, routeEntryDiscoveryUuid, previousHopLocalId);
 	}
 
 	@NonNull
@@ -119,7 +117,7 @@ public class RouteUsage {
 		return "RouteUsage{" +
 				"usageRequestUuid='" + usageRequestUuid + '\'' +
 				", routeEntryDiscoveryUuid='" + routeEntryDiscoveryUuid + '\'' +
-				", lastUsedTimestamp=" + lastUsedTimestamp +
+				", previousHopLocalId=" + previousHopLocalId +
 				'}';
 	}
 }

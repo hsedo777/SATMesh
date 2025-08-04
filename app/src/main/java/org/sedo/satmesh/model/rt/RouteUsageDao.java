@@ -7,6 +7,8 @@ import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
 
+import java.util.List;
+
 /**
  * Data Access Object (DAO) for the RouteUsage entity.
  * Provides methods to manage the usage tracking of RouteEntry instances.
@@ -44,27 +46,6 @@ public interface RouteUsageDao {
 	int delete(RouteUsage routeUsage);
 
 	/**
-	 * Retrieves the most recently used (opened) route usage entry for a given destination node.
-	 * This method looks for a {@link RouteEntry} that matches the specified destination,
-	 * ensures it's an "opened" route (meaning it has a valid next hop), and then
-	 * returns the {@link RouteUsage} record associated with that route that was
-	 * most recently updated.
-	 *
-	 * @param destinationNodeLocalId The local ID of the destination node for which to find the route usage.
-	 * @return The {@link RouteUsage} object representing the most recent use of an
-	 * active route to the specified destination, or {@code null} if no such
-	 * route usage entry is found.
-	 */
-	@Query("SELECT RU.* " +
-			"FROM route_entry AS RE " +
-			"INNER JOIN route_usage AS RU ON RE.discovery_uuid = RU.route_entry_discovery_uuid " +
-			"WHERE RE.destination_node_local_id = :destinationNodeLocalId " +
-			"AND RE.next_hop_local_id IS NOT NULL " + // Corresponds to isOpened()
-			"ORDER BY RU.last_used_timestamp DESC " +
-			"LIMIT 1")
-	RouteUsage getMostRecentRouteUsageForDestinationSync(long destinationNodeLocalId);
-
-	/**
 	 * Deletes all RouteUsage records associated with a specific RouteEntry.
 	 * This helps in cleaning up stale usage records.
 	 *
@@ -72,4 +53,22 @@ public interface RouteUsageDao {
 	 */
 	@Query("DELETE FROM route_usage WHERE route_entry_discovery_uuid = :routeEntryDiscoveryUuid")
 	void deleteUsagesForRouteEntry(String routeEntryDiscoveryUuid);
+
+	/**
+	 * Retrieves RouteUsage records associated with a specific RouteEntry.
+	 *
+	 * @param requestUuid The discovery UUID of the RouteEntry.
+	 * @return A RouteUsage object associated with the given requestUuid.
+	 */
+	@Query("SELECT * FROM route_usage WHERE usage_request_uuid = :requestUuid")
+	RouteUsage findByUsageRequestUuid(String requestUuid);
+
+	/**
+	 * Retrieves RouteUsage records associated with a specific RouteEntry.
+	 *
+	 * @param routeUuid The discovery UUID of the RouteEntry.
+	 * @return A list of RouteUsage objects associated with the given route discovery UUID.
+	 */
+	@Query("SELECT * FROM route_usage WHERE route_entry_discovery_uuid = :routeUuid")
+	List<RouteUsage> findByRouteUuid(String routeUuid);
 }

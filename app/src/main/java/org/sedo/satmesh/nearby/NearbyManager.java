@@ -20,9 +20,12 @@ import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
+import com.google.protobuf.ByteString;
 
 import org.sedo.satmesh.model.rt.RouteEntry;
-import org.sedo.satmesh.nearby.NearbyRouteManager.RouteAndUsage;
+import org.sedo.satmesh.nearby.data.DeviceConnectionListener;
+import org.sedo.satmesh.nearby.data.PayloadListener;
+import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
 import org.sedo.satmesh.proto.RouteResponseMessage;
@@ -31,6 +34,7 @@ import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.utils.DataLog;
 import org.sedo.satmesh.utils.DataLog.TransmissionEventType;
 import org.sedo.satmesh.utils.DataLog.TransmissionStatus;
+import org.whispersystems.libsignal.protocol.CiphertextMessage;
 
 import java.util.List;
 import java.util.Map;
@@ -52,6 +56,7 @@ public class NearbyManager {
 	private final static int STATUS_INITIATED_FROM_REMOTE = 1;
 	private final static int STATUS_INITIATED_FROM_HOST = 2;
 	private final static int STATUS_CONNECTED = 4;
+	private final static int STATUS_DISCONNECTED = 5;
 	private static volatile NearbyManager INSTANCE;
 
 	/*
@@ -171,6 +176,7 @@ public class NearbyManager {
 				// Notify as a connection failed, as it never truly completed.
 				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(endpointId, deviceAddress, Status.RESULT_CANCELED));
 			}
+			putState(endpointId, state.addressName, STATUS_DISCONNECTED, NodeState.ON_DISCONNECTED);
 		}
 	};
 
@@ -541,6 +547,39 @@ public class NearbyManager {
 	}
 
 	/**
+	 * Encrypts a {@link NearbyMessageBody} and sends it to a specified recipient, assumed directly connected.
+	 *
+	 * @param endpointId           The ID of the endpoint to send the message to. If {@code null},
+	 *                             it will be looked up using {@link #getLinkedEndpointId(String)}.
+	 * @param recipientAddressName The address name of the recipient.
+	 * @param plainMessageBody     The unencrypted {@link NearbyMessageBody} containing the application-level
+	 * @param transmissionCallback A callback that receives the {@link Payload}
+	 * @see #sendNearbyMessage(String, byte[], TransmissionCallback)
+	 */
+	protected void encryptAndSendInternal(
+			@Nullable String endpointId, @NonNull String recipientAddressName,
+			@NonNull NearbyMessageBody plainMessageBody, @NonNull TransmissionCallback transmissionCallback) {
+		executorService.execute(() -> {
+			try {
+				final String endpoint = endpointId == null ? getLinkedEndpointId(recipientAddressName) : endpointId;
+				if (endpoint == null) {
+					Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");
+					transmissionCallback.onFailure(null, null); // Notify failure
+					return;
+				}
+				CiphertextMessage ciphertextMessage = NearbySignalMessenger.getInstance().encrypt(plainMessageBody.toByteArray(), recipientAddressName);
+				// Encapsulate the message
+				NearbyMessage nearbyMessage = NearbyMessage.newBuilder().setExchange(false).setBody(ByteString.copyFrom(ciphertextMessage.serialize())).build();
+				sendNearbyMessage(endpoint, nearbyMessage.toByteArray(), transmissionCallback);
+				Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
+			} catch (Exception e) {
+				Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
+				transmissionCallback.onFailure(null, e); // Notify failure
+			}
+		});
+	}
+
+	/**
 	 * Sends a {@link NearbyMessageBody} to a specified recipient, attempting to use a direct Nearby Connections
 	 * link if available, or initiating route discovery and forwarding through the mesh network otherwise.
 	 * <p>
@@ -553,9 +592,9 @@ public class NearbyManager {
 	 * to the recipient via {@link NearbyRouteManager}.
 	 * <ul>
 	 * <li>If an active route exists, the {@code plainMessageBody} is immediately sent
-	 * through that route using {@link NearbyRouteManager#sendMessageThroughRoute(String, String, NearbyMessageBody, TransmissionCallback)}.</li>
+	 * through that route using {@code NearbyRouteManager#sendMessageThroughRoute()}.</li>
 	 * <li>If no active route is found, route discovery is initiated via
-	 * {@link NearbyRouteManager#initiateRouteDiscovery(String, java.util.function.Consumer, java.util.function.Consumer)}.
+	 * {@link NearbyRouteManager#discoverRouteIfNeeded(String, java.util.function.Consumer, java.util.function.Consumer, String)}.
 	 * Upon successful route discovery, the message will then be sent through the newly found route.</li>
 	 * </ul>
 	 * </li>
@@ -588,16 +627,10 @@ public class NearbyManager {
 				Log.e(TAG, "There is no direct connection to address '" + recipientAddressName + "', we are going to attempt to find a route.");
 				try {
 					NearbyRouteManager nearbyRouteManager = NearbySignalMessenger.getInstance().getNearbyRouteManager();
-					RouteAndUsage routeAndUsage = nearbyRouteManager.getIfExistRouteAndUsageFor(recipientAddressName);
-					if (routeAndUsage == null || routeAndUsage.routeEntry == null) {
-						Log.d(TAG, "No route found. Init route discovery.");
-						nearbyRouteManager.initiateRouteDiscovery(recipientAddressName,
-								unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback),
-								onDiscoveryInitiatedCallback);
-					} else {
-						// There is a valid active route
-						nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback);
-					}
+					nearbyRouteManager.discoverRouteIfNeeded(recipientAddressName,
+							routeWithUsage -> nearbyRouteManager.sendMessageThroughRoute(
+									recipientAddressName, this.localAddressName, routeWithUsage, plainMessageBody, routeTransmissionCallback),
+							onDiscoveryInitiatedCallback, localAddressName);
 				} catch (Exception e) {
 					Log.e(TAG, "Handling route for message transmission failed.", e);
 					transmissionCallback.onFailure(null, e); // Notify failure
@@ -605,42 +638,8 @@ public class NearbyManager {
 				return;
 			}
 
-			try {
-				byte[] messageBytes = NearbySignalMessenger.getInstance().encryptBody(plainMessageBody, recipientAddressName).toByteArray();
-				sendNearbyMessage(endpointId, messageBytes, transmissionCallback);
-				Log.d(TAG, "NearbyMessage (type: ENCRYPTED_DATA) sent to " + recipientAddressName);
-			} catch (Exception e) {
-				Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-				transmissionCallback.onFailure(null, e); // Notify failure
-			}
+			encryptAndSendInternal(endpointId, recipientAddressName, plainMessageBody, transmissionCallback);
 		});
-	}
-
-	/**
-	 * This method handles the serialization of the NearbyMessage object and sends it via Nearby Connections.
-	 *
-	 * @param nearbyMessage        The NearbyMessage protobuf object to send.
-	 * @param recipientAddressName The Signal Protocol address name of the recipient.
-	 * @param callback             Callback for success or failure of the Nearby Connections send operation.
-	 */
-	protected void sendNearbyMessageInternal(
-			@NonNull NearbyMessage nearbyMessage, @NonNull String recipientAddressName,
-			@NonNull TransmissionCallback callback) {
-		final String endpointId = getLinkedEndpointId(recipientAddressName);
-		if (endpointId == null) {
-			Log.e(TAG, "Cannot send message to " + recipientAddressName + ": the endpointId not found.");
-			callback.onFailure(null, null); // Notify failure
-			return;
-		}
-
-		try {
-			byte[] messageBytes = nearbyMessage.toByteArray();
-			sendNearbyMessage(endpointId, messageBytes, callback);
-			Log.d(TAG, "NearbyMessage (type: " + (nearbyMessage.getExchange() ? "KEY_EXCHANGE" : "ENCRYPTED_DATA") + ") sent to " + recipientAddressName);
-		} catch (Exception e) {
-			Log.e(TAG, "Error serializing or sending NearbyMessage to " + recipientAddressName, e);
-			callback.onFailure(null, e); // Notify failure
-		}
 	}
 
 	/**
@@ -652,7 +651,7 @@ public class NearbyManager {
 	 * @param callback   A callback that accepts the sent {@link Payload}
 	 *                   The {@link Payload} argument will be null if the `data` was null or if the send operation failed before payload creation.
 	 */
-	private void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable TransmissionCallback callback) {
+	protected void sendNearbyMessage(@NonNull String endpointId, @NonNull byte[] data, @Nullable TransmissionCallback callback) {
 		if (data.length == 0) {
 			Log.e(TAG, "Attempted to send null or empty data to " + endpointId);
 			if (callback != null) callback.onFailure(null, null);
@@ -680,9 +679,6 @@ public class NearbyManager {
 						if (state != null && state.addressName != null) {
 							// Try disconnection
 							disconnectFromEndpoint(endpointId);
-							addressNameToEndpointId.remove(state.addressName);
-							endpointStates.remove(endpointId);
-							NodeTransientStateRepository.getInstance().updateTransientNodeState(state.addressName, NodeState.ON_DISCONNECTED);
 						} else {
 							String address = addressNameToEndpointId.entrySet().stream().filter(entry -> endpointId.equals(entry.getValue()))
 									.map(Map.Entry::getKey).findFirst().orElse(null);
@@ -745,112 +741,13 @@ public class NearbyManager {
 	 * @param payloadId                 The payload ID of the
 	 */
 	public void onRoutedMessageReceived(
-			@NonNull String originalSenderAddress,
-			@NonNull NearbyMessageBody internalNearbyMessageBody,
+			@NonNull String originalSenderAddress, @NonNull NearbyMessageBody internalNearbyMessageBody,
 			long payloadId) {
 		try {
 			NearbySignalMessenger.getInstance().parseDecryptedMessage(internalNearbyMessageBody, originalSenderAddress, payloadId);
 		} catch (Exception e) {
-			Log.e(TAG, "Error processing encrypted message from " + originalSenderAddress + ": " + e.getMessage(), e);
+			Log.e(TAG, "Error processing encrypted message from " + originalSenderAddress, e);
 		}
-	}
-
-	/**
-	 * Listener for device connection and disconnection events.
-	 * This is crucial for higher-level logic (e.g., Signal Protocol session management).
-	 */
-	public interface DeviceConnectionListener {
-		/**
-		 * Called when a connection is initiated with a device.
-		 *
-		 * @param endpointId        The Nearby Connections endpoint ID.
-		 * @param deviceAddressName The Signal address name of the remote device (from endpointName or initial payload).
-		 */
-		void onConnectionInitiated(String endpointId, String deviceAddressName);
-
-		/**
-		 * Called when a device successfully connects.
-		 *
-		 * @param endpointId        The Nearby Connections endpoint ID.
-		 * @param deviceAddressName The Signal address name of the connected device.
-		 */
-		void onDeviceConnected(String endpointId, String deviceAddressName);
-
-		/**
-		 * Called when a connection attempt fails or is disconnected prematurely.
-		 *
-		 * @param endpointId        The Nearby Connections endpoint ID.
-		 * @param deviceAddressName The Signal address name of the device.
-		 * @param status            The status of the connection failure.
-		 */
-		void onConnectionFailed(@NonNull String endpointId, String deviceAddressName, Status status);
-
-		/**
-		 * Called when a device explicitly disconnects (or is lost).
-		 *
-		 * @param endpointId        The Nearby Connections endpoint ID.
-		 * @param deviceAddressName The Signal address name of the disconnected device.
-		 */
-		void onDeviceDisconnected(@NonNull String endpointId, @NonNull String deviceAddressName);
-
-		/**
-		 * Handles the event when a new Nearby endpoint is found. This method is called only
-		 * if the endpoint is freshly/newly found.
-		 *
-		 * @param endpointId        The ID of the discovered endpoint.
-		 * @param deviceAddressName The Signal Protocol address name of the discovered endpoint.
-		 */
-		void onEndpointFound(@NonNull String endpointId, @NonNull String deviceAddressName);
-
-		/**
-		 * Handles the event when a Nearby endpoint is lost (goes out of range).
-		 * This method primarily serves for logging and potentially notifying other components,
-		 * as NearbyManager's own onDisconnected callback handles active connections.
-		 *
-		 * @param endpointId        The ID of the lost endpoint.
-		 * @param deviceAddressName The Signal Protocol address name of the lost endpoint.
-		 */
-		void onEndpointLost(@NonNull String endpointId, @NonNull String deviceAddressName);
-	}
-
-	/**
-	 * Listener for Payload receiving events.
-	 * Essential for processing incoming messages.
-	 */
-	public interface PayloadListener {
-		/**
-		 * Called when a payload is received.
-		 *
-		 * @param endpointId The ID of the endpoint from which the payload was received.
-		 * @param payload    The received Payload object.
-		 */
-		void onPayloadReceived(@NonNull String endpointId, @NonNull Payload payload);
-
-		/**
-		 * Called for updates on payload transfer (progress, completion).
-		 * Default implementation does nothing, can be overridden if detailed progress is needed.
-		 *
-		 * @param ignoredEndpointId The ID of the endpoint involved in the transfer.
-		 * @param ignoredUpdate     The PayloadTransferUpdate object.
-		 */
-		default void onPayloadTransferUpdate(@NonNull String ignoredEndpointId, @NonNull PayloadTransferUpdate ignoredUpdate) {
-		}
-	}
-
-	public interface TransmissionCallback {
-		TransmissionCallback NULL_CALLBACK = new TransmissionCallback() {
-			@Override
-			public void onSuccess(@NonNull Payload payload) {
-			}
-
-			@Override
-			public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
-			}
-		};
-
-		void onSuccess(@NonNull Payload payload);
-
-		void onFailure(@Nullable Payload payload, @Nullable Exception cause);
 	}
 
 	private static class ConnectionState {

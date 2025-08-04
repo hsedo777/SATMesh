@@ -60,6 +60,7 @@ message NearbyMessageBody {
     ROUTED_MESSAGE = 8;
     KNOWLEDGE = 9;
     CLAIM_READ_ACK = 10;
+    ROUTE_DESTROY = 11;
   }
   MessageType message_type = 1;
   /*
@@ -97,6 +98,9 @@ message RouteRequestMessage {// Message type `ROUTE_DISCOVERY_REQ`
 
   // The expiration Time To Live (TTL) for this request, expressed in time units milliseconds.
   int64 max_ttl = 4;
+
+  // The Signal protocol's address name of the initiator of the route request
+  string initiator_node_id = 5;
 }
 
 // Defines the RouteResponseMessage structure used to respond to route discovery requests.
@@ -157,5 +161,13 @@ message RoutedMessage {
 
   // The payload ID to use to track the packet. Caller must ensure the value is set once
   int64 payload_id = 6;
+
+  // Specify if the routed message is to send by backtracking
+  bool for_backtracking = 7;
 }
 
+// For wrapping data when dispatching route destroying
+message RouteDestroyMessage {
+  // The UUID of the route to destroy.
+  string route_uuid = 1;
+}

@@ -53,6 +53,7 @@ public class NearbyManager {
 	private final static int STATUS_INITIATED_FROM_REMOTE = 1;
 	private final static int STATUS_INITIATED_FROM_HOST = 2;
 	private final static int STATUS_CONNECTED = 4;
+	private final static int STATUS_DISCONNECTED = 5;
 	private static volatile NearbyManager INSTANCE;
 
 	/*
@@ -172,6 +173,7 @@ public class NearbyManager {
 				// Notify as a connection failed, as it never truly completed.
 				deviceConnectionListeners.forEach(l -> l.onConnectionFailed(endpointId, deviceAddress, Status.RESULT_CANCELED));
 			}
+			putState(endpointId, state.addressName, STATUS_DISCONNECTED, NodeState.ON_DISCONNECTED);
 		}
 	};
 
@@ -585,7 +587,7 @@ public class NearbyManager {
 	 * to the recipient via {@link NearbyRouteManager}.
 	 * <ul>
 	 * <li>If an active route exists, the {@code plainMessageBody} is immediately sent
-	 * through that route using {@link NearbyRouteManager#sendMessageThroughRoute(String, String, NearbyMessageBody, TransmissionCallback)}.</li>
+	 * through that route using {@code NearbyRouteManager#sendMessageThroughRoute()}.</li>
 	 * <li>If no active route is found, route discovery is initiated via
 	 * {@link NearbyRouteManager#discoverRouteIfNeeded(String, java.util.function.Consumer, java.util.function.Consumer, String)}.
 	 * Upon successful route discovery, the message will then be sent through the newly found route.</li>
@@ -621,7 +623,8 @@ public class NearbyManager {
 				try {
 					NearbyRouteManager nearbyRouteManager = NearbySignalMessenger.getInstance().getNearbyRouteManager();
 					nearbyRouteManager.discoverRouteIfNeeded(recipientAddressName,
-							unused -> nearbyRouteManager.sendMessageThroughRoute(recipientAddressName, this.localAddressName, plainMessageBody, routeTransmissionCallback),
+							routeWithUsage -> nearbyRouteManager.sendMessageThroughRoute(
+									recipientAddressName, this.localAddressName, routeWithUsage, plainMessageBody, routeTransmissionCallback),
 							onDiscoveryInitiatedCallback, localAddressName);
 				} catch (Exception e) {
 					Log.e(TAG, "Handling route for message transmission failed.", e);
@@ -671,9 +674,6 @@ public class NearbyManager {
 						if (state != null && state.addressName != null) {
 							// Try disconnection
 							disconnectFromEndpoint(endpointId);
-							addressNameToEndpointId.remove(state.addressName);
-							endpointStates.remove(endpointId);
-							NodeTransientStateRepository.getInstance().updateTransientNodeState(state.addressName, NodeState.ON_DISCONNECTED);
 						} else {
 							String address = addressNameToEndpointId.entrySet().stream().filter(entry -> endpointId.equals(entry.getValue()))
 									.map(Map.Entry::getKey).findFirst().orElse(null);
@@ -736,13 +736,12 @@ public class NearbyManager {
 	 * @param payloadId                 The payload ID of the
 	 */
 	public void onRoutedMessageReceived(
-			@NonNull String originalSenderAddress,
-			@NonNull NearbyMessageBody internalNearbyMessageBody,
+			@NonNull String originalSenderAddress, @NonNull NearbyMessageBody internalNearbyMessageBody,
 			long payloadId) {
 		try {
 			NearbySignalMessenger.getInstance().parseDecryptedMessage(internalNearbyMessageBody, originalSenderAddress, payloadId);
 		} catch (Exception e) {
-			Log.e(TAG, "Error processing encrypted message from " + originalSenderAddress + ": " + e.getMessage(), e);
+			Log.e(TAG, "Error processing encrypted message from " + originalSenderAddress, e);
 		}
 	}
 

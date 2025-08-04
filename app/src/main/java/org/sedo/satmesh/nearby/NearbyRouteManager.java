@@ -10,16 +10,13 @@ import com.google.android.gms.nearby.connection.Payload;
 import com.google.protobuf.ByteString;
 
 import org.jetbrains.annotations.NotNull;
-import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.model.rt.BroadcastStatusEntry;
 import org.sedo.satmesh.model.rt.RouteEntry;
 import org.sedo.satmesh.model.rt.RouteEntry.RouteWithUsage;
-import org.sedo.satmesh.model.rt.RouteEntryDao;
 import org.sedo.satmesh.model.rt.RouteRequestEntry;
 import org.sedo.satmesh.model.rt.RouteUsage;
 import org.sedo.satmesh.model.rt.RouteUsageBacktracking;
-import org.sedo.satmesh.model.rt.RouteUsageDao;
 import org.sedo.satmesh.nearby.NearbyManager.TransmissionCallback;
 import org.sedo.satmesh.nearby.data.RouteRepository;
 import org.sedo.satmesh.nearby.data.SelectionCallback;
@@ -56,8 +53,6 @@ public class NearbyRouteManager {
 
 	private final NearbyManager nearbyManager;
 	private final NodeRepository nodeRepository;
-	private final RouteEntryDao routeEntryDao;
-	private final RouteUsageDao routeUsageDao;
 	private final RouteRepository routeRepository;
 	private final ExecutorService executor;
 
@@ -72,10 +67,7 @@ public class NearbyRouteManager {
 			@NonNull NearbyManager nearbyManager,
 			@NonNull Context context, @NonNull ExecutorService executor) {
 		this.nearbyManager = nearbyManager;
-		AppDatabase appDatabase = AppDatabase.getDB(context);
 		this.nodeRepository = new NodeRepository(context);
-		this.routeEntryDao = appDatabase.routeEntryDao();
-		this.routeUsageDao = appDatabase.routeUsageDao();
 		this.routeRepository = new RouteRepository(context);
 		this.executor = executor;
 	}
@@ -300,6 +292,7 @@ public class NearbyRouteManager {
 						// 2. Check for an existing, active, and recently used route to the destination
 						RouteWithUsage routeWithUsage = routeRepository.findMostRecentRouteByDestinationSync(node.getId());
 						if (routeWithUsage != null && routeWithUsage.routeEntry.isOpened()) {
+							Log.d(TAG, "Existing active route found for " + destinationNodeAddressName + ". Using it.");
 							// Notify the higher layer that a route is available
 							onRouteFoundCallback.accept(routeWithUsage);
 							return;
@@ -1082,25 +1075,48 @@ public class NearbyRouteManager {
 	// Routed messages exchange methods
 
 	/**
-	 * Helper method to send a RoutedMessage encapsulated in an OUTER NearbyMessageBody.
-	 * This method runs on caller thread (which is usually the executor thread for other methods in this class).
+	 * Helper method to send a RoutedMessage to the next hop.
+	 * This method runs on the caller's thread.
 	 */
 	private void sendRoutedMessageToNextHop(
-			@NonNull String nextHopAddressName,
-			@NonNull NearbyMessageBody outerNearbyMessageBody, // The NearbyMessageBody with type ROUTED_MESSAGE
-			@Nullable TransmissionCallback callback
-	) {
+			@NonNull String nextHopAddressName, @NonNull RoutedMessage routedMessage,
+			@NonNull RouteEntry route, @Nullable TransmissionCallback callback) {
 		try {
-			Log.d(TAG, "Sending RoutedMessage (outer) to next hop: " + nextHopAddressName);
+			Log.d(TAG, "Sending RoutedMessage to next hop: " + nextHopAddressName);
+			// Create an OUTER NearbyMessageBody with the RoutedMessage
+			// The `encrypted_routed_message_body` is left untouched, as it's E2E encrypted.
+			NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
+					.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
+					.setBinaryData(routedMessage.toByteString())
+					.build();
+			TransmissionCallback transmissionCallback = new TransmissionCallback() {
+				@Override
+				public void onSuccess(@NonNull Payload payload) {
+					if (callback != null) {
+						callback.onSuccess(payload);
+					}
+					Log.d(TAG, "RoutedMessage sent to next hop: " + nextHopAddressName);
+					route.setLastUseTimestamp(System.currentTimeMillis());
+					routeRepository.updateRouteEntry(route, null);
+				}
+
+				@Override
+				public void onFailure(@Nullable Payload payload, @Nullable Exception cause) {
+					if (callback != null) {
+						callback.onFailure(payload, cause);
+					}
+					Log.e(TAG, "Failed to send RoutedMessage to next hop: " + nextHopAddressName, cause);
+				}
+			};
 
 			// Use NearbyManager to send the raw payload bytes
-			nearbyManager.encryptAndSendInternal(null, nextHopAddressName, outerNearbyMessageBody,
-					Objects.requireNonNullElse(callback, TransmissionCallback.NULL_CALLBACK));
+			nearbyManager.encryptAndSendInternal(null, nextHopAddressName, outerNearbyMessageBody, transmissionCallback);
 		} catch (Exception e) {
-			Log.e(TAG, "Error building or sending RoutedMessage to " + nextHopAddressName + ": " + e.getMessage(), e);
+			Log.e(TAG, "Error building or sending RoutedMessage to " + nextHopAddressName, e);
 		}
 	}
 
+	@Nullable
 	protected RouteWithUsage getIfExistRouteAndUsageFor(@NonNull String remoteAddressName) {
 		// 1. Resolve finalDestinationAddressName to local ID
 		Node finalDestinationNode = nodeRepository.findNodeSync(remoteAddressName);
@@ -1141,13 +1157,12 @@ public class NearbyRouteManager {
 	 * Finally, this {@link RoutedMessage} is sent to the
 	 * determined next hop along the route, with hop-by-hop encryption/decryption.
 	 * <p>
-	 * The method queries the local route table to find the most recent active route
-	 * to the {@code finalDestinationAddressName} and resolves the immediate next hop.
 	 *
 	 * @param finalDestinationAddressName The {@code SignalProtocolAddress.name} of the ultimate
 	 *                                    recipient node for this message.
 	 * @param originalSenderAddressName   The {@code SignalProtocolAddress.name} of the node
 	 *                                    that originally sent this message.
+	 * @param routeWithUsage              Wrapper of the route to use and its usages
 	 * @param internalNearbyMessageBody   The {@link NearbyMessageBody} representing the actual
 	 *                                    application-level message (e.g., chat message, personal info, ACK). This object
 	 *                                    is *unencrypted* at this stage and will be encrypted end-to-end within this method.
@@ -1155,8 +1170,8 @@ public class NearbyRouteManager {
 	 *                                    {@link Payload} and match success or failure of the transmission.
 	 */
 	public void sendMessageThroughRoute(
-			@NonNull String finalDestinationAddressName,
-			@NonNull String originalSenderAddressName,
+			@NonNull String finalDestinationAddressName, @NonNull String originalSenderAddressName,
+			@NonNull RouteWithUsage routeWithUsage,
 			@NonNull NearbyMessageBody internalNearbyMessageBody, // The actual message, UNENCRYPTED
 			@NonNull TransmissionCallback callback
 	) {
@@ -1164,27 +1179,48 @@ public class NearbyRouteManager {
 			Log.d(TAG, "Attempting to send message to " + finalDestinationAddressName + " from " + originalSenderAddressName);
 
 			// 1. Resolve finalDestinationAddressName to local ID
-			// 2. Find an active route to the final destination
-			RouteWithUsage routeAndUsage = getIfExistRouteAndUsageFor(finalDestinationAddressName);
-			if (routeAndUsage == null) {
-				Log.e(TAG, "No active pair route-usage found for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+			Node finalDestinationNode = nodeRepository.findNodeSync(finalDestinationAddressName);
+			if (finalDestinationNode == null) {
+				Log.e(TAG, "Final destination node " + finalDestinationAddressName + " not found in local repository.");
 				callback.onFailure(null, null);
 				return;
 			}
-			RouteEntry activeRoute = routeAndUsage.routeEntry;
-			RouteUsage routeUsage = routeAndUsage.routeUsage;
 
-			if (routeUsage == null) {// TODO: not good
-				Log.e(TAG, "Impossible to find the RouteUsage for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
-				callback.onFailure(null, null);
-				return;
+			// 2. Get the active route to the final destination
+			RouteEntry activeRoute = routeWithUsage.routeEntry;
+			RouteUsage usage = routeWithUsage.routeUsage;
+			// Identify the next hop node for this route
+			Long nextHopLocalId;
+			boolean isForBacktracking;
+			String usageUuid;
+			if (routeWithUsage.isWithoutUsage() || Objects.equals(finalDestinationNode.getId(), activeRoute.getDestinationNodeLocalId())) {
+				/*
+				 * [`routeWithUsage.isWithoutUsage()`]
+				 * This node is just an intermediate node on this route.
+				 * So the route's destination match the final destination.
+				 * [`Objects.equals(finalDestinationNode.getId(), activeRoute.getDestinationNodeLocalId())`]
+				 * The route point to the final destination.
+				 */
+				nextHopLocalId = activeRoute.getNextHopLocalId();
+				isForBacktracking = false;
+				usageUuid = activeRoute.getDiscoveryUuid();
+			} else {
+				// We are in case of backtracking
+				if (usage == null) {
+					Log.e(TAG, "Impossible to find the RouteUsage for destination " + finalDestinationAddressName + ". The next hop is to extracted from the RouteUsage.");
+					callback.onFailure(null, null);
+					return;
+				}
+				nextHopLocalId = usage.getPreviousHopLocalId();
+				isForBacktracking = true;
+				usageUuid = usage.getUsageRequestUuid();
 			}
 
 			// 3. Resolve the next hop node for this route
-			Node nextHopNode = nodeRepository.findNodeSync(activeRoute.getNextHopLocalId());
-			if (nextHopNode == null) {
+			Node nextHopNode;
+			if (nextHopLocalId == null || (nextHopNode = nodeRepository.findNodeSync(nextHopLocalId)) == null) {
 				Log.e(TAG, "Next hop node for route " + activeRoute.getDiscoveryUuid() + " not found. Route might be stale/invalid.");
-				routeEntryDao.delete(activeRoute); // Invalidate the bad route
+				routeRepository.dropRouteAndItsUsages(activeRoute); // Invalidate the bad route
 				callback.onFailure(null, null);
 				return;
 			}
@@ -1212,26 +1248,15 @@ public class NearbyRouteManager {
 			RoutedMessage routedMessage = RoutedMessage.newBuilder()
 					.setFinalDestinationNodeId(finalDestinationAddressName)
 					.setRouteUuid(activeRoute.getDiscoveryUuid())
-					.setRouteUsageUuid(routeUsage.getUsageRequestUuid())
+					.setRouteUsageUuid(usageUuid)
 					.setEncryptedRoutedMessageBody(ByteString.copyFrom(encryptedRoutedMessageBody.serialize()))
 					.setOriginalSenderNodeId(originalSenderAddressName)
+					.setForBacktracking(isForBacktracking)
 					.build();
 
-			// 6. Encapsulate RoutedMessage into an OUTER NearbyMessageBody of type ROUTED_MESSAGE
-			NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
-					.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
-					.setBinaryData(routedMessage.toByteString())
-					.build();
-
-			// 7. Send the OUTER NearbyMessageBody to the next hop
+			// 6. Send the RoutedMessage to the next hop
 			// This part will be encrypted hop-by-hop by NearbySignalMessenger
-			sendRoutedMessageToNextHop(nextHopAddressName, outerNearbyMessageBody, callback);
-
-			Log.d(TAG, "Message for " + finalDestinationAddressName + " sent via route " + activeRoute.getDiscoveryUuid() + " to next hop " + nextHopAddressName);
-
-			// 8. Update RouteUsage timestamp for the used route
-			routeUsage.setPreviousHopLocalId(System.currentTimeMillis());
-			routeUsageDao.update(routeUsage);
+			sendRoutedMessageToNextHop(nextHopAddressName, routedMessage, activeRoute, callback);
 		});
 	}
 
@@ -1247,10 +1272,10 @@ public class NearbyRouteManager {
 	 * If the current node is an intermediate hop, it identifies the next hop for the
 	 * {@code finalDestinationNodeId} within the {@code incomingRoutedMessage} and
 	 * re-encapsulates the message for forwarding to that next hop. The end-to-end
-	 * encrypted payload remains untouched by intermediate nodes if the payload is already
-	 * set, but altered by defining the payload ID else.
+	 * encrypted payload remains untouched by intermediate nodes. If the payload ID
+	 * is defined if it isn't defined yet.
 	 * <p>
-	 * This method also updates the {@link RouteUsage} timestamp
+	 * This method also updates the {@link RouteEntry} last use timestamp
 	 * for the route being utilized.
 	 *
 	 * @param incomingRoutedMessage The deserialized {@link RoutedMessage} received, containing
@@ -1261,8 +1286,7 @@ public class NearbyRouteManager {
 	 */
 	public void handleIncomingRoutedMessage(
 			@NonNull RoutedMessage incomingRoutedMessage, // The deserialized RoutedMessage
-			@NonNull String localHostAddressName,
-			long payloadId
+			@NonNull String localHostAddressName, long payloadId
 	) {
 		executor.execute(() -> {
 			String finalDestinationAddressName = incomingRoutedMessage.getFinalDestinationNodeId();
@@ -1282,7 +1306,7 @@ public class NearbyRouteManager {
 					byte[] decryptedBytes = NearbySignalMessenger.getInstance().decrypt(cipherData, incomingRoutedMessage.getOriginalSenderNodeId());
 					decryptedRoutedMessageBody = RoutedMessageBody.parseFrom(decryptedBytes);
 				} catch (Exception e) {
-					Log.e(TAG, "Failed to E2E decrypt RoutedMessageBody for UUID " + routeUuid + ": " + e.getMessage(), e);
+					Log.e(TAG, "Failed to E2E decrypt RoutedMessageBody for UUID " + routeUuid, e);
 					return;
 				}
 
@@ -1297,25 +1321,32 @@ public class NearbyRouteManager {
 				// 2. Current node is an intermediate node, forward the message
 				Log.d(TAG, "Current node is an intermediate node for RoutedMessage to " + finalDestinationAddressName);
 
-				// a. Find the active route from current node to final destination
-				RouteWithUsage routeAndUsage = getIfExistRouteAndUsageFor(finalDestinationAddressName);
-				if (routeAndUsage == null) {
-					Log.e(TAG, "No active pair route-usage found for destination " + finalDestinationAddressName + ". Please initiate route discovery.");
+				RouteEntry activeRoute = routeRepository.findRouteByDiscoveryUuidSync(routeUuid);
+				RouteUsage usage = routeRepository.findRouteUsageByUsageUuidSync(incomingRoutedMessage.getRouteUsageUuid());
+
+				if (activeRoute == null) {
+					Log.e(TAG, "Unable to locate the route for request ID: " + routeUuid);
 					return;
 				}
-				RouteEntry activeRoute = routeAndUsage.routeEntry;
-				RouteUsage routeUsage = routeAndUsage.routeUsage;
-
-				if (routeUsage == null) { // TODO: not good
-					Log.w(TAG, "Unable to locate the route usage for request ID=" + incomingRoutedMessage.getRouteUuid());
-					return;
+				Long nextHopLocalId;
+				if (incomingRoutedMessage.getForBacktracking()) {
+					// We are in case of backtracking
+					if (usage != null && usage.getPreviousHopLocalId() != null) {
+						// Usage previous hop is the correct to fetch cases of route reuse
+						nextHopLocalId = usage.getPreviousHopLocalId();
+					} else {
+						// The node is just an intermediate node on this route.
+						nextHopLocalId = activeRoute.getPreviousHopLocalId();
+					}
+				} else {
+					nextHopLocalId = activeRoute.getNextHopLocalId();
 				}
 
 				// b. Resolve the next hop
-				Node nextHopNode = nodeRepository.findNodeSync(activeRoute.getNextHopLocalId());
-				if (nextHopNode == null) {
+				Node nextHopNode;
+				if (nextHopLocalId == null || (nextHopNode = nodeRepository.findNodeSync(nextHopLocalId)) == null) {
 					Log.e(TAG, "Next hop node for route " + activeRoute.getDiscoveryUuid() + " not found on intermediate node. Route might be stale/invalid.");
-					routeEntryDao.delete(activeRoute);
+					routeRepository.dropRouteAndItsUsages(activeRoute); // Invalidate the bad route
 					return;
 				}
 				String nextHopAddressName = nextHopNode.getAddressName();
@@ -1326,17 +1357,7 @@ public class NearbyRouteManager {
 					routedMessage = incomingRoutedMessage.toBuilder().setPayloadId(payloadId).build();
 				}
 
-				// c. Create an OUTER NearbyMessageBody with the SAME incoming RoutedMessage
-				// The `encrypted_routed_message_body` is left untouched, as it's E2E encrypted.
-				NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
-						.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
-						.setBinaryData(routedMessage.toByteString())
-						.build();
-
-				// d. Send this OUTER NearbyMessageBody to the next hop
-				sendRoutedMessageToNextHop(nextHopAddressName, outerNearbyMessageBody, null);
-
-				Log.d(TAG, "RoutedMessage for " + finalDestinationAddressName + " forwarded to " + nextHopAddressName);
+				sendRoutedMessageToNextHop(nextHopAddressName, routedMessage, activeRoute, null);
 			}
 		});
 	}

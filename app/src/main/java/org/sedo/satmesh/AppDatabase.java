@@ -63,14 +63,14 @@ public abstract class AppDatabase extends RoomDatabase {
 			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_next_hop_local_id` ON `route_entry` (`next_hop_local_id`)");
 			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_previous_hop_local_id` ON `route_entry` (`previous_hop_local_id`)");
 
-			// Création de la table route_request_entry
+			// Creation of table route_request_entry
 			database.execSQL("CREATE TABLE IF NOT EXISTS `route_request_entry` (" +
 					"`request_uuid` TEXT NOT NULL, " +
 					"`destination_node_local_id` INTEGER, " +
 					"`previous_hop_local_id` INTEGER, " +
 					"PRIMARY KEY(`request_uuid`))");
 
-			// Création de la table route_usage
+			// Creation of table route_usage
 			database.execSQL("CREATE TABLE IF NOT EXISTS `route_usage` (" +
 					"`usage_request_uuid` TEXT NOT NULL, " +
 					"`route_entry_discovery_uuid` TEXT, " +
@@ -80,7 +80,7 @@ public abstract class AppDatabase extends RoomDatabase {
 
 			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_usage_route_entry_discovery_uuid` ON `route_usage` (`route_entry_discovery_uuid`)");
 
-			// Création de la table broadcast_status_entry
+			// Creation of table broadcast_status_entry
 			database.execSQL("CREATE TABLE IF NOT EXISTS `broadcast_status_entry` (" +
 					"`request_uuid` TEXT NOT NULL, " +
 					"`neighbor_node_local_id` INTEGER NOT NULL, " +
@@ -190,6 +190,64 @@ public abstract class AppDatabase extends RoomDatabase {
 		}
 	};
 
+	static final Migration MIGRATION_5_6 = new Migration(5, 6) {
+		@Override
+		public void migrate(@NonNull SupportSQLiteDatabase database) {
+			database.execSQL("PRAGMA foreign_keys=OFF");
+
+			// Drop indices and tables for existing Route entities from schema 5
+			database.execSQL("DROP INDEX IF EXISTS `index_route_entry_discovery_uuid`");
+			database.execSQL("DROP INDEX IF EXISTS `index_route_entry_destination_node_local_id`");
+			database.execSQL("DROP INDEX IF EXISTS `index_route_entry_next_hop_local_id`");
+			database.execSQL("DROP INDEX IF EXISTS `index_route_entry_previous_hop_local_id`");
+			database.execSQL("DROP TABLE IF EXISTS `route_entry`");
+
+			// route_request_entry has no separate indices other than PK from schema 5
+			database.execSQL("DROP TABLE IF EXISTS `route_request_entry`");
+
+			database.execSQL("DROP INDEX IF EXISTS `index_route_usage_route_entry_discovery_uuid`");
+			database.execSQL("DROP TABLE IF EXISTS `route_usage`");
+
+			database.execSQL("DROP INDEX IF EXISTS `index_broadcast_status_entry_request_uuid`");
+			database.execSQL("DROP INDEX IF EXISTS `index_broadcast_status_entry_neighbor_node_local_id`");
+			database.execSQL("DROP TABLE IF EXISTS `broadcast_status_entry`");
+
+			// Recreate tables and their indices based on schema 6 definitions
+
+			// Recreate route_entry
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_entry` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `discovery_uuid` TEXT, " +
+					"`destination_node_local_id` INTEGER, `next_hop_local_id` INTEGER, `previous_hop_local_id` INTEGER, `hop_count` INTEGER, " +
+					"`last_use_timestamp` INTEGER)");
+			database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_route_entry_discovery_uuid` ON `route_entry` (`discovery_uuid`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_destination_node_local_id` ON `route_entry` (`destination_node_local_id`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_next_hop_local_id` ON `route_entry` (`next_hop_local_id`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_entry_previous_hop_local_id` ON `route_entry` (`previous_hop_local_id`)");
+
+			// Recreate route_request_entry
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_request_entry` (`request_uuid` TEXT NOT NULL, `destination_node_local_id` INTEGER, " +
+					"`previous_hop_local_id` INTEGER, PRIMARY KEY(`request_uuid`))");
+
+			// Recreate route_usage
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_usage` (`usage_request_uuid` TEXT NOT NULL, `route_entry_discovery_uuid` TEXT, " +
+					"`previous_hop_local_id` INTEGER, PRIMARY KEY(`usage_request_uuid`), " +
+					"FOREIGN KEY(`route_entry_discovery_uuid`) REFERENCES `route_entry`(`discovery_uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_route_usage_route_entry_discovery_uuid` ON `route_usage` (`route_entry_discovery_uuid`)");
+
+			// Recreate broadcast_status_entry
+			database.execSQL("CREATE TABLE IF NOT EXISTS `broadcast_status_entry` (`request_uuid` TEXT NOT NULL, `neighbor_node_local_id` INTEGER NOT NULL, " +
+					"`is_pending_response_in_progress` INTEGER NOT NULL, PRIMARY KEY(`request_uuid`, `neighbor_node_local_id`), " +
+					"FOREIGN KEY(`request_uuid`) REFERENCES `route_request_entry`(`request_uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_broadcast_status_entry_request_uuid` ON `broadcast_status_entry` (`request_uuid`)");
+			database.execSQL("CREATE INDEX IF NOT EXISTS `index_broadcast_status_entry_neighbor_node_local_id` ON `broadcast_status_entry` (`neighbor_node_local_id`)");
+
+			// Create new table route_usage_backtracking
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_usage_backtracking` (`usageUuid` TEXT NOT NULL, `destinationNodeLocalId` INTEGER NOT NULL, " +
+					"PRIMARY KEY(`usageUuid`))");
+
+			database.execSQL("PRAGMA foreign_keys=ON");
+		}
+	};
+
 	private static volatile AppDatabase INSTANCE;
 
 	public static AppDatabase getDB(Context context) {
@@ -200,7 +258,7 @@ public abstract class AppDatabase extends RoomDatabase {
 					SupportOpenHelperFactory factory = new SupportOpenHelperFactory(AndroidKeyManager.getOrCreateAppCipherPassphrase(context));
 					INSTANCE = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "satmesh_db")
 							.openHelperFactory(factory)
-							.addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+							.addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 							.build();
 				}
 			}

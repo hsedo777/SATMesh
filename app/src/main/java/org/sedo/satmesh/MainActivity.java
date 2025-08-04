@@ -47,8 +47,6 @@ import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
 import org.sedo.satmesh.utils.Constants;
 import org.sedo.satmesh.utils.NotificationType;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -124,10 +122,10 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		}
 	}
 
-	private final List<Integer> appQuitStack = new ArrayList<>();
 	// Launch and treat setting activity
 	private ActivityResultLauncher<Intent> requirementsLauncher;
 	private ActivityResultLauncher<Intent> settingsLauncher;
+	private boolean needsToDisableWifi = false;
 	private AppDatabase appDatabase;
 
 	/**
@@ -238,11 +236,12 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 				new ActivityResultContracts.StartActivityForResult(),
 				result -> {
 					// On setting activity ended
-					Log.d(TAG, "Back from bluetooth/wifi enabling/disabling settings.");
-					if (!appQuitStack.isEmpty()) {
-						appQuitStack.remove(0);
-					}
-					if (appQuitStack.isEmpty()) {
+					if (needsToDisableWifi) {
+						Log.d(TAG, "Back from Bluetooth enabling/disabling settings.");
+						launchWifiSettingsForQuit();
+					} else {
+						// No more settings activities pending, or we just returned from Wi-Fi settings.
+						// This also covers the case where only Bluetooth was needed and it returned.
 						exit();
 					}
 				}
@@ -546,36 +545,15 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	@Override
 	public void quitApp() {
 		SATMeshServiceStatus serviceStatus = SATMeshServiceStatus.getInstance();
-		if (serviceStatus.needToDisableBluetooth() || serviceStatus.needToDisableWifi()) {
+		if (serviceStatus.needsToDisableBluetooth() || serviceStatus.needsToDisableWifi()) {
 			new AlertDialog.Builder(this)
 					.setTitle(R.string.exit_dialog_title)
 					.setMessage(R.string.exit_dialog_message)
 					.setPositiveButton(R.string.yes, (dialog, which) -> {
 						// Prevent bluetooth/wifi re-enabling by Nearby Connections
 						NearbyManager.getInstance().stopNearby();
-						boolean needToDisableWifi = serviceStatus.needToDisableWifi();
-						if (needToDisableWifi) {
-							/*
-							 * Ensure event Bluetooth setting activity is launched
-							 * and closed before launching Wi-Fi setting activity,
-							 * the app will wait ending of the Wi-Fi setting activity
-							 * before exiting.
-							 */
-							appQuitStack.add(2);
-						}
-						if (serviceStatus.needToDisableBluetooth()) {
-							appQuitStack.add(1);
-							Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
-							intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-							settingsLauncher.launch(intent);
-							Log.d(TAG, "Redirecting to Bluetooth settings on app exit.");
-						}
-						if (needToDisableWifi) {
-							Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
-							intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-							settingsLauncher.launch(intent);
-							Log.d(TAG, "Redirecting to Wi-Fi settings on app exit.");
-						}
+						needsToDisableWifi = serviceStatus.needsToDisableWifi();
+						launchBluetoothSettingsForQuit(serviceStatus.needsToDisableBluetooth());
 					})
 					.setNegativeButton(R.string.no, (dialog, which) -> {
 						// just quit
@@ -584,6 +562,33 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 					.setCancelable(true)
 					.show();
 		} else {
+			exit();
+		}
+	}
+
+	private void launchBluetoothSettingsForQuit(boolean needsToDisableBluetooth) {
+		if (needsToDisableBluetooth) {
+			Log.d(TAG, "Redirecting to Bluetooth settings on app exit.");
+			Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			settingsLauncher.launch(intent);
+			// The settingsLauncher callback will handle the next step (Wi-Fi or exit)
+		} else {
+			// Bluetooth doesn't need disabling, proceed directly to Wi-Fi check
+			launchWifiSettingsForQuit();
+		}
+	}
+
+	private void launchWifiSettingsForQuit() {
+		if (needsToDisableWifi) {
+			needsToDisableWifi = false;
+			Log.d(TAG, "Redirecting to Wi-Fi settings on app exit.");
+			Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			settingsLauncher.launch(intent);
+			// The settingsLauncher callback will handle the final exit
+		} else {
+			// Wi-Fi doesn't need disabling, or already handled, now exit
 			exit();
 		}
 	}

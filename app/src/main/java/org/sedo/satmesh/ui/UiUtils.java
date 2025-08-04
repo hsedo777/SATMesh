@@ -1,6 +1,7 @@
 package org.sedo.satmesh.ui;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.util.Log;
@@ -51,11 +52,11 @@ public class UiUtils {
      *
      * @return true if Bluetooth is enabled, false otherwise.
      */
-    public static boolean isBluetoothEnabled() {
+    public static boolean isBluetoothEnabled(@NonNull Context context) {
         try {
             // Get the default BluetoothAdapter.
-            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
+			BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+			BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
             // If bluetoothAdapter is null, then Bluetooth is not supported on this device.
             // If it's not null, check if it's enabled.
             return bluetoothAdapter != null && bluetoothAdapter.isEnabled();

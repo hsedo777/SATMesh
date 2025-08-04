@@ -321,7 +321,7 @@ public class SATMeshCommunicationService extends Service {
         }
         DataLog.init(getApplicationContext(), hostNode.getAddressName());
         Log.d(TAG, "DataLog initialized in service.");
-        SATMeshServiceStatus.getInstance().setWasBluetoothEnabled(UiUtils.isBluetoothEnabled());
+        SATMeshServiceStatus.getInstance().setWasBluetoothEnabled(UiUtils.isBluetoothEnabled(getApplicationContext()));
         SATMeshServiceStatus.getInstance().setWasWifiEnabled(UiUtils.isWifiEnabled(getApplicationContext()));
 
         // Reset node connection state

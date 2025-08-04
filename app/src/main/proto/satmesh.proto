@@ -61,6 +61,7 @@ message NearbyMessageBody {
     KNOWLEDGE = 9;
     CLAIM_READ_ACK = 10;
     ROUTE_DESTROY = 11;
+    ACK_CONFIRMATION = 12;
   }
   MessageType message_type = 1;
   /*
@@ -170,4 +171,11 @@ message RoutedMessage {
 message RouteDestroyMessage {
   // The UUID of the route to destroy.
   string route_uuid = 1;
+}
+
+// Defines the structure of message to use to send confirmation ack when receiving a message ack
+// through a route
+message MessageAckConfirmation {
+  int32 ack_type = 1;
+  int64 payload_id = 2;
 }

@@ -59,7 +59,7 @@ public interface BroadcastStatusEntryDao {
 	 * @return The matched {@link BroadcastStatusEntry}
 	 */
 	@Query("SELECT *  FROM broadcast_status_entry WHERE request_uuid = :requestUuid AND neighbor_node_local_id = :neighborNodeLocalId")
-	BroadcastStatusEntry findBroadcastStatusSync(String requestUuid, Long neighborNodeLocalId);
+	BroadcastStatusEntry findBroadcastStatus(String requestUuid, Long neighborNodeLocalId);
 
 	/**
 	 * Checks if there's any BroadcastStatusEntry for a given request UUID

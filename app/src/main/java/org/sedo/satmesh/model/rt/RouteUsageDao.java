@@ -51,4 +51,13 @@ public interface RouteUsageDao {
 	 */
 	@Query("DELETE FROM route_usage WHERE route_entry_discovery_uuid = :routeEntryDiscoveryUuid")
 	void deleteUsagesForRouteEntry(String routeEntryDiscoveryUuid);
+
+	/**
+	 * Retrieves RouteUsage records associated with a specific RouteEntry.
+	 *
+	 * @param requestUuid The discovery UUID of the RouteEntry.
+	 * @return A RouteUsage object associated with the given requestUuid.
+	 */
+	@Query("SELECT * FROM route_usage WHERE usage_request_uuid = :requestUuid")
+	RouteUsage findByUsageRequestUuid(String requestUuid);
 }

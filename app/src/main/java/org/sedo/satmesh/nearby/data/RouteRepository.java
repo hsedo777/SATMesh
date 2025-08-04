@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.model.rt.BroadcastStatusEntry;
@@ -88,7 +89,7 @@ public class RouteRepository {
 	}
 
 	public BroadcastStatusEntry findBroadcastStatusSync(String requestUuid, Long neighborNodeLocalId) {
-		return broadcastStatusEntryDao.findBroadcastStatusSync(requestUuid, neighborNodeLocalId);
+		return broadcastStatusEntryDao.findBroadcastStatus(requestUuid, neighborNodeLocalId);
 	}
 
 	public void dropBroadcastStatusesByRequestUuid(@NonNull String requestUuid) {
@@ -125,7 +126,7 @@ public class RouteRepository {
 	}
 
 	public RouteEntry.RouteWithUsage findMostRecentRouteByDestinationSync(long destinationNodeLocalId) {
-		return routeEntryDao.findMostRecentRouteByDestinationSync(destinationNodeLocalId);
+		return routeEntryDao.findMostRecentRouteByDestination(destinationNodeLocalId);
 	}
 
 	/**
@@ -164,6 +165,36 @@ public class RouteRepository {
 				callback.accept(false);
 			}
 		});
+	}
+
+	/**
+	 * Update a RouteEntry in the database. This method is executed on a background thread.
+	 *
+	 * @param routeEntry The RouteEntry to be updated.
+	 * @param callback   The callback to be executed upon completion.
+	 */
+	public void updateRouteEntry(@NonNull RouteEntry routeEntry, @Nullable Consumer<Boolean> callback) {
+		executor.execute(() -> {
+			try {
+				routeEntryDao.update(routeEntry);
+				if (callback != null) {
+					callback.accept(true);
+				}
+			} catch (Exception e) {
+				Log.e(TAG, "Error inserting RouteEntry: ", e);
+				if (callback != null) {
+					callback.accept(false);
+				}
+			}
+		});
+	}
+
+	public RouteEntry findRouteByDiscoveryUuidSync(@NonNull String discoveryUuid) {
+		return routeEntryDao.findByDiscoveryUuid(discoveryUuid);
+	}
+
+	public RouteUsage findRouteUsageByUsageUuidSync(@NonNull String usageRequestUuid) {
+		return routeUsageDao.findByUsageRequestUuid(usageRequestUuid);
 	}
 
 	/**

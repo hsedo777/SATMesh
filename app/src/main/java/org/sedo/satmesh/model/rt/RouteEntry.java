@@ -186,10 +186,6 @@ public class RouteEntry {
 			this.backtracking = backtracking;
 		}
 
-		public boolean isForBacktracking() {
-			return backtracking != null;
-		}
-
 		public boolean isWithoutUsage() {
 			return routeUsage == null && backtracking == null;
 		}

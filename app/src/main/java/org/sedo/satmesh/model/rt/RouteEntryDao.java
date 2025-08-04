@@ -46,6 +46,15 @@ public interface RouteEntryDao {
 	int delete(RouteEntry routeEntry);
 
 	/**
+	 * Retrieves all RouteEntry from the database.
+	 *
+	 * @param discoveryUuid The discovery UUID of the RouteEntry.
+	 * @return A RouteEntry object.
+	 */
+	@Query("SELECT * FROM route_entry WHERE discovery_uuid = :discoveryUuid")
+	RouteEntry findByDiscoveryUuid(String discoveryUuid);
+
+	/**
 	 * Retrieves the most recently used "opened" route entry for a given destination node,
 	 * along with its last usage timestamp.
 	 *
@@ -76,5 +85,5 @@ public interface RouteEntryDao {
 			"AND RE.last_use_timestamp IS NOT NULL " + // Corresponds to isOpened()
 			"ORDER BY RE.last_use_timestamp DESC " +
 			"LIMIT 1")
-	RouteWithUsage findMostRecentRouteByDestinationSync(long destinationNodeLocalId);
+	RouteWithUsage findMostRecentRouteByDestination(long destinationNodeLocalId);
 }

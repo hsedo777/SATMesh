@@ -28,6 +28,6 @@ public interface RouteUsageBacktrackingDao {
 	 *
 	 * @param routeUuid The UUID of the route.
 	 */
-	@Query("DELETE FROM route_usage_backtracking WHERE usageUuid IN (SELECT usage_request_uuid FROM route_usage WHERE route_entry_discovery_uuid = :routeUuid)")
+	@Query("DELETE FROM route_usage_backtracking WHERE usage_uuid IN (SELECT usage_request_uuid FROM route_usage WHERE route_entry_discovery_uuid = :routeUuid)")
 	void deleteByRouteUuid(String routeUuid);
 }

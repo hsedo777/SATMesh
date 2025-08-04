@@ -76,13 +76,13 @@ public interface RouteEntryDao {
 			"RU.route_entry_discovery_uuid AS usage_route_entry_discovery_uuid, " +
 			"RU.previous_hop_local_id AS usage_previous_hop_local_id, " +
 			// Select fields from RouteUsageBacktracking
-			"RB.destinationNodeLocalId AS backtracking_destinationNodeLocalId, " +
-			"RB.usageUuid AS backtracking_usageUuid " +
+			"RB.destination_node_local_id AS backtracking_destination_node_local_id, " +
+			"RB.usage_uuid AS backtracking_usage_uuid " +
 			"FROM route_entry AS RE " +
 			"LEFT OUTER JOIN route_usage AS RU ON RE.discovery_uuid = RU.route_entry_discovery_uuid " +
-			"LEFT OUTER JOIN route_usage_backtracking AS RB ON RU.usage_request_uuid = RB.usageUuid " +
-			"WHERE (RE.destination_node_local_id = :destinationNodeLocalId OR RB.destinationNodeLocalId = :destinationNodeLocalId) " +
-			"AND RE.last_use_timestamp IS NOT NULL " + // Corresponds to isOpened()
+			"LEFT OUTER JOIN route_usage_backtracking AS RB ON RU.usage_request_uuid = RB.usage_uuid " +
+			"WHERE (RE.destination_node_local_id = :destinationNodeLocalId OR RB.destination_node_local_id = :destinationNodeLocalId) " +
+			"AND RE.last_use_timestamp IS NOT NULL " +
 			"ORDER BY RE.last_use_timestamp DESC " +
 			"LIMIT 1")
 	RouteWithUsage findMostRecentRouteByDestination(long destinationNodeLocalId);

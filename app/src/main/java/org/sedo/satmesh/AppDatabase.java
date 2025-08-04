@@ -241,8 +241,8 @@ public abstract class AppDatabase extends RoomDatabase {
 			database.execSQL("CREATE INDEX IF NOT EXISTS `index_broadcast_status_entry_neighbor_node_local_id` ON `broadcast_status_entry` (`neighbor_node_local_id`)");
 
 			// Create new table route_usage_backtracking
-			database.execSQL("CREATE TABLE IF NOT EXISTS `route_usage_backtracking` (`usageUuid` TEXT NOT NULL, `destinationNodeLocalId` INTEGER NOT NULL, " +
-					"PRIMARY KEY(`usageUuid`))");
+			database.execSQL("CREATE TABLE IF NOT EXISTS `route_usage_backtracking` (`usage_uuid` TEXT NOT NULL, `destination_node_local_id` INTEGER NOT NULL, " +
+					"PRIMARY KEY(`usage_uuid`))");
 
 			database.execSQL("PRAGMA foreign_keys=ON");
 		}

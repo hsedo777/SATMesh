@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "02ba968956d514f7a1f476b6ad522788",
+    "identityHash": "5a5aad01d464f951860dbf703bea9343",
     "entities": [
       {
         "tableName": "node",
@@ -583,17 +583,17 @@
       },
       {
         "tableName": "route_usage_backtracking",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`usageUuid` TEXT NOT NULL, `destinationNodeLocalId` INTEGER NOT NULL, PRIMARY KEY(`usageUuid`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`usage_uuid` TEXT NOT NULL, `destination_node_local_id` INTEGER NOT NULL, PRIMARY KEY(`usage_uuid`))",
         "fields": [
           {
             "fieldPath": "usageUuid",
-            "columnName": "usageUuid",
+            "columnName": "usage_uuid",
             "affinity": "TEXT",
             "notNull": true
           },
           {
             "fieldPath": "destinationNodeLocalId",
-            "columnName": "destinationNodeLocalId",
+            "columnName": "destination_node_local_id",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -601,14 +601,14 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "usageUuid"
+            "usage_uuid"
           ]
         }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '02ba968956d514f7a1f476b6ad522788')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5a5aad01d464f951860dbf703bea9343')"
     ]
   }
 }

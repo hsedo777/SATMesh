@@ -145,7 +145,6 @@ public class NearbyDiscoveryFragment extends Fragment {
 			}
 		});
 		binding.nearbyNodesRecyclerView.setAdapter(adapter);
-		binding.nearbyTitle.setOnClickListener(v -> viewModel.reloadNodes());
 		binding.nearbyDiscoveryAppBar.setOnMenuItemClickListener(item -> {
 			if (item.getItemId() == R.id.discovery_menu_quit) {
 				if (quitAppListener != null) {

@@ -20,22 +20,8 @@
 		app:layout_constraintTop_toTopOf="parent"
 		app:menu="@menu/nearby_discovery_menu"
 		app:subtitleTextColor="@color/colorOnSecondary"
-		app:title="@string/app_name"
+		app:title="@string/nearby_discovery_title"
 		app:titleTextColor="@color/colorOnSecondary" />
-
-	<TextView
-		android:id="@+id/nearby_title"
-		android:layout_width="0dp"
-		android:layout_height="wrap_content"
-		android:layout_marginTop="@dimen/space_xl"
-		android:gravity="center"
-		android:text="@string/nearby_discovery_title"
-		android:textColor="@color/colorOnSecondary"
-		android:textSize="28sp"
-		android:textStyle="bold"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="parent" />
 
 	<TextView
 		android:id="@+id/nearby_description"
@@ -48,7 +34,7 @@
 		android:textSize="@dimen/text_size_body"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@id/nearby_title" />
+		app:layout_constraintTop_toBottomOf="@id/nearby_discovery_app_bar" />
 
 	<ProgressBar
 		android:id="@+id/progress_bar"
@@ -67,7 +53,7 @@
 		android:id="@+id/empty_state_text"
 		android:layout_width="0dp"
 		android:layout_height="wrap_content"
-		android:layout_marginTop="@dimen/space_xl"
+		android:layout_marginTop="@dimen/space_md"
 		android:gravity="center"
 		android:text="@string/no_nearby_nodes_found"
 		android:textColor="@color/colorOnSecondary"
@@ -82,7 +68,7 @@
 		android:id="@+id/nearby_nodes_recycler_view"
 		android:layout_width="match_parent"
 		android:layout_height="0dp"
-		android:layout_marginTop="@dimen/space_xl"
+		android:layout_marginTop="@dimen/space_md"
 		android:clipToPadding="false"
 		android:paddingBottom="@dimen/space_md"
 		android:visibility="gone"

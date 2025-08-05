@@ -1033,6 +1033,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					updateMessageStatus(null, Message.MESSAGE_STATUS_DELIVERED, ackConfirmation.getPayloadId(), null);
 				} else if (ackConfirmation.getAckType() == MESSAGE_READ_ACK_VALUE) {
 					updateMessageStatus(null, Message.MESSAGE_STATUS_READ, ackConfirmation.getPayloadId(), null);
+				} else {
+					Log.w(TAG, "Received ACK confirmation with unhandled ackType: " + ackConfirmation.getAckType());
 				}
 				break;
 			case PERSONAL_INFO:

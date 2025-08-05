@@ -18,6 +18,9 @@
 	<!-- Button text, links… -->
 	<color name="button_disabled_background">#AAAAAA</color>
 	<color name="button_disabled_text">@color/black</color>
+	<color name="toolbar_background">#426A79</color>
+	<color name="toolbar_title">@color/white</color>
+	<color name="toolbar_subtitle">@color/white</color>
 
 	<!-- Message exchange -->
 	<color name="message_sent_background">#574F5C</color>

@@ -11,16 +11,13 @@
 		android:id="@+id/chat_toolbar"
 		android:layout_width="0dp"
 		android:layout_height="?attr/actionBarSize"
-		app:title="@string/app_name"
+		android:elevation="@dimen/space_xs"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
-		android:background="@color/secondary"
-		app:titleTextColor="@color/on_secondary"
-		app:subtitleTextColor="@color/on_secondary"
 		app:menu="@menu/chat_menu"
-		android:elevation="@dimen/space_xs"
-		app:navigationIcon="@drawable/ic_arrow_back"/>
+		app:navigationIcon="@drawable/ic_arrow_back"
+		app:title="@string/app_name" />
 
 	<!-- Connectivity indicator (over toolbar content) -->
 	<View
@@ -28,8 +25,8 @@
 		android:layout_width="@dimen/node_state_indication_radius"
 		android:layout_height="@dimen/node_state_indication_radius"
 		android:layout_marginEnd="40dp"
-		android:elevation="@dimen/space_md"
 		android:background="@drawable/status_indicator"
+		android:elevation="@dimen/space_md"
 		app:layout_constraintBottom_toBottomOf="@id/chat_toolbar"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintTop_toTopOf="@id/chat_toolbar" />
@@ -63,10 +60,10 @@
 		app:layout_constraintStart_toStartOf="parent">
 
 		<FrameLayout
+			android:id="@+id/message_input_frame"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:id="@+id/message_input_frame">
+			android:layout_weight="1">
 
 			<com.google.android.material.textfield.TextInputLayout
 				style="@style/Widget.SATMesh.TextInputLayout.Message"
@@ -80,13 +77,13 @@
 					android:layout_height="wrap_content"
 					android:background="@null"
 					android:gravity="top|start"
+					android:hint="@string/message_hint"
 					android:imeOptions="actionSend"
 					android:inputType="textCapSentences|textMultiLine"
-					android:hint="@string/message_hint"
 					android:maxLines="4"
 					android:minLines="1"
-					android:paddingStart="12dp"
 					android:paddingVertical="10dp"
+					android:paddingStart="12dp"
 					android:paddingEnd="48dp"
 					android:textColor="@color/on_secondary"
 					android:textColorHint="@color/on_secondary" />
@@ -97,13 +94,13 @@
 				android:layout_width="36dp"
 				android:layout_height="36dp"
 				android:layout_gravity="end|center_vertical"
-				android:padding="@dimen/space_xs"
 				android:background="@drawable/send_button_background"
-				android:contentDescription="@string/send_message_description"
-				android:src="@drawable/ic_send"
-				app:tint="@color/secondary"
 				android:clickable="true"
-				android:focusable="true"/>
+				android:contentDescription="@string/send_message_description"
+				android:focusable="true"
+				android:padding="@dimen/space_xs"
+				android:src="@drawable/ic_send"
+				app:tint="@color/secondary" />
 		</FrameLayout>
 	</LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

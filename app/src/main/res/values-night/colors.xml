@@ -20,6 +20,9 @@
 	<!-- Button text, links… -->
 	<color name="button_disabled_background">#444444</color>
 	<color name="button_disabled_text">#888888</color>
+	<color name="toolbar_background">#204652</color>
+	<color name="toolbar_title">#DDDDDD</color>
+	<color name="toolbar_subtitle">#AAAAAA</color>
 
 	<!-- Message exchange -->
 	<color name="message_sent_background">#2E2E2E</color>

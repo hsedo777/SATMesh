@@ -744,7 +744,7 @@ public class NearbyManager {
 			@NonNull String originalSenderAddress, @NonNull NearbyMessageBody internalNearbyMessageBody,
 			long payloadId) {
 		try {
-			NearbySignalMessenger.getInstance().parseDecryptedMessage(internalNearbyMessageBody, originalSenderAddress, payloadId);
+			NearbySignalMessenger.getInstance().parseDecryptedMessage(internalNearbyMessageBody, originalSenderAddress, payloadId, true);
 		} catch (Exception e) {
 			Log.e(TAG, "Error processing encrypted message from " + originalSenderAddress, e);
 		}

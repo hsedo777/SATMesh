@@ -4,6 +4,6 @@
 	android:viewportWidth="8"
 	android:viewportHeight="8">
 	<path
-		android:fillColor="@color/cardBackgroundColor2"
+		android:fillColor="@color/card_background_2"
 		android:pathData="M8,0 L0,0 L0,8 Z" />
 </vector>

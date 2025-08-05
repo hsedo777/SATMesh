@@ -35,7 +35,7 @@
 			android:id="@+id/message_text"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:textColor="@color/messageSentText"
+			android:textColor="@color/message_sent_text"
 			android:textSize="@dimen/text_size_body"
 			android:layout_gravity="end"
 			tools:text="Yes, everything's fine!"/>
@@ -51,7 +51,7 @@
 				android:id="@+id/message_time"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:textColor="@color/messageSentText"
+				android:textColor="@color/message_sent_text"
 				android:textSize="@dimen/text_size_small"
 				tools:text="14:36"/>
 

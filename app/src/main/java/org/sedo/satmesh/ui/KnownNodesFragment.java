@@ -50,7 +50,7 @@ public class KnownNodesFragment extends Fragment {
 			View decorView = requireActivity().getWindow().getDecorView();
 			View actionModeView = decorView.findViewById(androidx.appcompat.R.id.action_mode_bar);
 			if (actionModeView != null) {
-				actionModeView.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.secondaryColor));
+				actionModeView.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.secondary));
 			}
 			return true; // Return true for the ActionMode to be created
 		}

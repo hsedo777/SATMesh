@@ -15,9 +15,9 @@
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
-		android:background="@color/secondaryColor"
-		app:titleTextColor="@color/colorOnSecondary"
-		app:subtitleTextColor="@color/colorOnSecondary"
+		android:background="@color/secondary"
+		app:titleTextColor="@color/on_secondary"
+		app:subtitleTextColor="@color/on_secondary"
 		app:menu="@menu/chat_menu"
 		android:elevation="@dimen/space_xs"
 		app:navigationIcon="@drawable/ic_arrow_back"/>
@@ -88,8 +88,8 @@
 					android:paddingStart="12dp"
 					android:paddingVertical="10dp"
 					android:paddingEnd="48dp"
-					android:textColor="@color/colorOnSecondary"
-					android:textColorHint="@color/colorOnSecondary" />
+					android:textColor="@color/on_secondary"
+					android:textColorHint="@color/on_secondary" />
 			</com.google.android.material.textfield.TextInputLayout>
 
 			<ImageButton
@@ -101,7 +101,7 @@
 				android:background="@drawable/send_button_background"
 				android:contentDescription="@string/send_message_description"
 				android:src="@drawable/ic_send"
-				app:tint="@color/secondaryColor"
+				app:tint="@color/secondary"
 				android:clickable="true"
 				android:focusable="true"/>
 		</FrameLayout>

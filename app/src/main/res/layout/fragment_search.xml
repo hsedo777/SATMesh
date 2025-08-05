@@ -17,8 +17,8 @@
 			android:layout_width="match_parent"
 			android:layout_height="?attr/actionBarSize"
 			app:layout_scrollFlags="scroll|enterAlways"
-			app:subtitleTextColor="@color/colorOnSecondary"
-			app:titleTextColor="@color/colorOnSecondary">
+			app:subtitleTextColor="@color/on_secondary"
+			app:titleTextColor="@color/on_secondary">
 
 			<androidx.appcompat.widget.SearchView
 				android:id="@+id/search_view"
@@ -42,7 +42,7 @@
 			android:layout_height="wrap_content"
 			android:orientation="vertical"
 			android:padding="@dimen/space_sm"
-			android:background="@color/primaryColor">
+			android:background="@color/primary">
 
 			<TextView
 				android:id="@+id/text_no_results"
@@ -51,7 +51,7 @@
 				android:gravity="center"
 				android:paddingVertical="@dimen/space_xl"
 				android:text="@string/no_results_found"
-				android:textColor="@color/colorOnPrimary"
+				android:textColor="@color/on_primary"
 				android:textSize="@dimen/text_size_title"
 				android:visibility="gone"
 				tools:visibility="visible" />
@@ -65,7 +65,7 @@
 				android:text="@string/label_discussions"
 				android:textSize="@dimen/text_size_body"
 				android:textStyle="bold"
-				android:textColor="@color/colorOnPrimary"
+				android:textColor="@color/on_primary"
 				android:visibility="gone"
 				tools:visibility="visible" />
 
@@ -87,7 +87,7 @@
 				android:text="@string/label_messages"
 				android:textSize="@dimen/text_size_body"
 				android:textStyle="bold"
-				android:textColor="@color/colorOnPrimary"
+				android:textColor="@color/on_primary"
 				android:visibility="gone"
 				tools:visibility="visible" />
 

@@ -3,40 +3,40 @@
 	<color name="black">#FFFFFFFF</color>
 	<color name="white">#FF000000</color>
 
-	<color name="colorError">#CF6679</color>
-	<color name="colorOnError">#000000</color>
-	<color name="colorAlert">#FFB4AB</color>
-	<color name="colorOnAlert">@color/colorOnError</color>
+	<color name="error">#CF6679</color>
+	<color name="on_error">#000000</color>
+	<color name="alert">#FFB4AB</color>
+	<color name="on_alert">@color/on_error</color>
 
-	<color name="primaryColor">#121212</color>
-	<color name="primaryColorDark">#0D0D0D</color>
-	<color name="colorOnPrimary">#FFFFFF</color>
-	<color name="colorOnPrimaryHint">#CCCCCC</color>
+	<color name="primary">#121212</color>
+	<color name="primary_dark">#0D0D0D</color>
+	<color name="on_primary">#FFFFFF</color>
+	<color name="on_primary_hint">#CCCCCC</color>
 
-	<color name="secondaryColor">#24515F</color>
-	<color name="colorOnSecondary">#EEEEEE</color>
-	<color name="colorOnSecondaryHint">#999999</color>
+	<color name="secondary">#24515F</color>
+	<color name="on_secondary">#EEEEEE</color>
+	<color name="on_secondary_hint">#999999</color>
 
 	<!-- Button text, links… -->
-	<color name="buttonDisabledBackground">#444444</color>
-	<color name="buttonDisabledText">#888888</color>
+	<color name="button_disabled_background">#444444</color>
+	<color name="button_disabled_text">#888888</color>
 
 	<!-- Message exchange -->
-	<color name="messageSentBackground">#2E2E2E</color>
-	<color name="messageSentText">#FFFFFF</color>
-	<color name="selectedMessageBackground">#3A3A3A</color>
+	<color name="message_sent_background">#2E2E2E</color>
+	<color name="message_sent_text">#FFFFFF</color>
+	<color name="message_selected_background">#3A3A3A</color>
 
-	<color name="gradientStart">@color/secondaryColor</color>
-	<color name="gradientEnd">@color/primaryColor</color>
+	<color name="gradient_start">@color/secondary</color>
+	<color name="gradient_end">@color/primary</color>
 
-	<color name="cardBackgroundColor">#1E1E1E</color>
-	<color name="cardBackgroundColor2">#2C2C2C</color>
-	<color name="cardBackgroundColor3">#383838</color>
-	<color name="cardText">#FFFFFF</color>
-	<color name="cardText2">#EEEEEE</color>
-	<color name="cardText3">#CCCCCC</color>
+	<color name="card_background">#1E1E1E</color>
+	<color name="card_background_2">#2C2C2C</color>
+	<color name="card_background_3">#383838</color>
+	<color name="card_text">#FFFFFF</color>
+	<color name="card_text_2">#EEEEEE</color>
+	<color name="card_text_3">#CCCCCC</color>
 
-	<color name="colorOutline">#5A5A5A</color>
+	<color name="outline">#5A5A5A</color>
 
 	<!-- Connection states -->
 	<color name="node_state_found">#2D2D2D</color>
@@ -47,15 +47,15 @@
 	<color name="node_state_failed">#FF5350</color>
 	<color name="node_state_unknown">#666666</color>
 
-	<color name="textLight">#BBBBBB</color>
+	<color name="light_text">#BBBBBB</color>
 
 	<!-- Colors for alert dialog-->
-	<color name="dialogBackgroundColor">#2C2C2C</color>
-	<color name="dialogTextColor">#E0E0E0</color>
-	<color name="dialogTitleColor">@color/black</color>
-	<color name="dialogTitleIconColor">#BBBBBB</color>
-	<color name="dialogButtonNegativeColor">#FF8A80</color>
-	<color name="dialogButtonNeutralColor">#BDBDBD</color>
+	<color name="dialog_background">#2C2C2C</color>
+	<color name="dialog_text">#E0E0E0</color>
+	<color name="dialog_title">@color/black</color>
+	<color name="dialog_title_icon">#BBBBBB</color>
+	<color name="negative_dialog_button">#FF8A80</color>
+	<color name="neutral_dialog_button">#BDBDBD</color>
 
 	<!-- Welcome background variants (night mode) -->
 	<color name="bg_welcome_0">#26282B</color>

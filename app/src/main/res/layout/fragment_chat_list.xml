@@ -10,15 +10,15 @@
 		android:id="@+id/chatListAppBar"
 		android:layout_width="0dp"
 		android:layout_height="?attr/actionBarSize"
-		android:background="@color/secondaryColor"
+		android:background="@color/secondary"
 		android:elevation="@dimen/space_xs"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
 		app:menu="@menu/chat_list_menu"
-		app:subtitleTextColor="@color/colorOnSecondary"
+		app:subtitleTextColor="@color/on_secondary"
 		app:title="@string/app_name"
-		app:titleTextColor="@color/colorOnSecondary" />
+		app:titleTextColor="@color/on_secondary" />
 
 	<androidx.recyclerview.widget.RecyclerView
 		android:id="@+id/conversationsRecyclerView"
@@ -57,8 +57,8 @@
 		android:layout_margin="@dimen/space_md"
 		android:contentDescription="@string/new_chat_fab_content_description"
 		android:src="@drawable/ic_add_chat"
-		app:backgroundTint="@color/secondaryColor"
+		app:backgroundTint="@color/secondary"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toEndOf="parent"
-		app:tint="@color/colorOnSecondary" />
+		app:tint="@color/on_secondary" />
 </androidx.constraintlayout.widget.ConstraintLayout>

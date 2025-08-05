@@ -8,9 +8,9 @@
 	android:layout_marginVertical="@dimen/space_xs"
 	android:clickable="true"
 	android:focusable="true"
-	app:cardBackgroundColor="@color/cardBackgroundColor"
+	app:cardBackgroundColor="@color/card_background"
 	app:cardElevation="8dp"
-	app:strokeColor="@color/secondaryColor">
+	app:strokeColor="@color/secondary">
 
 	<LinearLayout
 		android:layout_width="match_parent"
@@ -29,7 +29,7 @@
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
 				android:layout_weight="1"
-				android:textColor="@color/cardText"
+				android:textColor="@color/card_text"
 				android:textSize="@dimen/text_size_title"
 				android:textStyle="bold"
 				tools:text="Alice" />
@@ -58,7 +58,7 @@
 				android:layout_weight="1"
 				android:ellipsize="end"
 				android:maxLines="1"
-				android:textColor="@color/cardText"
+				android:textColor="@color/card_text"
 				android:textSize="@dimen/text_size_body"
 				android:textStyle="italic"
 				tools:text="@string/status_waiting_for_their_keys" />

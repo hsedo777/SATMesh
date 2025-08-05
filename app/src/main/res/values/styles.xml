@@ -2,10 +2,10 @@
 <resources>
 
 	<style name="Widget.SATMesh.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
-		<item name="android:textColorHint">@color/colorOnPrimary</item>
-		<item name="hintTextColor">@color/colorOnPrimaryHint</item>
-		<item name="counterTextColor">@color/colorOnPrimary</item>
-		<item name="boxStrokeColor">@color/secondaryColor</item>
+		<item name="android:textColorHint">@color/on_primary</item>
+		<item name="hintTextColor">@color/on_primary_hint</item>
+		<item name="counterTextColor">@color/on_primary</item>
+		<item name="boxStrokeColor">@color/secondary</item>
 		<item name="boxStrokeWidthFocused">2dp</item>
 		<item name="boxStrokeWidth">1dp</item>
 		<item name="boxCornerRadiusTopStart">8dp</item>
@@ -15,7 +15,7 @@
 	</style>
 
 	<style name="Widget.SATMesh.TextInputEditText" parent="Widget.Material3.TextInputEditText.OutlinedBox">
-		<item name="android:textColor">@color/colorOnPrimary</item>
+		<item name="android:textColor">@color/on_primary</item>
 		<item name="android:paddingTop">16dp</item>
 		<item name="android:paddingBottom">16dp</item>
 		<item name="android:paddingStart">12dp</item>
@@ -32,9 +32,9 @@
 	</style>
 
 	<style name="Widget.SATMesh.TextInputLayout.Message" parent="Widget.Material3.TextInputLayout.FilledBox.Dense">
-		<item name="android:textColorHint">@color/colorOnSecondary</item>
-		<item name="boxStrokeColor">@color/colorOnSecondary</item>
-		<item name="boxBackgroundColor">@color/secondaryColor</item>
+		<item name="android:textColorHint">@color/on_secondary</item>
+		<item name="boxStrokeColor">@color/on_secondary</item>
+		<item name="boxBackgroundColor">@color/secondary</item>
 		<item name="boxBackgroundMode">filled</item>
 		<item name="boxCornerRadiusTopStart">12dp</item>
 		<item name="boxCornerRadiusTopEnd">12dp</item>
@@ -47,11 +47,11 @@
 
 	<!-- About alert dialog -->
 	<style name="AlertDialog.SATMesh" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-		<item name="android:background">@color/dialogBackgroundColor</item>
+		<item name="android:background">@color/dialog_background</item>
 		<item name="materialAlertDialogTitleIconStyle">@style/AlertDialog.SATMesh.TitleIconStyle</item>
 
-		<item name="android:textColorAlertDialogListItem">@color/dialogTextColor</item>
-		<item name="android:textColor">@color/dialogTextColor</item>
+		<item name="android:textColorAlertDialogListItem">@color/dialog_text</item>
+		<item name="android:textColor">@color/dialog_text</item>
 		<item name="materialAlertDialogTitleTextStyle">@style/AlertDialog.SATMesh.TitleTextStyle</item>
 
 		<item name="buttonBarPositiveButtonStyle">@style/AlertDialog.SATMesh.PositiveButton</item>
@@ -60,22 +60,22 @@
 	</style>
 
 	<style name="AlertDialog.SATMesh.TitleTextStyle" parent="MaterialAlertDialog.Material3.Title.Text">
-		<item name="android:textColor">@color/dialogTitleColor</item>
+		<item name="android:textColor">@color/dialog_title</item>
 	</style>
 
 	<style name="AlertDialog.SATMesh.TitleIconStyle" parent="MaterialAlertDialog.Material3.Title.Icon">
-		<item name="tint">@color/dialogTitleIconColor</item>
+		<item name="tint">@color/dialog_title_icon</item>
 	</style>
 
 	<style name="AlertDialog.SATMesh.PositiveButton" parent="Widget.Material3.Button.TextButton.Dialog">
-		<item name="android:textColor">@color/dialogTextColor</item>
+		<item name="android:textColor">@color/dialog_text</item>
 	</style>
 
 	<style name="AlertDialog.SATMesh.NegativeButton" parent="Widget.Material3.Button.TextButton.Dialog">
-		<item name="android:textColor">@color/dialogButtonNegativeColor</item>
+		<item name="android:textColor">@color/negative_dialog_button</item>
 	</style>
 
 	<style name="AlertDialog.SATMesh.NeutralButton" parent="Widget.Material3.Button.TextButton.Dialog">
-		<item name="android:textColor">@color/dialogButtonNeutralColor</item>
+		<item name="android:textColor">@color/neutral_dialog_button</item>
 	</style>
 </resources>

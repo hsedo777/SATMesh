@@ -4,6 +4,6 @@
 	android:viewportWidth="8"
 	android:viewportHeight="8">
 	<path
-		android:fillColor="@color/messageSentBackground"
+		android:fillColor="@color/message_sent_background"
 		android:pathData="M0,0 L8,0 L8,8 Z" />
 </vector>

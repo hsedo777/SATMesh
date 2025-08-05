@@ -36,7 +36,7 @@
 			android:id="@+id/message_text"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:textColor="@color/cardText2"
+			android:textColor="@color/card_text_2"
 			android:textSize="@dimen/text_size_body"
 			android:layout_gravity="start"
 			tools:text="Hi! How are you?"/>
@@ -52,7 +52,7 @@
 				android:id="@+id/message_time"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:textColor="@color/cardText2"
+				android:textColor="@color/card_text_2"
 				android:textSize="@dimen/text_size_small"
 				tools:text="14:35"/>
 

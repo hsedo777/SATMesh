@@ -70,7 +70,7 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 		recyclerVisibility.setValue(View.GONE);
 		emptyStateTextView.setValue(View.GONE);
 		progressBar.setValue(View.VISIBLE);
-		descriptionState.setValue(new DescriptionState(R.color.colorOnSecondary, getApplication().getString(R.string.nearby_discovery_description)));
+		descriptionState.setValue(new DescriptionState(R.color.on_secondary, getApplication().getString(R.string.nearby_discovery_description)));
 	}
 
 	public NearbyManager getNearbyManager() {

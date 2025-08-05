@@ -65,7 +65,7 @@ public class ChatFragment extends Fragment {
 			View decorView = requireActivity().getWindow().getDecorView();
 			View actionModeView = decorView.findViewById(androidx.appcompat.R.id.action_mode_bar);
 			if (actionModeView != null) {
-				actionModeView.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.secondaryColor));
+				actionModeView.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.secondary));
 			}
 			return true;
 		}
@@ -317,7 +317,7 @@ public class ChatFragment extends Fragment {
 			}
 		});
 		if (toolbar.getOverflowIcon() != null) {
-			toolbar.getOverflowIcon().setTint(ContextCompat.getColor(requireContext(), R.color.colorOnSecondary));
+			toolbar.getOverflowIcon().setTint(ContextCompat.getColor(requireContext(), R.color.on_secondary));
 		}
 
 		toolbar.setOnMenuItemClickListener(menuItem -> {
@@ -462,11 +462,11 @@ public class ChatFragment extends Fragment {
 			String message = viewModel.getUiMessage().getValue();
 			if (Boolean.FALSE.equals(isActive) && message != null && !message.isEmpty()) {
 				binding.chatToolbar.setSubtitle(message);
-				binding.chatToolbar.setSubtitleTextColor(ContextCompat.getColor(requireContext(), R.color.colorError));
+				binding.chatToolbar.setSubtitleTextColor(ContextCompat.getColor(requireContext(), R.color.error));
 			}
 			if (Boolean.TRUE.equals(isActive)) {
 				binding.chatToolbar.setSubtitle(R.string.status_secure_session_active);
-				binding.chatToolbar.setSubtitleTextColor(ContextCompat.getColor(requireContext(), R.color.colorOnSecondary));
+				binding.chatToolbar.setSubtitleTextColor(ContextCompat.getColor(requireContext(), R.color.on_secondary));
 			}
 		});
 

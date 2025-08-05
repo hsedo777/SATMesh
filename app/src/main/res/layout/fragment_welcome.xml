@@ -16,7 +16,7 @@
 		android:layout_marginTop="@dimen/space_lg"
 		android:text="@string/welcome_title"
 		android:textAlignment="center"
-		android:textColor="@color/colorOnPrimary"
+		android:textColor="@color/on_primary"
 		android:textSize="@dimen/text_size_heading"
 		android:textStyle="bold" />
 
@@ -27,7 +27,7 @@
 		android:layout_marginTop="@dimen/space_md"
 		android:text="@string/welcome_description"
 		android:textAlignment="center"
-		android:textColor="@color/colorOnPrimary"
+		android:textColor="@color/on_primary"
 		android:textSize="@dimen/text_size_title" />
 
 	<com.google.android.material.textfield.TextInputLayout

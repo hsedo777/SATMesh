@@ -2,15 +2,15 @@
 	<!-- Base application theme. -->
 	<style name="Base.Theme.SATMesh" parent="Theme.Material3.DayNight.NoActionBar">
 		<!-- Customize your light theme here. -->
-		<item name="colorPrimary">@color/primaryColor</item>
-		<item name="colorOnPrimary">@color/colorOnPrimary</item>
-		<item name="colorSecondary">@color/secondaryColor</item>
-		<item name="android:colorBackground">@color/primaryColor</item>
-		<item name="colorOnBackground">@color/colorOnPrimary</item>
+		<item name="colorPrimary">@color/primary</item>
+		<item name="colorOnPrimary">@color/on_primary</item>
+		<item name="colorSecondary">@color/secondary</item>
+		<item name="android:colorBackground">@color/primary</item>
+		<item name="colorOnBackground">@color/on_primary</item>
 
 		<!-- Surfaces (cards, sheets…) -->
-		<item name="colorSurface">@color/secondaryColor</item>
-		<item name="colorOnSurface">@color/colorOnSecondary</item>
+		<item name="colorSurface">@color/secondary</item>
+		<item name="colorOnSurface">@color/on_secondary</item>
 
 		<item name="materialAlertDialogTheme">@style/AlertDialog.SATMesh</item>
 		<item name="alertDialogTheme">@style/AlertDialog.SATMesh</item>

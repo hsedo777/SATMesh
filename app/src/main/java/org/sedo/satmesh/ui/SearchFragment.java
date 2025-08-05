@@ -183,7 +183,7 @@ public class SearchFragment extends Fragment {
 
 	private void customizeSearchView(SearchView searchView) {
 		EditText searchEditText = searchView.findViewById(androidx.appcompat.R.id.search_src_text);
-		int colorOnSurface = ContextCompat.getColor(requireContext(), R.color.colorOnSecondary);
+		int colorOnSurface = ContextCompat.getColor(requireContext(), R.color.on_secondary);
 		if (searchEditText != null) {
 			searchEditText.setTextColor(colorOnSurface);
 			searchEditText.setHintTextColor(colorOnSurface);

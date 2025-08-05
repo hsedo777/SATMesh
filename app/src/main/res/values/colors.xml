@@ -2,40 +2,40 @@
 <resources>
 	<color name="black">#FF000000</color>
 	<color name="white">#FFFFFFFF</color>
-	<color name="colorError">#B00000</color>
-	<color name="colorOnError">#FFFFFF</color>
-	<color name="colorAlert">#900000</color>
-	<color name="colorOnAlert">@color/colorOnError</color>
+	<color name="error">#B00000</color>
+	<color name="on_error">#FFFFFF</color>
+	<color name="alert">#900000</color>
+	<color name="on_alert">@color/on_error</color>
 
-	<color name="primaryColor">#F8F3F3</color>
-	<color name="primaryColorDark">#ADA5A5</color>
-	<color name="colorOnPrimary">@color/black</color>
-	<color name="colorOnPrimaryHint">#332F2F</color>
-	<color name="secondaryColor">#4E8CA3</color>
-	<color name="colorOnSecondary">@color/white</color>
-	<color name="colorOnSecondaryHint">#999C9D</color>
+	<color name="primary">#F8F3F3</color>
+	<color name="primary_dark">#ADA5A5</color>
+	<color name="on_primary">@color/black</color>
+	<color name="on_primary_hint">#332F2F</color>
+	<color name="secondary">#4E8CA3</color>
+	<color name="on_secondary">@color/white</color>
+	<color name="on_secondary_hint">#999C9D</color>
 
 	<!-- Button text, links… -->
-	<color name="buttonDisabledBackground">#AAAAAA</color>
-	<color name="buttonDisabledText">@color/black</color>
+	<color name="button_disabled_background">#AAAAAA</color>
+	<color name="button_disabled_text">@color/black</color>
 
 	<!-- Message exchange -->
-	<color name="messageSentBackground">#574F5C</color>
-	<color name="messageSentText">@color/white</color>
-	<color name="selectedMessageBackground">#80868E</color>
+	<color name="message_sent_background">#574F5C</color>
+	<color name="message_sent_text">@color/white</color>
+	<color name="message_selected_background">#80868E</color>
 
-	<color name="gradientStart">@color/secondaryColor</color>
-	<color name="gradientEnd">@color/white</color>
-	<color name="cardBackgroundColor">#EFF5F5</color>
-	<color name="cardBackgroundColor2">#FFECE6F0</color>
-	<color name="cardBackgroundColor3">#E6E1E8</color>
-	<color name="cardText">@color/black</color>
-	<color name="cardText2">@color/black</color>
-	<color name="cardText3">#363333</color>
+	<color name="gradient_start">@color/secondary</color>
+	<color name="gradient_end">@color/white</color>
+	<color name="card_background">#EFF5F5</color>
+	<color name="card_background_2">#FFECE6F0</color>
+	<color name="card_background_3">#E6E1E8</color>
+	<color name="card_text">@color/black</color>
+	<color name="card_text_2">@color/black</color>
+	<color name="card_text_3">#363333</color>
 
-	<color name="ic_lock_not_secure">@color/colorError</color>
+	<color name="ic_lock_not_secure">@color/error</color>
 	<color name="ic_lock_secure">@color/node_state_connected</color>
-	<color name="colorOutline">#79747E</color>
+	<color name="outline">#79747E</color>
 
 	<!-- Connection states -->
 	<color name="node_state_found">#FBFAF8</color>
@@ -46,15 +46,15 @@
 	<color name="node_state_failed">#FF0202</color>
 	<color name="node_state_unknown">#FFAAAAAA</color>
 
-	<color name="textLight">#AAAAAA</color>
+	<color name="light_text">#AAAAAA</color>
 
 	<!-- Colors for alert dialog-->
-	<color name="dialogBackgroundColor">@color/white</color>
-	<color name="dialogTextColor">#212121</color>
-	<color name="dialogTitleColor">@color/black</color>
-	<color name="dialogTitleIconColor">#424242</color>
-	<color name="dialogButtonNegativeColor">#E53935</color>
-	<color name="dialogButtonNeutralColor">#9E9E9E</color>
+	<color name="dialog_background">@color/white</color>
+	<color name="dialog_text">#212121</color>
+	<color name="dialog_title">@color/black</color>
+	<color name="dialog_title_icon">#424242</color>
+	<color name="negative_dialog_button">#E53935</color>
+	<color name="neutral_dialog_button">#9E9E9E</color>
 
 	<!-- Colors for welcome background -->
 	<color name="bg_welcome_0">@color/white</color>

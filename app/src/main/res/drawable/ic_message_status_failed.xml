@@ -7,16 +7,16 @@
 
 	<!-- Red circle -->
 	<path
-		android:fillColor="@color/colorError"
+		android:fillColor="@color/error"
 		android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2z"/>
 
 	<!-- Vertical line -->
 	<path
-		android:fillColor="@color/colorOnError"
+		android:fillColor="@color/on_error"
 		android:pathData="M13,13h-2V7h2z"/>
 
 	<!-- Bottom dot -->
 	<path
-		android:fillColor="@color/colorOnError"
+		android:fillColor="@color/on_error"
 		android:pathData="M13,17h-2v-2h2z"/>
 </vector>

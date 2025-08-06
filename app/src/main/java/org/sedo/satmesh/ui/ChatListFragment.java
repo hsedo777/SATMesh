@@ -151,7 +151,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 			}
 			if (id == R.id.menu_settings) {
 				executor.execute(() -> {
-					Long localNodeId = viewModel.hostNodeIdLiveData.getValue();
+					Long localNodeId = viewModel.getHostNodeId();
 					if (localNodeId == null) {
 						Log.e(TAG, "Failed to extract the host node ID from ViewModel");
 						return;

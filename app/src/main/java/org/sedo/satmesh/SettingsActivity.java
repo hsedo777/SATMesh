@@ -17,6 +17,8 @@ import org.sedo.satmesh.ui.SettingsFragment;
 import org.sedo.satmesh.ui.UserDisplayNameListener;
 import org.sedo.satmesh.utils.Constants;
 
+import java.util.Objects;
+
 public class SettingsActivity extends AppCompatActivity implements UserDisplayNameListener {
 
 	private static final String EXTRA_LOCAL_NODE_UUID = "local_node_uuid_extra";
@@ -108,6 +110,8 @@ public class SettingsActivity extends AppCompatActivity implements UserDisplayNa
 
 	@Override
 	public void onUserDisplayNameChanged(String oldDisplayName, String newDisplayName) {
-		lastProfileUpdate = System.currentTimeMillis();
+		if (!Objects.equals(oldDisplayName, newDisplayName)) {
+			lastProfileUpdate = System.currentTimeMillis();
+		}
 	}
 }

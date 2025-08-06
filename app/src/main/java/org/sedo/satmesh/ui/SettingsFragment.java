@@ -42,12 +42,12 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 
 	@Override
 	public void onAttach(@NonNull Context context) {
+		super.onAttach(context);
 		if (context instanceof UserDisplayNameListener) {
 			displayNameListener = (UserDisplayNameListener) context;
 		} else {
 			throw new RuntimeException("The activity must implement `UserDisplayNameListener`");
 		}
-		super.onAttach(context);
 	}
 
 	@Override

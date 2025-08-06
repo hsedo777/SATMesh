@@ -127,7 +127,7 @@ public class NearbyManager {
 			if (state != null) {
 				Log.d(TAG, "Receiving connection in state=" + state);
 			}
-			DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.INIT_BY_REMOTE, connectionInfo.getEndpointName(), endpointId, null, null);
+			DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.INIT_BY_REMOTE, connectionInfo.getEndpointName(), endpointId, null);
 			Log.d(TAG, "Connection initiated with: " + endpointId + " Name: " + connectionInfo.getEndpointName());
 			putState(endpointId, connectionInfo.getEndpointName(), STATUS_INITIATED_FROM_REMOTE, NodeState.ON_CONNECTING);
 			addressNameToEndpointId.put(connectionInfo.getEndpointName(), endpointId); // Keep track of pending connections
@@ -153,7 +153,8 @@ public class NearbyManager {
 
 				deviceConnectionListeners.forEach(listener -> listener.onDeviceConnected(endpointId, remoteAddressName));
 				if (status == STATUS_INITIATED_FROM_REMOTE) {
-					NearbySignalMessenger.getInstance().handleInitialKeyExchange(remoteAddressName);
+					// The current host node is the acceptor of the connection request
+					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, remoteAddressName, endpointId, null);
 				}
 			} else {
 				Log.e(TAG, "Connection failed with: " + remoteAddressName + " (EndpointId: " + endpointId + "). Status: " + result.getStatus().getStatusMessage());
@@ -223,7 +224,7 @@ public class NearbyManager {
 			// Remove from relevant maps if it's not a currently connected endpoint
 			// If it's connected, the onDisconnected callback will handle it.
 			if (state.status == STATUS_CONNECTED) {
-				DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.LOST, state.addressName, endpointId, null, "but still connected");
+				DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.LOST, state.addressName, endpointId, "but still connected");
 				return;
 			}
 			endpointStates.remove(endpointId);
@@ -322,7 +323,7 @@ public class NearbyManager {
 	 * @return The SignalProtocolAddress name of the remote device, or null if not found.
 	 */
 	@Nullable
-	public String getEndpointName(String endpointId) {
+	public String getAddressNameForEndpoint(String endpointId) {
 		ConnectionState state = endpointStates.get(endpointId);
 		return state != null ? state.addressName : null;
 	}

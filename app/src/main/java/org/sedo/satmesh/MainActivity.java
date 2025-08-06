@@ -560,8 +560,9 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 						exit();
 					})
 					.setNeutralButton(R.string.cancel, (dialog, which) -> {
-						// No action, just stay on the fragment
 						// This is more explicit than the default behavior of: `setCancelable(true)`
+						// No action, just dismiss the alert and stay on the fragment
+						dialog.dismiss();
 					})
 					.setCancelable(true)
 					.show();

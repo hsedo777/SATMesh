@@ -27,6 +27,7 @@ import androidx.fragment.app.FragmentTransaction;
 import org.sedo.satmesh.databinding.ActivityMainBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
+import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.service.SATMeshCommunicationService;
 import org.sedo.satmesh.service.SATMeshServiceStatus;
 import org.sedo.satmesh.ui.AppHomeListener;
@@ -42,6 +43,7 @@ import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryListener;
 import org.sedo.satmesh.ui.QuitAppListener;
 import org.sedo.satmesh.ui.SearchFragment;
+import org.sedo.satmesh.ui.UiUtils;
 import org.sedo.satmesh.ui.WelcomeFragment;
 import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
 import org.sedo.satmesh.utils.Constants;
@@ -186,12 +188,12 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 	}
 
-	private SharedPreferences getDefaultSharedPreferences() {
-		return getSharedPreferences(Constants.PREFS_FILE_NAME, MODE_PRIVATE);
+	private SharedPreferences defaultSharedPreferences() {
+		return UiUtils.getAppDefaultSharedPreferences(this);
 	}
 
 	private boolean isSetupCompleted() {
-		return getDefaultSharedPreferences().getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
+		return defaultSharedPreferences().getBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, false);
 	}
 
 	@Override
@@ -302,11 +304,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	 * @param intent The Intent received by the MainActivity.
 	 * @return true if the Intent was identified as a notification intent and handled, false otherwise.
 	 */
-	private boolean handleIncomingIntent(@Nullable Intent intent) {
-		if (intent == null) {
-			Log.d(TAG, "handleIncomingIntent: Intent is null.");
-			return false;
-		}
+	private boolean handleIncomingIntent(@NonNull Intent intent) {
 		// Checks if the `Intent` is from notification
 		if (Constants.ACTION_LAUNCH_FROM_NOTIFICATION.equals(intent.getAction()) &&
 				intent.hasExtra(Constants.EXTRA_NOTIFICATION_TYPE)) {
@@ -396,6 +394,15 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			startService(serviceIntent);
 			return true;
 		}
+		if (Constants.ACTION_SETTINGS_TO_MAIN_ACTIVITY.equals(intent.getAction())) {
+			Log.d(TAG, "Handling intent from settings activity.");
+			long lastProfileUpdate = intent.getLongExtra(Constants.PREF_KEY_LAST_PROFILE_UPDATE, -1L);
+			if (lastProfileUpdate > 0) {
+				defaultSharedPreferences().edit().putLong(Constants.PREF_KEY_LAST_PROFILE_UPDATE, lastProfileUpdate).apply();
+				NearbySignalMessenger.getInstance().refreshHostNode();
+			}
+			//Continue with the default behavior `return false;`
+		}
 		return false;
 	}
 
@@ -426,7 +433,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 					hostNode.setId(nodeId); // apply the ID
 
 					// Save host node data in the SharedPreferences
-					getDefaultSharedPreferences().edit()
+					defaultSharedPreferences().edit()
 							.putBoolean(Constants.PREF_KEY_IS_SETUP_COMPLETE, true)
 							.putLong(Constants.PREF_KEY_HOST_NODE_ID, nodeId)
 							.putString(Constants.PREF_KEY_HOST_ADDRESS_NAME, addressName)
@@ -453,7 +460,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		// Refresh from db
 		appDatabase.getQueryExecutor().execute(() -> {
 			Node hostNode = appDatabase.nodeDao().getNodeByIdSync(
-					getDefaultSharedPreferences()
+					defaultSharedPreferences()
 							.getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L)
 			);
 			if (hostNode == null) {
@@ -486,14 +493,14 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 
 	// implementation of NearbyDiscoveryListener
 	public void moveToDiscoveryView(boolean removeLast) {
-		String addressName = getDefaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
+		String addressName = defaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName)), Constants.TAG_DISCOVERY_FRAGMENT, removeLast);
 	}
 
 	// Implementation of `ChatListAccessor`
 	public void moveToChatList(boolean removeLast) {
 		resetToHomeScreen();
-		Long hostNodeId = getDefaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
+		Long hostNodeId = defaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
 		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast);
 	}
 

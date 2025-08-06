@@ -13,6 +13,18 @@ import java.util.Locale;
  */
 public class Utils {
 
+	/**
+	 * The maximum allowed length for a username.
+	 */
+	private static final int USERNAME_MAX_LENGTH = 60;
+	/**
+	 * The minimum allowed length for a username.
+	 */
+	private static final int USERNAME_MIN_LENGTH = 2;
+
+	/**
+	 * Private constructor to prevent instantiation of this utility class.
+	 */
 	private Utils() {
 	}
 
@@ -127,8 +139,30 @@ public class Utils {
 		return new SimpleDateFormat("dd MMM yyyy", locale).format(messageCal.getTime());
 	}
 
+	/**
+	 * Checks if two {@link Calendar} instances represent the same day (ignoring time).
+	 *
+	 * @param cal1 The first calendar instance.
+	 * @param cal2 The second calendar instance.
+	 * @return {@code true} if both calendars represent the same year and day of the year,
+	 * {@code false} otherwise.
+	 */
 	private static boolean isSameDay(Calendar cal1, Calendar cal2) {
 		return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR)
 				&& cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
+	}
+
+	/**
+	 * Validates if the given username meets the defined criteria.
+	 * A valid username must not be null or empty after trimming, and its length
+	 * must be between {@link #USERNAME_MIN_LENGTH} and {@link #USERNAME_MAX_LENGTH} inclusive.
+	 *
+	 * @param username The username string to validate.
+	 * @return {@code true} if the username is valid, {@code false} otherwise.
+	 */
+	public static boolean isUsernameValid(String username) {
+		String trimmedUsername = username != null ? username.trim() : null;
+		return trimmedUsername != null && !trimmedUsername.isEmpty() &&
+				trimmedUsername.length() >= USERNAME_MIN_LENGTH && trimmedUsername.length() <= USERNAME_MAX_LENGTH;
 	}
 }

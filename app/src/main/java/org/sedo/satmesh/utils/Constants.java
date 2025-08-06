@@ -10,6 +10,7 @@ public class Constants {
 	public static final String PREF_KEY_HOST_NODE_ID = "host_node_id";
 	public static final String NODE_ADDRESS_NAME_PREFIX = "satmesh-";
 	public static final String PREF_KEY_HOST_ADDRESS_NAME = "host_address_name";
+	public static final String PREF_KEY_LAST_PROFILE_UPDATE = "last_profile_update";
 	// End : DO NOT ALTER ANY OF THESE CONSTANTS
 
 	// Fragment Tags
@@ -34,6 +35,7 @@ public class Constants {
 	public static final String ACTION_LAUNCH_FROM_NOTIFICATION = "org.sedo.satmesh.action.LAUNCH_FROM_NOTIFICATION";
 	public static final String ACTION_BROADCAST_MASSAGE_NOTIFICATION = "org.sedo.satmesh.action.BROADCAST_MASSAGE_NOTIFICATION";
 	public static final String ACTION_NOTIFICATION_DISMISSED = "org.sedo.satmesh.action.NOTIFICATION_DISMISSED";
+	public static final String ACTION_SETTINGS_TO_MAIN_ACTIVITY = "org.sedo.satmesh.action.SETTINGS_TO_MAIN_ACTIVITY";
 	public static final String CATEGORY_MARK_AS_READ = "org.sedo.satmesh.action.MARK_AS_READ";
 	public static final String EXTRA_NOTIFICATION_TYPE = "notification_type";
 	public static final String EXTRA_NOTIFICATION_DATA_BUNDLE = "notification_data_bundle";

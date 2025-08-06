@@ -95,12 +95,11 @@ public class DataLog {
 	 * @param eventType            The specific NodeDiscoveryEvent that occurred. Required for logging.
 	 * @param remoteNodeUuid       The UUID string of the remote node involved in the event.
 	 * @param remoteNodeEndpointId The endpoint ID provided by Nearby Connections for the remote node.
-	 * @param remoteNodeName       The human-readable name of the remote node. Can be null if not available.
 	 * @param additionalInfo       Optional string for any extra, event-specific details. Can be an empty string if not needed.
 	 */
 	public static synchronized void logNodeEvent(
 			NodeDiscoveryEvent eventType, String remoteNodeUuid,
-			String remoteNodeEndpointId, String remoteNodeName, String additionalInfo) {
+			String remoteNodeEndpointId, String additionalInfo) {
 
 		// Log an error to Logcat and return if the DataLog is not properly initialized
 		if (writer == null || localNodeUuid == null || eventType == null) {
@@ -114,7 +113,6 @@ public class DataLog {
 		// Ensure all string arguments are non-null to prevent NullPointerExceptions in String.format
 		String safeRemoteNodeUuid = (remoteNodeUuid != null) ? remoteNodeUuid : "";
 		String safeRemoteNodeEndpointId = (remoteNodeEndpointId != null) ? remoteNodeEndpointId : "";
-		String safeRemoteNodeName = (remoteNodeName != null) ? remoteNodeName : "";
 		String safeAdditionalInfo = (additionalInfo != null) ? additionalInfo : "";
 
 		// Construct the log line according to the specified format
@@ -126,7 +124,7 @@ public class DataLog {
 				eventType.name(), // Convert enum to its String name
 				safeRemoteNodeUuid,
 				safeRemoteNodeEndpointId,
-				safeRemoteNodeName,
+				"",
 				safeAdditionalInfo
 		);
 
@@ -155,9 +153,7 @@ public class DataLog {
 	 *                    - {@link #PARAM_DEST_NODE_UUID} (String): UUID of the destination node for the request or route entry.
 	 */
 	public static synchronized void logRouteEvent(
-			RouteDiscoveryEvent eventType,
-			String requestUuid,
-			Map<String, String> params) {
+			RouteDiscoveryEvent eventType, String requestUuid, Map<String, String> params) {
 
 		// Log an error to Logcat and return if DataLog is not properly initialized or eventType is null
 		if (writer == null || localNodeUuid == null || eventType == null) {
@@ -229,11 +225,7 @@ public class DataLog {
 	 * @param status     SUCCESS or FAILURE.
 	 */
 	public static synchronized void logTransmissionEvent(
-			TransmissionEventType eventType,
-			String endpointId,
-			long payloadId,
-			int sizeBytes,
-			TransmissionStatus status) {
+			TransmissionEventType eventType, String endpointId, long payloadId, int sizeBytes, TransmissionStatus status) {
 
 		if (writer == null || eventType == null || status == null) {
 			Log.w(TAG, "DataLog not initialized or invalid params. Skipping logTransmissionEvent: event=" + eventType + ", status=" + status);

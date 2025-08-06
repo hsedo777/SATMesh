@@ -39,6 +39,7 @@ import org.sedo.satmesh.proto.RoutedMessage;
 import org.sedo.satmesh.proto.TextMessage;
 import org.sedo.satmesh.service.SATMeshCommunicationService;
 import org.sedo.satmesh.signal.SignalManager;
+import org.sedo.satmesh.ui.UiUtils;
 import org.sedo.satmesh.ui.data.MessageRepository;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
@@ -97,21 +98,22 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	private static final String TAG = "NearbySignalMessenger";
 	private static volatile NearbySignalMessenger INSTANCE;
 
-	private final SignalManager signalManager;
-	private final NearbyManager nearbyManager;
-	private final NearbyRouteManager nearbyRouteManager;
-	private final Node hostNode; // Represents our own device
+	private final @NonNull SignalManager signalManager;
+	private final @NonNull NearbyManager nearbyManager;
+	private final @NonNull NearbyRouteManager nearbyRouteManager;
+	private final @NonNull Node hostNode; // Represents our own device
 	private final MessageRepository messageRepository;
 	private final NodeRepository nodeRepository;
 	private final ExecutorService executor;
-	private final Context applicationContext;
+	private final @NonNull Context applicationContext;
 	private Node currentRemote;
 
 	/**
 	 * Private constructor to enforce Singleton pattern.
 	 * Takes all necessary dependencies.
 	 */
-	private NearbySignalMessenger(@NonNull Context context, NearbyManager nearbyManager, SignalManager signalManager, Node hostNode) {
+	private NearbySignalMessenger(
+			@NonNull Context context, @NonNull NearbyManager nearbyManager, @NonNull SignalManager signalManager, @NonNull Node hostNode) {
 		this.nearbyManager = nearbyManager;
 		this.signalManager = signalManager;
 		this.hostNode = hostNode;
@@ -141,13 +143,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	 * @throws IllegalStateException if called without all required dependencies when the instance
 	 *                               has not yet been created.
 	 */
-	public static NearbySignalMessenger getInstance(@NonNull Context context, NearbyManager nearbyManager, SignalManager signalManager, Node hostNode) {
+	public static NearbySignalMessenger getInstance(
+			@NonNull Context context, @NonNull NearbyManager nearbyManager, @NonNull SignalManager signalManager, @NonNull Node hostNode) {
 		if (INSTANCE == null) {
 			synchronized (NearbySignalMessenger.class) {
 				if (INSTANCE == null) {
-					if (nearbyManager == null || signalManager == null || hostNode == null) {
-						throw new IllegalStateException("NearbySignalMessenger.getInstance() called for the first time without all required dependencies.");
-					}
 					INSTANCE = new NearbySignalMessenger(context, nearbyManager, signalManager, hostNode);
 				}
 			}
@@ -167,6 +167,22 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			throw new IllegalStateException("NearbySignalMessenger.getInstance() called without dependencies before initialization.");
 		}
 		return INSTANCE;
+	}
+
+	/**
+	 * Refresh the personal data of the host node.
+	 */
+	public void refreshHostNode() {
+		executor.execute(() -> {
+			Node hostNodeFromDb = nodeRepository.findNodeSync(hostNode.getAddressName());
+			if (hostNodeFromDb != null) {
+				synchronized (hostNode) {
+					hostNode.setPersonalInfo(hostNodeFromDb.toPersonalInfo(false));
+				}
+			} else {
+				Log.e(TAG, "Could not refresh host node, not found in database: " + hostNode.getAddressName());
+			}
+		});
 	}
 
 	// Implementation of `NearbyManager.DeviceConnectionListener`
@@ -190,13 +206,18 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			try {
 				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
+					Long oldLastSeen = node.getLastSeen();
 					node.setLastSeen(System.currentTimeMillis());
 					nodeRepository.update(node);
 					notifyNeighborDiscovery(node, false);
 					Log.d(TAG, "Node " + deviceAddressName + " marked as connected in DB.");
-					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, deviceAddressName, endpointId, node.getDisplayName(), "connected to an old node");
 					if (hasSession(deviceAddressName)) {
 						attemptResendFailedMessagesTo(node, null);
+						long lastProfileUpdate = UiUtils.getAppDefaultSharedPreferences(applicationContext)
+								.getLong(Constants.PREF_KEY_LAST_PROFILE_UPDATE, 0L);
+						if (oldLastSeen == null || (lastProfileUpdate > 0L && oldLastSeen < lastProfileUpdate)) {
+							sendPersonalInfo(hostNode.toPersonalInfo(true), deviceAddressName);
+						}
 					} else {
 						handleInitialKeyExchange(deviceAddressName);
 					}
@@ -213,7 +234,6 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						}
 					});
 					Log.d(TAG, "New Node " + deviceAddressName + " inserted and marked as connected in DB.");
-					DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.ACCEPT, deviceAddressName, endpointId, null, "connected to a new node");
 					handleInitialKeyExchange(deviceAddressName);
 				}
 			} catch (Exception e) {
@@ -226,14 +246,14 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	@Override
 	public void onConnectionFailed(@NonNull String endpointId, String deviceAddressName, Status status) {
 		Log.e(TAG, "Connection failed for " + deviceAddressName + " with status: " + status);
-		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.FAILED, deviceAddressName, endpointId, null, "status=" + status);
+		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.FAILED, deviceAddressName, endpointId, "status=" + status);
 	}
 
 	// This method is called when Nearby Connections detects a disconnection.
 	@Override
 	public void onDeviceDisconnected(@NonNull String endpointId, @NonNull String deviceAddressName) {
 		Log.d(TAG, "Device disconnected: " + deviceAddressName + " (EndpointId: " + endpointId + ")");
-		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.DISCONNECT, deviceAddressName, endpointId, null, null);
+		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.DISCONNECT, deviceAddressName, endpointId, null);
 	}
 
 	/**
@@ -249,9 +269,9 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		 * The actual connection success/failure will be handled by
 		 * the onConnectionResult callback in NearbyManager's ConnectionLifecycleCallback.
 		 */
-		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.FOUND, endpointAddressName, endpointId, null, null);
+		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.FOUND, endpointAddressName, endpointId, null);
 		nearbyManager.requestConnection(endpointId, endpointAddressName);
-		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.INIT_BY_HOST, endpointAddressName, endpointId, null, null);
+		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.INIT_BY_HOST, endpointAddressName, endpointId, null);
 	}
 
 	/**
@@ -268,7 +288,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 		 * longer available. The NearbyManager's internal mechanisms.
 		 */
 		Log.d(TAG, "handleEndpointLost: Lost " + deviceAddressName + " (ID: " + endpointId + ")");
-		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.LOST, deviceAddressName, endpointId, null, null);
+		DataLog.logNodeEvent(DataLog.NodeDiscoveryEvent.LOST, deviceAddressName, endpointId, null);
 	}
 
 	// Implementation of `NearbyManager.PayloadListener`
@@ -782,7 +802,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 
 			Log.d(TAG, "Received bytes (Payload ID: " + payload.getId() + ", Size: " + data.length + ") from " + endpointId);
 			NearbyMessage nearbyMessage = NearbyMessage.parseFrom(data);
-			String senderAddressName = nearbyManager.getEndpointName(endpointId); // Get Signal address name
+			String senderAddressName = nearbyManager.getAddressNameForEndpoint(endpointId); // Get Signal address name
 
 			if (senderAddressName == null) {
 				Log.e(TAG, "Sender address name is null for endpoint " + endpointId + ". Cannot process message.");
@@ -1048,9 +1068,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					nodeRepository.update(nodeToUpdate);
 					Log.d(TAG, "Received and updated PersonalInfo for " + senderAddressName + ": " + personalInfo.getDisplayName());
 					if (personalInfo.getExpectResult()) {
-						Node hostNodeFromDb = nodeRepository.findNodeSync(hostNode.getAddressName());
-						hostNode.setPersonalInfo(hostNodeFromDb.toPersonalInfo(false));
-						sendPersonalInfo(hostNodeFromDb.toPersonalInfo(false), senderAddressName);
+						sendPersonalInfo(hostNode.toPersonalInfo(false), senderAddressName);
 					}
 				} else {
 					// This case might not happen cause exchanging personal info require secured session and the session requires node persistence.
@@ -1134,6 +1152,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	/**
 	 * Gets a reference of the {@link NearbyRouteManager} bound to this {@code NearbySignalMessenger}
 	 */
+	@NonNull
 	public NearbyRouteManager getNearbyRouteManager() {
 		return nearbyRouteManager;
 	}

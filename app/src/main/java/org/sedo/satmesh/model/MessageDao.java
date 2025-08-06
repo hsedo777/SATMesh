@@ -139,7 +139,7 @@ public interface MessageDao {
 	 * @return The ID of the oldest unread message, or null if no unread messages are found from the specified remote node.
 	 */
 	@Query("SELECT id FROM message WHERE senderNodeId = :remoteNodeId AND recipientNodeId = :hostNodeId " +
-			"AND status != " + Message.MESSAGE_STATUS_READ + " ORDER BY timestamp ASC LIMIT 1")
+			"AND status = " + Message.MESSAGE_STATUS_DELIVERED + " ORDER BY timestamp ASC LIMIT 1")
 	Long findOldestUnreadMessageId(Long hostNodeId, Long remoteNodeId);
 
 	/**
@@ -249,8 +249,7 @@ public interface MessageDao {
 			"    END AS partner_id_for_unread, " +
 			"    COUNT(id) AS unreadCount " +
 			"  FROM message " +
-			"  WHERE (senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId) " +
-			"    AND status != " + Message.MESSAGE_STATUS_READ + " " +
+			"  WHERE status = " + Message.MESSAGE_STATUS_DELIVERED + " " +
 			"    AND recipientNodeId = :hostNodeId " +
 			"  GROUP BY partner_id_for_unread " +
 			") AS UC ON UC.partner_id_for_unread = LM.partnerId " +
@@ -308,8 +307,7 @@ public interface MessageDao {
 			"    END AS partner_id_for_unread, " +
 			"    COUNT(id) AS unreadCount " +
 			"  FROM message " +
-			"  WHERE (senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId) " +
-			"    AND status != " + Message.MESSAGE_STATUS_READ + " " +
+			"  WHERE status = " + Message.MESSAGE_STATUS_DELIVERED + " " +
 			"    AND recipientNodeId = :hostNodeId " +
 			"  GROUP BY partner_id_for_unread " +
 			") AS UC ON UC.partner_id_for_unread = LM.partnerId " +

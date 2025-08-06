@@ -175,7 +175,11 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	public void refreshHostNode() {
 		executor.execute(() -> {
 			Node hostNodeFromDb = nodeRepository.findNodeSync(hostNode.getAddressName());
-			hostNode.setPersonalInfo(hostNodeFromDb.toPersonalInfo(false));
+			if (hostNodeFromDb != null) {
+				hostNode.setPersonalInfo(hostNodeFromDb.toPersonalInfo(false));
+			} else {
+				Log.e(TAG, "Could not refresh host node, not found in database: " + hostNode.getAddressName());
+			}
 		});
 	}
 

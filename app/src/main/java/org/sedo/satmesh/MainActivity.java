@@ -559,6 +559,11 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 						// just quit
 						exit();
 					})
+					.setNeutralButton(R.string.cancel, (dialog, which) -> {
+						// This is more explicit than the default behavior of: `setCancelable(true)`
+						// No action, just dismiss the alert and stay on the fragment
+						dialog.dismiss();
+					})
 					.setCancelable(true)
 					.show();
 		} else {
@@ -730,7 +735,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 						Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
 						requirementsLauncher.launch(intent);
 					})
-					.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+					.setNegativeButton(R.string.cancel, (dialog, which) -> {
 						Log.w(TAG, "Location services not enabled, discovery cannot start.");
 						finish();
 					})

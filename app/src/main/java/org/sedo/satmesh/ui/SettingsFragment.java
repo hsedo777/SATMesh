@@ -202,6 +202,8 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 								}
 							});
 						} else {
+							// Revert the change in memory if the DB update fails.
+							hostNode.setDisplayName(oldUsername);
 							requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show());
 						}
 					}

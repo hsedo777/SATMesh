@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import org.sedo.satmesh.databinding.FragmentWelcomeBinding;
+import org.sedo.satmesh.utils.Utils;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -23,8 +24,6 @@ import org.sedo.satmesh.databinding.FragmentWelcomeBinding;
  */
 public class WelcomeFragment extends Fragment {
 
-	private static final int MAX_LENGTH = 60;
-	private static final int MIN_LENGTH = 2;
 	private WelcomeViewModel viewModel;
 	private FragmentWelcomeBinding binding;
 	private OnWelcomeCompletedListener welcomeCompletedListener;
@@ -83,9 +82,7 @@ public class WelcomeFragment extends Fragment {
 		});
 
 		viewModel.getUserName().observe(getViewLifecycleOwner(),
-				e -> binding.continueButton.setEnabled(
-						!e.isEmpty() && e.length() >= MIN_LENGTH &&
-								MAX_LENGTH >= e.length()));
+				e -> binding.continueButton.setEnabled(Utils.isUsernameValid(e)));
 
 		binding.continueButton.setOnClickListener(unused -> welcomeCompletedListener.onWelcomeCompleted(viewModel.getUserName().getValue()));
 	}

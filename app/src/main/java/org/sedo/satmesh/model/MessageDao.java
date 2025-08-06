@@ -54,7 +54,7 @@ public interface MessageDao {
 	 * @return The Message object, or null if not found.
 	 */
 	@Query("SELECT * FROM message WHERE id = :id")
-	Message getMessageByIdSync(Long id);
+	Message getMessageById(Long id);
 
 	/**
 	 * Retrieves a message by its payload ID.
@@ -65,7 +65,7 @@ public interface MessageDao {
 	 * @return The Message object, or null if not found.
 	 */
 	@Query("SELECT * FROM message WHERE payloadId = :payloadId")
-	Message getMessageByPayloadIdSync(Long payloadId);
+	Message getMessageByPayloadId(Long payloadId);
 
 	/**
 	 * Tests if the message bound to the specified payload ID is already read.
@@ -100,7 +100,7 @@ public interface MessageDao {
 	 * @return A list of messages matching the criteria.
 	 */
 	@Query("SELECT * FROM message WHERE senderNodeId = :senderNodeId AND status IN (:statuses) ORDER BY timestamp ASC")
-	List<Message> getMessagesInStatusesFromSenderSync(Long senderNodeId, List<Integer> statuses);
+	List<Message> getMessagesInStatusesFromSender(Long senderNodeId, List<Integer> statuses);
 
 	/**
 	 * Retrieves a list of messages with a specific statuses for a given recipient node ID.
@@ -111,7 +111,7 @@ public interface MessageDao {
 	 * @return A list of messages matching the criteria.
 	 */
 	@Query("SELECT * FROM message WHERE recipientNodeId = :recipientNodeId AND status IN (:statuses) ORDER BY timestamp ASC")
-	List<Message> getMessagesInStatusesForRecipientSync(Long recipientNodeId, List<Integer> statuses);
+	List<Message> getMessagesInStatusesForRecipient(Long recipientNodeId, List<Integer> statuses);
 
 	/**
 	 * Deletes list of message by their primary key ID.
@@ -129,6 +129,18 @@ public interface MessageDao {
 	 */
 	@Query("DELETE FROM message WHERE senderNodeId = :nodeId OR recipientNodeId = :nodeId")
 	void deleteMessagesWithNode(Long nodeId);
+
+	/**
+	 * Finds the ID of the oldest unread message received by the host node from a specific remote node.
+	 * This is useful for quickly navigating to the first unread message in a conversation.
+	 *
+	 * @param hostNodeId   The ID of the local (host) node.
+	 * @param remoteNodeId The ID of the remote node who sent the messages.
+	 * @return The ID of the oldest unread message, or null if no unread messages are found from the specified remote node.
+	 */
+	@Query("SELECT id FROM message WHERE senderNodeId = :remoteNodeId AND recipientNodeId = :hostNodeId " +
+			"AND status = " + Message.MESSAGE_STATUS_DELIVERED + " ORDER BY timestamp ASC LIMIT 1")
+	Long findOldestUnreadMessageId(Long hostNodeId, Long remoteNodeId);
 
 	/**
 	 * Searches for messages using Full-Text Search (FTS) on their content,
@@ -237,14 +249,23 @@ public interface MessageDao {
 			"    END AS partner_id_for_unread, " +
 			"    COUNT(id) AS unreadCount " +
 			"  FROM message " +
-			"  WHERE (senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId) " +
-			"    AND status != " + Message.MESSAGE_STATUS_READ + " " +
+			"  WHERE status = " + Message.MESSAGE_STATUS_DELIVERED + " " +
 			"    AND recipientNodeId = :hostNodeId " +
 			"  GROUP BY partner_id_for_unread " +
 			") AS UC ON UC.partner_id_for_unread = LM.partnerId " +
 			"ORDER BY M.timestamp DESC")
 	LiveData<List<ChatListItem>> getChatListItems(Long hostNodeId);
 
+	/**
+	 * Searches for chat conversations (discussions) where the remote node's display name matches the given query.
+	 * This method provides a list of {@link ChatListItem} objects, similar to {@link #getChatListItems(Long)},
+	 * but filtered by the remote node's display name.
+	 *
+	 * @param hostNodeId The ID of the local (host) node.
+	 * @param query      The text to search for in remote node display names.
+	 * @return A LiveData list of {@link ChatListItem} objects representing the filtered conversations,
+	 * ordered by the timestamp of the latest message in each conversation (most recent first).
+	 */
 	@Query("SELECT " +
 			"  N.id AS remote_node_id, " +
 			"  N.displayName AS remote_node_displayName, " +
@@ -286,8 +307,7 @@ public interface MessageDao {
 			"    END AS partner_id_for_unread, " +
 			"    COUNT(id) AS unreadCount " +
 			"  FROM message " +
-			"  WHERE (senderNodeId = :hostNodeId OR recipientNodeId = :hostNodeId) " +
-			"    AND status != " + Message.MESSAGE_STATUS_READ + " " +
+			"  WHERE status = " + Message.MESSAGE_STATUS_DELIVERED + " " +
 			"    AND recipientNodeId = :hostNodeId " +
 			"  GROUP BY partner_id_for_unread " +
 			") AS UC ON UC.partner_id_for_unread = LM.partnerId " +

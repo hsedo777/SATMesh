@@ -38,6 +38,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 
 	private FragmentChatListBinding binding;
 	private ChatListAdapter chatListAdapter;
+	private ChatListViewModel viewModel;
 	private DiscussionListener discussionListener;
 	private DiscussionMenuListener discussionMenuListener;
 	private NearbyDiscoveryListener nearbyDiscoveryListener;
@@ -66,7 +67,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 
 	@Override
 	public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-	                         @Nullable Bundle savedInstanceState) {
+							 @Nullable Bundle savedInstanceState) {
 		binding = FragmentChatListBinding.inflate(inflater, container, false);
 		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
 			@Override
@@ -81,7 +82,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 
-		ChatListViewModel chatListViewModel = new ViewModelProvider(
+		viewModel = new ViewModelProvider(
 				this, ViewModelFactory.getInstance(requireActivity().getApplication())
 		).get(ChatListViewModel.class);
 
@@ -96,10 +97,10 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 			 * Initialize ViewModel with host ID, only for first instantiation i.e.
 			 * when `hostNodeId` is fetched from `getArguments()`
 			 */
-			chatListViewModel.setHostNodeIdLiveData(hostNodeId);
+			viewModel.setHostNodeIdLiveData(hostNodeId);
 		} else {
 			// Restore from ViewModel
-			hostNodeId = chatListViewModel.getHostNodeId();
+			hostNodeId = viewModel.getHostNodeId();
 		}
 
 		binding.conversationsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -118,7 +119,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 		}
 
 
-		chatListViewModel.getChatListItems().observe(getViewLifecycleOwner(), chatListItems -> {
+		viewModel.getChatListItems().observe(getViewLifecycleOwner(), chatListItems -> {
 			// Update the RecyclerView whenever the LiveData changes
 			chatListAdapter.submitList(chatListItems);
 			if (chatListItems != null) {
@@ -138,19 +139,19 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 			int id = item.getItemId();
 			if (id == R.id.action_search) {
 				if (discussionMenuListener != null) {
-					discussionMenuListener.moveToSearchFragment(chatListViewModel.getHostNodeId());
+					discussionMenuListener.moveToSearchFragment(viewModel.getHostNodeId());
 				}
 				return true;
 			}
 			if (id == R.id.menu_known_nodes) {
 				if (discussionMenuListener != null) {
-					discussionMenuListener.moveToKnownNodesFragment(chatListViewModel.getHostNodeId());
+					discussionMenuListener.moveToKnownNodesFragment(viewModel.getHostNodeId());
 				}
 				return true;
 			}
 			if (id == R.id.menu_settings) {
 				executor.execute(() -> {
-					Long localNodeId = chatListViewModel.hostNodeIdLiveData.getValue();
+					Long localNodeId = viewModel.getHostNodeId();
 					if (localNodeId == null) {
 						Log.e(TAG, "Failed to extract the host node ID from ViewModel");
 						return;
@@ -239,7 +240,21 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	public void onItemClick(@NonNull ChatListItem item) {
 		Log.d(TAG, "Clicked on chat item: " + item.remoteNode.getDisplayName());
 		if (discussionListener != null) {
-			discussionListener.discussWith(item.remoteNode, true);
+			if (item.unreadCount > 0) {
+				// Try to retrieve ID of the oldest unread message
+				executor.execute(() -> {
+					if (isAdded()) { // Be sure the fragment still attached to its activity on the thread execution
+						Long messageIdToScrollTo = viewModel.findOldestUnreadMessageIdSync(item);
+						requireActivity().runOnUiThread(() -> {
+							if (discussionListener != null) { // Be sure the fragment still attached to its activity, on the ui thread execution
+								discussionListener.discussWith(item.remoteNode, true, messageIdToScrollTo);
+							}
+						});
+					}
+				});
+			} else {
+				discussionListener.discussWith(item.remoteNode, true);
+			}
 		}
 	}
 }

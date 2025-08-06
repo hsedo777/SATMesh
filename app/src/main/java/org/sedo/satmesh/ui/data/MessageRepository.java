@@ -97,7 +97,7 @@ public class MessageRepository {
 	}
 
 	public Message getMessageByIdSync(long messageId) {
-		return messageDao.getMessageByIdSync(messageId);
+		return messageDao.getMessageById(messageId);
 	}
 
 	/**
@@ -105,7 +105,7 @@ public class MessageRepository {
 	 * This method is synchronous and should be called from a background thread.
 	 */
 	public Message getMessageByPayloadIdSync(Long payloadId) {
-		return messageDao.getMessageByPayloadIdSync(payloadId);
+		return messageDao.getMessageByPayloadId(payloadId);
 	}
 
 	/**
@@ -119,10 +119,10 @@ public class MessageRepository {
 	 * Retrieves messages from a specific sender and in a specific statues.
 	 * This method is synchronous and should be called from a background thread.
 	 *
-	 * @see MessageDao#getMessagesInStatusesFromSenderSync(Long, List)
+	 * @see MessageDao#getMessagesInStatusesFromSender(Long, List)
 	 */
 	public List<Message> getMessagesInStatusesFromSenderSync(Long senderNodeId, List<Integer> statues) {
-		return messageDao.getMessagesInStatusesFromSenderSync(senderNodeId, statues);
+		return messageDao.getMessagesInStatusesFromSender(senderNodeId, statues);
 	}
 
 	/**
@@ -134,7 +134,7 @@ public class MessageRepository {
 	 * @return A list of messages matching the criteria. Returns an empty list if no messages are found or on error.
 	 */
 	public List<Message> getMessagesInStatusesForRecipientSync(Long recipientNodeId, List<Integer> statues) {
-		return messageDao.getMessagesInStatusesForRecipientSync(recipientNodeId, statues);
+		return messageDao.getMessagesInStatusesForRecipient(recipientNodeId, statues);
 	}
 
 	/**
@@ -177,5 +177,12 @@ public class MessageRepository {
 	 */
 	public LiveData<List<ChatListItem>> searchDiscussions(long hostNodeId, String query) {
 		return messageDao.searchDiscussions(hostNodeId, query);
+	}
+
+	/**
+	 * Delegated method to {@link MessageDao#findOldestUnreadMessageId(Long, Long)}
+	 */
+	public Long findOldestUnreadMessageIdSync(Long hostNodeId, Long remoteNodeId) {
+		return messageDao.findOldestUnreadMessageId(hostNodeId, remoteNodeId);
 	}
 }

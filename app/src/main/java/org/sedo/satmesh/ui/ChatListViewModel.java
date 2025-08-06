@@ -49,7 +49,7 @@ public class ChatListViewModel extends AndroidViewModel {
 		);
 	}
 
-	protected void onHostNodeIdSet(Long hostNodeId){
+	protected void onHostNodeIdSet(Long hostNodeId) {
 		if (hostNodeId != null) {
 			// If hostNodeId changes or is set for the first time
 			// Remove previous source for chat items if it exists
@@ -127,5 +127,16 @@ public class ChatListViewModel extends AndroidViewModel {
 				.collect(Collectors.toList());
 
 		chatListItems.setValue(enrichedChatItems);
+	}
+
+	/**
+	 * Retrieves the oldest unread message ID. This method calls blocking operations on the database.
+	 * Caller must ensure using a background thread.
+	 *
+	 * @param item The ChatListItem for which to find the oldest unread message ID.
+	 * @return The ID of the oldest unread message, or null if no unread messages are found.
+	 */
+	public Long findOldestUnreadMessageIdSync(ChatListItem item) {
+		return messageRepository.findOldestUnreadMessageIdSync(getHostNodeId(), item.remoteNode.getId());
 	}
 }

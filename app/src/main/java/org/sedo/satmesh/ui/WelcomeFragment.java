@@ -24,6 +24,7 @@ import org.sedo.satmesh.databinding.FragmentWelcomeBinding;
 public class WelcomeFragment extends Fragment {
 
 	private static final int MAX_LENGTH = 60;
+	private static final int MIN_LENGTH = 2;
 	private WelcomeViewModel viewModel;
 	private FragmentWelcomeBinding binding;
 	private OnWelcomeCompletedListener welcomeCompletedListener;
@@ -57,7 +58,7 @@ public class WelcomeFragment extends Fragment {
 
 	@Override
 	public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
-	                         Bundle savedInstanceState) {
+							 Bundle savedInstanceState) {
 		// Inflate the layout for this fragment
 		binding = FragmentWelcomeBinding.inflate(inflater, container, false);
 		return binding.getRoot();
@@ -82,7 +83,9 @@ public class WelcomeFragment extends Fragment {
 		});
 
 		viewModel.getUserName().observe(getViewLifecycleOwner(),
-				e -> binding.continueButton.setEnabled(!e.isEmpty() && e.length() >= 2 && MAX_LENGTH >= e.length()));
+				e -> binding.continueButton.setEnabled(
+						!e.isEmpty() && e.length() >= MIN_LENGTH &&
+								MAX_LENGTH >= e.length()));
 
 		binding.continueButton.setOnClickListener(unused -> welcomeCompletedListener.onWelcomeCompleted(viewModel.getUserName().getValue()));
 	}
@@ -101,6 +104,12 @@ public class WelcomeFragment extends Fragment {
 	public void onDetach() {
 		super.onDetach();
 		welcomeCompletedListener = null;
+	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		binding = null;
 	}
 
 	public interface OnWelcomeCompletedListener {

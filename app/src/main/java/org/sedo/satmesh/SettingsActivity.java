@@ -12,13 +12,17 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.preference.PreferenceManager;
 
 import org.jetbrains.annotations.NotNull;
+import org.sedo.satmesh.databinding.ActivitySettingsBinding;
 import org.sedo.satmesh.ui.SettingsFragment;
+import org.sedo.satmesh.ui.UserDisplayNameListener;
+import org.sedo.satmesh.utils.Constants;
 
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends AppCompatActivity implements UserDisplayNameListener {
 
 	private static final String EXTRA_LOCAL_NODE_UUID = "local_node_uuid_extra";
 
 	private String localNodeUuid;
+	private long lastProfileUpdate = -1;
 
 	public static Intent newIntent(@NonNull Context context, @NonNull String localNodeUuid) {
 		Intent intent = new Intent(context, SettingsActivity.class);
@@ -45,7 +49,8 @@ public class SettingsActivity extends AppCompatActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_settings);
+		ActivitySettingsBinding binding = ActivitySettingsBinding.inflate(getLayoutInflater());
+		setContentView(binding.getRoot());
 
 		if (savedInstanceState != null) {
 			localNodeUuid = savedInstanceState.getString(EXTRA_LOCAL_NODE_UUID);
@@ -89,9 +94,20 @@ public class SettingsActivity extends AppCompatActivity {
 	public boolean onSupportNavigateUp() {
 		Intent intent = new Intent(this, MainActivity.class);
 		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+		if (lastProfileUpdate > 0) {
+			intent.setAction(Constants.ACTION_SETTINGS_TO_MAIN_ACTIVITY);
+			intent.putExtra(Constants.PREF_KEY_LAST_PROFILE_UPDATE, lastProfileUpdate);
+		}
 		startActivity(intent);
 
 		finish();
 		return true;
+	}
+
+	// Implementation of `UserDisplayNameListener`
+
+	@Override
+	public void onUserDisplayNameChanged(String oldDisplayName, String newDisplayName) {
+		lastProfileUpdate = System.currentTimeMillis();
 	}
 }

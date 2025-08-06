@@ -15,6 +15,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.data.NodeRepository;
+import org.sedo.satmesh.utils.Utils;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -29,6 +30,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 	private NodeRepository nodeRepository;
 	private Node hostNode;
 	private String localNodeUuid;
+	private UserDisplayNameListener displayNameListener;
 
 	public static SettingsFragment newInstance(String localNodeUuid) {
 		SettingsFragment fragment = new SettingsFragment();
@@ -36,6 +38,22 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		args.putString(ARG_LOCAL_NODE_UUID, localNodeUuid);
 		fragment.setArguments(args);
 		return fragment;
+	}
+
+	@Override
+	public void onAttach(@NonNull Context context) {
+		if (context instanceof UserDisplayNameListener) {
+			displayNameListener = (UserDisplayNameListener) context;
+		} else {
+			throw new RuntimeException("The activity must implement `UserDisplayNameListener`");
+		}
+		super.onAttach(context);
+	}
+
+	@Override
+	public void onDetach() {
+		super.onDetach();
+		displayNameListener = null;
 	}
 
 	@Override
@@ -99,13 +117,9 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		EditTextPreference preference = findPreference(getString(R.string.pref_key_username));
 		if (preference != null) {
 			preference.setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_TEXT));
-			preference.setSummaryProvider(new Preference.SummaryProvider<EditTextPreference>() {
-				@Nullable
-				@Override
-				public CharSequence provideSummary(@NonNull EditTextPreference etp) {
-					String text = etp.getText();
-					return (text == null || text.isEmpty()) ? null : text;
-				}
+			preference.setSummaryProvider((Preference.SummaryProvider<EditTextPreference>) etp -> {
+				String text = etp.getText();
+				return (text == null || text.isEmpty()) ? null : text;
 			});
 			if (hostNode != null && hostNode.getDisplayName() != null) {
 				preference.setText(hostNode.getDisplayName());
@@ -116,7 +130,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 	private void setupNodeIdPreference() {
 		Preference preference = findPreference(getString(R.string.pref_key_node_id));
 		if (preference != null) {
-			updateNodeIdSummary();
+			preference.setSummary(localNodeUuid);
 			preference.setOnPreferenceClickListener(pref -> {
 				CharSequence summary = pref.getSummary();
 				if (summary != null) {
@@ -160,22 +174,9 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		}
 	}
 
-	private void updateNodeIdSummary() {
-		Preference preference = findPreference(getString(R.string.pref_key_node_id));
-		if (preference != null) {
-			executorService.execute(() -> {
-				String nodeId = ""; //NodeRepository.getInstance(requireContext()).getNodeId();
-				// TODO
-				if (getActivity() != null) {
-					getActivity().runOnUiThread(() -> preference.setSummary(nodeId));
-				}
-			});
-		}
-	}
-
 	private void updateUsernameInRepository(@Nullable String newUsername) {
 		boolean empty = newUsername == null || newUsername.trim().isEmpty();
-		if (empty || 2 > newUsername.trim().length()) {
+		if (!Utils.isUsernameValid(newUsername)) {
 			Toast.makeText(requireContext(),
 					empty ? R.string.username_cannot_be_empty : R.string.username_invalid
 					, Toast.LENGTH_SHORT).show();
@@ -186,15 +187,23 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 			return;
 		}
 
-
 		executorService.execute(() -> {
 			if (hostNode != null) {
-				hostNode.setDisplayName(newUsername.trim());
+				String oldUsername = hostNode.getDisplayName();
+				String newUsernameTrimmed = Objects.requireNonNull(newUsername).trim();
+				hostNode.setDisplayName(newUsernameTrimmed);
 				nodeRepository.update(hostNode, success -> {
-					if (success) {
-						requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), getString(R.string.username_updated_to) + " " + hostNode.getDisplayName(), Toast.LENGTH_SHORT).show());
-					} else {
-						requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show());
+					if (isAdded()) {
+						if (success) {
+							requireActivity().runOnUiThread(() -> {
+								Toast.makeText(requireContext(), getString(R.string.username_updated_to, hostNode.getDisplayName()), Toast.LENGTH_SHORT).show();
+								if (displayNameListener != null) {
+									displayNameListener.onUserDisplayNameChanged(oldUsername, newUsernameTrimmed);
+								}
+							});
+						} else {
+							requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show());
+						}
 					}
 				});
 			} else {

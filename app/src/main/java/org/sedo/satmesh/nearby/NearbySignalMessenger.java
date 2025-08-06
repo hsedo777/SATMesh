@@ -6,6 +6,7 @@ import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.MESSAGE_DELIV
 import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.MESSAGE_READ_ACK_VALUE;
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -710,7 +711,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					int status = message.getStatus();
 					if (lastAttempt != null) {
 						// The host has been noticed of ending of the message last transmission, analyze status
-						long delay = switch (message.getStatus()) {
+						@SuppressLint("SwitchIntDef") long delay = switch (message.getStatus()) {
 							case Message.MESSAGE_STATUS_ROUTING -> ROUTED_MESSAGE_RESEND_DELAY_MS;
 							case Message.MESSAGE_STATUS_PENDING_KEY_EXCHANGE ->
 									PENDING_KEY_EXCHANGE_MESSAGE_RESEND_DELAY_MS;

@@ -3,6 +3,7 @@ package org.sedo.satmesh.model;
 
 import static androidx.room.ForeignKey.CASCADE;
 
+import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
@@ -10,8 +11,8 @@ import androidx.room.ForeignKey;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
-import java.util.Arrays;
-import java.util.List;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 
 /**
@@ -83,21 +84,6 @@ public class Message {
 	 * Code for a file message. (Note: Current implementation might not support this yet)
 	 */
 	public static final int MESSAGE_TYPE_FILE = 3;
-	// List of messages statuses
-	private static final List<Integer> MESSAGE_STATUSES = Arrays.asList(
-			MESSAGE_STATUS_DELIVERED,
-			MESSAGE_STATUS_PENDING,
-			MESSAGE_STATUS_ROUTING,
-			MESSAGE_STATUS_READ,
-			MESSAGE_STATUS_FAILED,
-			MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
-			MESSAGE_STATUS_SENT);
-	// List of message types
-	private static final List<Integer> MESSAGE_TYPES = Arrays.asList(
-			MESSAGE_TYPE_TEXT,
-			MESSAGE_TYPE_IMAGE,
-			MESSAGE_TYPE_AUDIO,
-			MESSAGE_TYPE_FILE);
 
 	@PrimaryKey(autoGenerate = true)
 	private Long id;
@@ -169,26 +155,6 @@ public class Message {
 		this.lastSendingAttempt = message.lastSendingAttempt;
 	}
 
-	/**
-	 * Test if the input integer value is a valid status code
-	 *
-	 * @param status the code to test
-	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_STATUS}.
-	 */
-	public static boolean isValidStatusCode(int status) {
-		return MESSAGE_STATUSES.contains(status);
-	}
-
-	/**
-	 * Test if the input integer value is a valid message type
-	 *
-	 * @param type the code to test
-	 * @return {@code true} is and only if the input value match any of constants started by {@code MESSAGE_TYPE}.
-	 */
-	public static boolean isValidMessageTpe(int type) {
-		return MESSAGE_TYPES.contains(type);
-	}
-
 	public Long getId() {
 		return id;
 	}
@@ -226,21 +192,19 @@ public class Message {
 		this.timestamp = timestamp;
 	}
 
-	public int getStatus() {
+	public @MessageStatus int getStatus() {
 		return status;
 	}
 
-	public void setStatus(int status) {
-		if (!isValidStatusCode(status)) return;
+	public void setStatus(@MessageStatus int status) {
 		this.status = status;
 	}
 
-	public int getType() {
+	public @MessageType int getType() {
 		return type;
 	}
 
-	public void setType(int type) {
-		if (!isValidMessageTpe(type)) return;
+	public void setType(@MessageType int type) {
 		this.type = type;
 	}
 
@@ -315,5 +279,29 @@ public class Message {
 	@Override
 	public int hashCode() {
 		return Objects.hash(payloadId, content, timestamp, status, type, senderNodeId, recipientNodeId);
+	}
+
+	/**
+	 * Defines the set of allowed integer constants for a message's status.
+	 * This annotation ensures that any variable, parameter, or return value
+	 * representing a message status uses one of the predefined {@code MESSAGE_STATUS_*}
+	 * constants from the {@link Message} class.
+	 */
+	@IntDef({MESSAGE_STATUS_DELIVERED, MESSAGE_STATUS_PENDING, MESSAGE_STATUS_ROUTING,
+			MESSAGE_STATUS_READ, MESSAGE_STATUS_FAILED, MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
+			MESSAGE_STATUS_SENT})
+	@Retention(RetentionPolicy.SOURCE)
+	@interface MessageStatus {
+	}
+
+	/**
+	 * Defines the set of allowed integer constants for a message's type.
+	 * This annotation ensures that any variable, parameter, or return value
+	 * representing a message type uses one of the predefined {@code MESSAGE_TYPE_*}
+	 * constants from the {@link Message} class.
+	 */
+	@IntDef({MESSAGE_TYPE_TEXT, MESSAGE_TYPE_IMAGE, MESSAGE_TYPE_AUDIO, MESSAGE_TYPE_FILE})
+	@Retention(RetentionPolicy.SOURCE)
+	@interface MessageType {
 	}
 }

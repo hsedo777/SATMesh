@@ -199,10 +199,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	@Override
 	public void onDeviceConnected(String endpointId, String deviceAddressName) {
 		Log.d(TAG, "Device connected: " + deviceAddressName + " (EndpointId: " + endpointId + ")");
-		// No explicit key exchange call here. Logic moved to handleReceivedNearbyMessage
-		// or sendEncryptedMessage which will check for active session.
-		// Update node status in DB
 		executor.execute(() -> {
+			// Update node state in DB
 			try {
 				Node node = nodeRepository.findNodeSync(deviceAddressName);
 				if (node != null) {
@@ -216,15 +214,14 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						long lastProfileUpdate = UiUtils.getAppDefaultSharedPreferences(applicationContext)
 								.getLong(Constants.PREF_KEY_LAST_PROFILE_UPDATE, 0L);
 						if (oldLastSeen == null || (lastProfileUpdate > 0L && oldLastSeen < lastProfileUpdate)) {
-							sendPersonalInfo(hostNode.toPersonalInfo(true), deviceAddressName);
+							sendPersonalInfo(hostNode.toPersonalInfo(false), deviceAddressName);
 						}
 					} else {
 						handleInitialKeyExchange(deviceAddressName);
 					}
 				} else {
 					// Create a new node entity if it doesn't exist.
-					// This covers cases where a device is connected but not yet explicitly "discovered"
-					// or persisted from a previous run.
+					// This covers cases where a device is connected but not yet persisted in th DB.
 					Node newNode = new Node();
 					newNode.setAddressName(deviceAddressName);
 					newNode.setLastSeen(System.currentTimeMillis());

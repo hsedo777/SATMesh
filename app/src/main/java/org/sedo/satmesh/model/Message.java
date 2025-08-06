@@ -281,6 +281,12 @@ public class Message {
 		return Objects.hash(payloadId, content, timestamp, status, type, senderNodeId, recipientNodeId);
 	}
 
+	/**
+	 * Defines the set of allowed integer constants for a message's status.
+	 * This annotation ensures that any variable, parameter, or return value
+	 * representing a message status uses one of the predefined {@code MESSAGE_STATUS_*}
+	 * constants from the {@link Message} class.
+	 */
 	@IntDef({MESSAGE_STATUS_DELIVERED, MESSAGE_STATUS_PENDING, MESSAGE_STATUS_ROUTING,
 			MESSAGE_STATUS_READ, MESSAGE_STATUS_FAILED, MESSAGE_STATUS_PENDING_KEY_EXCHANGE,
 			MESSAGE_STATUS_SENT})
@@ -288,6 +294,12 @@ public class Message {
 	@interface MessageStatus {
 	}
 
+	/**
+	 * Defines the set of allowed integer constants for a message's type.
+	 * This annotation ensures that any variable, parameter, or return value
+	 * representing a message type uses one of the predefined {@code MESSAGE_TYPE_*}
+	 * constants from the {@link Message} class.
+	 */
 	@IntDef({MESSAGE_TYPE_TEXT, MESSAGE_TYPE_IMAGE, MESSAGE_TYPE_AUDIO, MESSAGE_TYPE_FILE})
 	@Retention(RetentionPolicy.SOURCE)
 	@interface MessageType {

@@ -12,8 +12,9 @@ playServicesNearby = "19.3.0"
 roomCompiler = "2.7.2"
 roomRuntime = "2.7.2"
 sqlcipherAndroid = "4.10.0"
-protobuf = "3.10.0"
+protobuf = "3.10.0" # Do not alter, it's tied to `libsignalProtocolJava`
 androidxPreference = "1.2.1"
+robolectric = "4.15.1"
 
 [libraries]
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
@@ -31,6 +32,7 @@ protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
 androidx-preference = { group = "androidx.preference", name = "preference", version.ref = "androidxPreference" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

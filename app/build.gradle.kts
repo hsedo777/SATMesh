@@ -43,6 +43,11 @@ android {
     room {
         schemaDirectory("$projectDir/schemas")
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 protobuf {
@@ -83,6 +88,7 @@ dependencies {
     implementation(libs.androidx.preference)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 }

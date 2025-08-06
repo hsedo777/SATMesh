@@ -244,9 +244,11 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 				// Try to retrieve ID of the oldest unread message
 				executor.execute(() -> {
 					Long messageIdToScrollTo = viewModel.findOldestUnreadMessageId(item);
-					if (isAdded()) { // Be sure the fragment still attached to its activity
-						requireActivity().runOnUiThread(() -> discussionListener.discussWith(item.remoteNode, true, messageIdToScrollTo));
-					}
+					requireActivity().runOnUiThread(() -> {
+						if (isAdded()) { // Be sure the fragment still attached to its activity
+							discussionListener.discussWith(item.remoteNode, true, messageIdToScrollTo);
+						}
+					});
 				});
 			} else {
 				discussionListener.discussWith(item.remoteNode, true);

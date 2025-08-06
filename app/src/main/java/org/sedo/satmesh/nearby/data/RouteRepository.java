@@ -175,7 +175,7 @@ public class RouteRepository {
 	 * @param destinationNodeLocalId The local ID of the destination node.
 	 * @return The most recent RouteEntry.RouteWithUsage, or null if not found.
 	 */
-	public RouteEntry.RouteWithUsage findMostRecentRouteByDestinationSync(long destinationNodeLocalId) {
+	public RouteWithUsage findMostRecentRouteByDestinationSync(long destinationNodeLocalId) {
 		return routeEntryDao.findMostRecentRouteByDestination(destinationNodeLocalId);
 	}
 

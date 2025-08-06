@@ -121,7 +121,7 @@ public class ChatFragment extends Fragment {
 							viewModel.deleteMessagesById(new ArrayList<>(selectedMessageIds));
 							mode.finish();
 						})
-						.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+						.setNegativeButton(R.string.cancel, (dialog, which) -> {
 							Log.d(TAG, "Deletion cancelled by user.");
 							dialog.dismiss();
 							mode.finish();
@@ -332,7 +332,7 @@ public class ChatFragment extends Fragment {
 							Log.d(TAG, "Confirmation received. Clearing chat with " + with);
 							viewModel.clearChat();
 						})
-						.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+						.setNegativeButton(R.string.cancel, (dialog, which) -> {
 							Log.d(TAG, "Chat clearing cancelled by user.");
 							dialog.dismiss();
 						})

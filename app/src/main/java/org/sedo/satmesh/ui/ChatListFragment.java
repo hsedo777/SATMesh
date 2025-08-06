@@ -186,7 +186,7 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 								});
 							});
 						})
-						.setNegativeButton(R.string.negative_button_cancel, (dialog, which) -> {
+						.setNegativeButton(R.string.cancel, (dialog, which) -> {
 							Log.d(TAG, "SignalManager reinitialization cancelled by user.");
 							dialog.dismiss();
 						})

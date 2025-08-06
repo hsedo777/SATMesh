@@ -7,7 +7,7 @@
 	<string name="continue_button">Continue</string>
 
 	<string name="positive_button_activate">Activate</string>
-	<string name="negative_button_cancel">Cancel</string>
+	<string name="cancel">Cancel</string>
 
 	<string name="node_profile_saving_failed">Failed to save user profile. Please try again.</string>
 

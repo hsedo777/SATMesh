@@ -136,7 +136,7 @@ public class ChatListViewModel extends AndroidViewModel {
 	 * @param item The ChatListItem for which to find the oldest unread message ID.
 	 * @return The ID of the oldest unread message, or null if no unread messages are found.
 	 */
-	public Long findOldestUnreadMessageId(ChatListItem item) {
+	public Long findOldestUnreadMessageIdSync(ChatListItem item) {
 		return messageRepository.findOldestUnreadMessageIdSync(getHostNodeId(), item.remoteNode.getId());
 	}
 }

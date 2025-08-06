@@ -35,6 +35,7 @@ public class RouteWithUsage {
 
 	@Override
 	public boolean equals(Object o) {
+		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		RouteWithUsage that = (RouteWithUsage) o;
 		return Objects.equals(routeEntry, that.routeEntry) &&

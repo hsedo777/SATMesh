@@ -3,6 +3,7 @@ package org.sedo.satmesh.nearby;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -36,6 +37,8 @@ import org.sedo.satmesh.utils.DataLog.TransmissionEventType;
 import org.sedo.satmesh.utils.DataLog.TransmissionStatus;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -262,7 +265,7 @@ public class NearbyManager {
 		return INSTANCE;
 	}
 
-	private void putState(@NonNull String endpointId, @NonNull String addressName, int status, @NonNull NodeState state) {
+	private void putState(@NonNull String endpointId, @NonNull String addressName, @ConnectivityStatus int status, @NonNull NodeState state) {
 		endpointStates.put(endpointId, new ConnectionState(addressName, status));
 		NodeTransientStateRepository.getInstance().updateTransientNodeState(addressName, state);
 	}
@@ -676,13 +679,13 @@ public class NearbyManager {
 					// The device is probably disconnected, try force disconnection
 					executorService.execute(() -> {
 						ConnectionState state = endpointStates.remove(endpointId);
-						if (state != null && state.addressName != null) {
+						if (state != null) {
 							// Try disconnection
 							disconnectFromEndpoint(endpointId);
 						} else {
 							String address = addressNameToEndpointId.entrySet().stream().filter(entry -> endpointId.equals(entry.getValue()))
 									.map(Map.Entry::getKey).findFirst().orElse(null);
-							Log.e(TAG, "Payload sending failed to endpoint=" + endpointId + " in state=" + state + " and with extracted address=" + address);
+							Log.e(TAG, "Payload sending failed to endpoint=" + endpointId + " in unknown state and with extracted address=" + address);
 							if (address != null) {
 								addressNameToEndpointId.remove(address);
 							}
@@ -750,23 +753,11 @@ public class NearbyManager {
 		}
 	}
 
-	private static class ConnectionState {
-		// SignalProtocolAddress name
-		public String addressName;
-		public int status;
+	@IntDef({STATUS_INITIATED_FROM_REMOTE, STATUS_INITIATED_FROM_HOST, STATUS_CONNECTED, STATUS_DISCONNECTED, STATUS_FOUND})
+	@Retention(RetentionPolicy.SOURCE)
+	@interface ConnectivityStatus {
+	}
 
-		public ConnectionState(String addressName, int state) {
-			this.addressName = addressName;
-			this.status = state;
-		}
-
-		@NonNull
-		@Override
-		public String toString() {
-			return "ConnectionState{" +
-					"addressName='" + addressName + '\'' +
-					", status=" + status +
-					'}';
-		}
+	private record ConnectionState(@NonNull String addressName, @ConnectivityStatus int status) {
 	}
 }

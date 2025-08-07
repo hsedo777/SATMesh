@@ -3,6 +3,8 @@ package org.sedo.satmesh.signal.store;
 import static org.sedo.satmesh.ui.UiUtils.getAddressKey;
 import static org.sedo.satmesh.utils.Constants.SIGNAL_PROTOCOL_DEVICE_ID;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Transformations;
@@ -16,6 +18,7 @@ import org.whispersystems.libsignal.state.SessionStore;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -28,6 +31,7 @@ import java.util.stream.Collectors;
  */
 public class AndroidSessionStore implements SessionStore {
 
+	private static final String TAG = "AndroidSessionStore";
 	private static volatile AndroidSessionStore INSTANCE;
 	private final SignalSessionDao sessionDao;
 
@@ -74,6 +78,7 @@ public class AndroidSessionStore implements SessionStore {
 				return new SessionRecord(sessionEntity.record());
 			} catch (Exception e) {
 				//The record is compromised
+				Log.e(TAG, "Fatal ! The session's public and private keys need to be reinitialized for " + addressString, e);
 				throw new RuntimeException("Fatal ! The session's public and private keys need to be reinitialized for " + addressString, e);
 			}
 		} else {
@@ -116,8 +121,9 @@ public class AndroidSessionStore implements SessionStore {
 				if (deviceId != SIGNAL_PROTOCOL_DEVICE_ID) { // Exclude the main device
 					deviceIds.add(deviceId);
 				}
-			} catch (NumberFormatException ignore) {
+			} catch (NumberFormatException e) {
 				// Ignore malformed address
+				Log.w(TAG, "Malformed address: " + address, e);
 			}
 		}
 		return deviceIds;
@@ -131,6 +137,7 @@ public class AndroidSessionStore implements SessionStore {
 	public void clearAllCryptographyData() {
 		AppDatabase db = AppDatabase.getDB(null);
 		if (db != null) {
+			Log.d(TAG, "Clearing all cryptographic data from the database");
 			db.sessionDao().clearAll();
 			db.preKeyDao().clearAll();
 			db.signedPreKeyDao().clearAll();
@@ -166,8 +173,11 @@ public class AndroidSessionStore implements SessionStore {
 						if (lastDotIndex > 0) { // Ensure there is a dot and it's not the first character
 							return fullAddress.substring(0, lastDotIndex);
 						}
-						return fullAddress; // Should not happen with valid SignalProtocolAddress keys
+						// Should not happen with valid SignalProtocolAddress keys
+						Log.e(TAG, "Invalid address format: " + fullAddress);
+						return null;
 					})
+					.filter(Objects::nonNull)
 					.collect(Collectors.toList());
 		});
 	}

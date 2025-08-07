@@ -37,7 +37,7 @@ public class AndroidSignedPreKeyStore implements SignedPreKeyStore {
 		SignalSignedPreKeyEntity signedPreKeyEntity = signedPreKeyDao.getSignedPreKey(signedPreKeyId);
 		if (signedPreKeyEntity != null) {
 			try {
-				return new SignedPreKeyRecord(signedPreKeyEntity.record);
+				return new SignedPreKeyRecord(signedPreKeyEntity.record());
 			} catch (Exception e) {
 				throw new InvalidKeyIdException("Fatal ! SignedPreKey Deserialization failed: " + signedPreKeyId);
 			}
@@ -53,11 +53,11 @@ public class AndroidSignedPreKeyStore implements SignedPreKeyStore {
 
 		for (SignalSignedPreKeyEntity entity : entities) {
 			try {
-				records.add(new SignedPreKeyRecord(entity.record));
+				records.add(new SignedPreKeyRecord(entity.record()));
 			} catch (Exception e) {
 				// Compromised enrollment
-				System.err.println("Corrupted SignedPreKey found and ignored/removed: " + entity.keyId + ". Error: " + e.getMessage());
-				signedPreKeyDao.deleteSignedPreKey(entity.keyId); // Optional
+				System.err.println("Corrupted SignedPreKey found and ignored/removed: " + entity.keyId() + ". Error: " + e.getMessage());
+				signedPreKeyDao.deleteSignedPreKey(entity.keyId()); // Optional
 			}
 		}
 		return records;
@@ -84,10 +84,10 @@ public class AndroidSignedPreKeyStore implements SignedPreKeyStore {
 		SignalSignedPreKeyEntity entity = signedPreKeyDao.getLatestSignedPreKey(); // Ou getSignedPreKey(KNOWN_ACTIVE_ID);
 		if (entity != null) {
 			try {
-				return new SignedPreKeyRecord(entity.record);
+				return new SignedPreKeyRecord(entity.record());
 			} catch (Exception e) {
-				System.err.println("Corrupted active SignedPreKey: " + entity.keyId + ". Deleting it. Error: " + e.getMessage());
-				signedPreKeyDao.deleteSignedPreKey(entity.keyId);
+				System.err.println("Corrupted active SignedPreKey: " + entity.keyId() + ". Deleting it. Error: " + e.getMessage());
+				signedPreKeyDao.deleteSignedPreKey(entity.keyId());
 				throw new InvalidKeyIdException(new RuntimeException("Active SignedPreKey corrupted and removed.", e));
 			}
 		}

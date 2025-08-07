@@ -1,17 +1,8 @@
 package org.sedo.satmesh.signal.model;
 
-import androidx.room.PrimaryKey;
 import androidx.room.Entity;
+import androidx.room.PrimaryKey;
 
 @Entity(tableName = "signal_signed_prekeys")
-public class SignalSignedPreKeyEntity {
-	@PrimaryKey
-	public final int keyId;
-
-	public final byte[] record;
-
-	public SignalSignedPreKeyEntity(int keyId, byte[] record) {
-		this.keyId = keyId;
-		this.record = record;
-	}
+public record SignalSignedPreKeyEntity(@PrimaryKey int keyId, byte[] record) {
 }

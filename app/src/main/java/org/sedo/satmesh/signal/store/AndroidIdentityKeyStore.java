@@ -101,7 +101,7 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 		String addressString = getAddress(address);
 		SignalIdentityKeyEntity existing = identityKeyDao.getIdentityKey(addressString);
 
-		if (existing != null && !Arrays.equals(existing.identityKey, identityKey.serialize())) {
+		if (existing != null && !Arrays.equals(existing.identityKey(), identityKey.serialize())) {
 			// The identity key has changed - this might indicate an attack
 			return false;
 		}
@@ -128,7 +128,7 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 		String addressString = getAddress(address);
 		SignalIdentityKeyEntity existing = identityKeyDao.getIdentityKey(addressString);
 
-		return existing == null || Arrays.equals(existing.identityKey, identityKey.serialize());
+		return existing == null || Arrays.equals(existing.identityKey(), identityKey.serialize());
 	}
 
 	/**
@@ -145,7 +145,7 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 		if (identityKeyEntity != null) {
 			try {
 				// The offset 0 in IdentityKey constructor usually means it's the start of the byte array.
-				return new IdentityKey(identityKeyEntity.identityKey, 0);
+				return new IdentityKey(identityKeyEntity.identityKey(), 0);
 			} catch (Exception e) {
 				return null;
 			}

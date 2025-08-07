@@ -17,7 +17,7 @@ import java.util.List;
  */
 public class AndroidSessionStore implements SessionStore {
 
-	private static AndroidSessionStore INSTANCE;
+	private static volatile AndroidSessionStore INSTANCE;
 	private final SignalSessionDao sessionDao;
 
 	protected AndroidSessionStore(SignalSessionDao sessionDao) {
@@ -48,7 +48,7 @@ public class AndroidSessionStore implements SessionStore {
 
 		if (sessionEntity != null) {
 			try {
-				return new SessionRecord(sessionEntity.record);
+				return new SessionRecord(sessionEntity.record());
 			} catch (Exception e) {
 				//The record is compromised
 				throw new RuntimeException("Fatal ! The session's public and private keys need to be reinitialized for " + addressString, e);

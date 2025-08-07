@@ -101,8 +101,8 @@ public class NearbyDiscoveryFragment extends Fragment {
 			viewModel.setHostDeviceName(hostDeviceName);
 		}
 		viewModel.getDescriptionState().observe(getViewLifecycleOwner(), descriptionState -> {
-			binding.nearbyDescription.setText(descriptionState.text);
-			binding.nearbyDescription.setTextColor(ContextCompat.getColor(requireContext(), descriptionState.color));
+			binding.nearbyDescription.setText(descriptionState.text());
+			binding.nearbyDescription.setTextColor(ContextCompat.getColor(requireContext(), descriptionState.color()));
 		});
 
 		viewModel.getRecyclerVisibility().observe(getViewLifecycleOwner(), binding.nearbyNodesRecyclerView::setVisibility);
@@ -117,7 +117,7 @@ public class NearbyDiscoveryFragment extends Fragment {
 		adapter.attachOnNodeClickListener(new OnNodeClickListener() {
 			@Override
 			public void onClick(@NonNull NodeDiscoveryItem item) {
-				if (item.state != NodeState.ON_CONNECTED) {
+				if (item.state() != NodeState.ON_CONNECTED) {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(item.getAddressName());
 					if (endpointId != null) {
 						Log.d(TAG, viewModel.getHostDeviceName() + " request connection to " + endpointId + "(" + item.getAddressName() + ")");
@@ -128,14 +128,14 @@ public class NearbyDiscoveryFragment extends Fragment {
 				} else {
 					// Redirect the user to chat fragment
 					if (discussionListener != null) {
-						discussionListener.discussWith(item.node, false);
+						discussionListener.discussWith(item.node(), false);
 					}
 				}
 			}
 
 			@Override
 			public void onLongClick(@NonNull NodeDiscoveryItem item) {
-				if (item.state == NodeState.ON_CONNECTED) {
+				if (item.state() == NodeState.ON_CONNECTED) {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(item.getAddressName());
 					if (endpointId != null) {
 						Log.d(TAG, viewModel.getHostDeviceName() + " request disconnect from " + endpointId + "(" + item.getAddressName() + ")");

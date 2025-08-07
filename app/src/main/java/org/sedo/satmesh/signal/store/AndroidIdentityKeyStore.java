@@ -1,5 +1,7 @@
 package org.sedo.satmesh.signal.store;
 
+import static org.sedo.satmesh.ui.UiUtils.getAddressKey;
+
 import org.sedo.satmesh.AppDatabase;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyDao;
 import org.sedo.satmesh.signal.model.SignalIdentityKeyEntity;
@@ -31,8 +33,8 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	 * @param registrationId  The local registration ID.
 	 */
 	protected AndroidIdentityKeyStore(SignalIdentityKeyDao identityKeyDao,
-	                                  IdentityKeyPair identityKeyPair,
-	                                  int registrationId) {
+									  IdentityKeyPair identityKeyPair,
+									  int registrationId) {
 		this.identityKeyDao = identityKeyDao;
 		this.identityKeyPair = identityKeyPair;
 		this.registrationId = registrationId;
@@ -83,10 +85,6 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 		return registrationId;
 	}
 
-	private String getAddress(SignalProtocolAddress address) {
-		return address.getName() + "." + address.getDeviceId();
-	}
-
 	/**
 	 * Saves a remote identity key for a given SignalProtocolAddress.
 	 * If an identity key for the address already exists and is different, it indicates
@@ -98,7 +96,7 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	 */
 	@Override
 	public boolean saveIdentity(SignalProtocolAddress address, IdentityKey identityKey) {
-		String addressString = getAddress(address);
+		String addressString = getAddressKey(address);
 		SignalIdentityKeyEntity existing = identityKeyDao.getIdentityKey(addressString);
 
 		if (existing != null && !Arrays.equals(existing.identityKey(), identityKey.serialize())) {
@@ -123,9 +121,9 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	 */
 	@Override
 	public boolean isTrustedIdentity(SignalProtocolAddress address,
-	                                 IdentityKey identityKey,
-	                                 Direction direction) {
-		String addressString = getAddress(address);
+									 IdentityKey identityKey,
+									 Direction direction) {
+		String addressString = getAddressKey(address);
 		SignalIdentityKeyEntity existing = identityKeyDao.getIdentityKey(addressString);
 
 		return existing == null || Arrays.equals(existing.identityKey(), identityKey.serialize());
@@ -139,7 +137,7 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	 */
 	@Override
 	public IdentityKey getIdentity(SignalProtocolAddress address) {
-		String addressString = getAddress(address);
+		String addressString = getAddressKey(address);
 		SignalIdentityKeyEntity identityKeyEntity = identityKeyDao.getIdentityKey(addressString);
 
 		if (identityKeyEntity != null) {
@@ -154,6 +152,6 @@ public class AndroidIdentityKeyStore implements IdentityKeyStore {
 	}
 
 	public void deleteIdentityForAddress(SignalProtocolAddress address) {
-		identityKeyDao.deleteIdentityForAddress(getAddress(address));
+		identityKeyDao.deleteIdentityForAddress(getAddressKey(address));
 	}
 }

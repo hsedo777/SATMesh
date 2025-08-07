@@ -34,8 +34,8 @@ public class SettingsActivity extends AppCompatActivity implements UserDisplayNa
 
 	public static void applySettings(@NotNull Context context) {
 		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
-		String[] themes = context.getResources().getStringArray(R.array.pref_theme_values);
-		String themeValue = sharedPrefs.getString(context.getString(R.string.pref_key_theme), themes[2]);
+		String[] themes = SettingsFragment.getThemeArray(context);
+		String themeValue = sharedPrefs.getString(context.getString(R.string.pref_key_theme), themes[SettingsFragment.DEFAULT_THEME_INDEX]);
 		switch (themeValue) {
 			case "dark":
 				AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);

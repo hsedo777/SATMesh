@@ -42,8 +42,8 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 	 */
 	public static final int DEFAULT_FONT_SIZE_INDEX = 1;
 
-	// Argument key for passing the local node UUID to the fragment.
-	private static final String ARG_HOST_ADDRESS_NAME = "local_node_uuid";
+	// Argument key for passing the local node address name to the fragment.
+	private static final String ARG_HOST_ADDRESS_NAME = "host_node_address_name";
 
 	// Executor service for background tasks.
 	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -175,7 +175,12 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 			// Convert `currentValue` to its locale sensitive value
 			String[] localizedPreferenceEntries = getResources().getStringArray(entriesResId);
 			int index = Arrays.asList(preferenceValues).indexOf(currentValue);
-			preference.setSummary(localizedPreferenceEntries[index]);
+			if (index != -1) {
+				preference.setSummary(localizedPreferenceEntries[index]);
+			} else {
+				// Fallback to default value if current value is not found
+				preference.setSummary(localizedPreferenceEntries[defaultValueIndex]);
+			}
 		}
 	}
 

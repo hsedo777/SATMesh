@@ -161,24 +161,19 @@ public class AndroidSessionStore implements SessionStore {
 	public LiveData<List<String>> filterSecuredSessionAddressNames(List<String> fromAddresses) {
 		LiveData<List<String>> securedFullAddresses = sessionDao.filterSecuredSessionAddresses(fromAddresses);
 
-		return Transformations.map(securedFullAddresses, fullAddresses -> {
-			if (fullAddresses == null) {
-				return new ArrayList<>();
-			}
-			return fullAddresses.stream()
-					.map(fullAddress -> {
-						// The address is stored as "name.deviceId"
-						// We need to extract the "name" part.
-						int lastDotIndex = fullAddress.lastIndexOf('.');
-						if (lastDotIndex > 0) { // Ensure there is a dot and it's not the first character
-							return fullAddress.substring(0, lastDotIndex);
-						}
-						// Should not happen with valid SignalProtocolAddress keys
-						Log.e(TAG, "Invalid address format: " + fullAddress);
-						return null;
-					})
-					.filter(Objects::nonNull)
-					.collect(Collectors.toList());
-		});
+		return Transformations.map(securedFullAddresses, fullAddresses -> fullAddresses.stream()
+				.map(fullAddress -> {
+					// The address is stored as "name.deviceId"
+					// We need to extract the "name" part.
+					int lastDotIndex = fullAddress.lastIndexOf('.');
+					if (lastDotIndex > 0) { // Ensure there is a dot and it's not the first character
+						return fullAddress.substring(0, lastDotIndex);
+					}
+					// Should not happen with valid SignalProtocolAddress keys
+					Log.e(TAG, "Invalid address format: " + fullAddress);
+					return null;
+				})
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList()));
 	}
 }

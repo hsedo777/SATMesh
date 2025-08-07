@@ -173,7 +173,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 			SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
 			String[] preferenceValues = getResources().getStringArray(valuesResId);
 			String currentValue = sharedPreferences.getString(key, preferenceValues[defaultValueIndex]);
-			// Convert `currentValue` to its locale sensitive value
+			// Find the localized entry (human-readable text) for the current preference value
 			String[] localizedPreferenceEntries = getResources().getStringArray(entriesResId);
 			int index = Arrays.asList(preferenceValues).indexOf(currentValue);
 			if (index != -1) {
@@ -312,15 +312,13 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 							// Revert the change in memory if the DB update fails.
 							hostNode.setDisplayName(oldUsername);
 							// Also revert the preference text on the UI thread
-							if (isAdded()) {
-								requireActivity().runOnUiThread(() -> {
-									EditTextPreference usernamePref = findPreference(getString(R.string.pref_key_username));
-									if (usernamePref != null) {
-										usernamePref.setText(oldUsername);
-									}
-									Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show();
-								});
-							}
+							requireActivity().runOnUiThread(() -> {
+								EditTextPreference usernamePref = findPreference(getString(R.string.pref_key_username));
+								if (usernamePref != null) {
+									usernamePref.setText(oldUsername);
+								}
+								Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show();
+							});
 						}
 					}
 				});

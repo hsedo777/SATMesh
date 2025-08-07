@@ -11,20 +11,22 @@ import androidx.annotation.Nullable;
 import androidx.preference.EditTextPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceManager;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.utils.Utils;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class SettingsFragment extends PreferenceFragmentCompat implements SharedPreferences.OnSharedPreferenceChangeListener {
 
+	public static final int DEFAULT_THEME_INDEX = 2;
 	private static final String ARG_LOCAL_NODE_UUID = "local_node_uuid";
-
 	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 	private NodeRepository nodeRepository;
@@ -38,6 +40,10 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		args.putString(ARG_LOCAL_NODE_UUID, localNodeUuid);
 		fragment.setArguments(args);
 		return fragment;
+	}
+
+	public static @NonNull String[] getThemeArray(@NonNull Context context) {
+		return context.getResources().getStringArray(R.array.pref_theme_values);
 	}
 
 	@Override
@@ -78,6 +84,8 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 			localNodeUuid = savedInstanceState.getString(ARG_LOCAL_NODE_UUID);
 		}
 
+		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext());
+		setupThemePreference(sharedPrefs);
 		setupUsernamePreference();
 		setupNodeIdPreference();
 		loadHostNodeAndRefreshUI();
@@ -111,6 +119,18 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 			updateUsernameInRepository(newUsername);
 		}
 		// No action for `key.equals(getString(R.string.pref_key_font_size)` now.
+	}
+
+	private void setupThemePreference(SharedPreferences sharedPrefs) {
+		Preference preference = findPreference(getString(R.string.pref_key_theme));
+		if (preference != null) {
+			String[] themes = getThemeArray(requireContext());
+			String themeValue = sharedPrefs.getString(getString(R.string.pref_key_theme), themes[DEFAULT_THEME_INDEX]);
+			// Convert theme value to its locale sensitive value
+			String[] localeThemes = getResources().getStringArray(R.array.pref_theme_entries);
+			int index = Arrays.asList(themes).indexOf(themeValue);
+			preference.setSummary(localeThemes[index]);
+		}
 	}
 
 	private void setupUsernamePreference() {
@@ -152,7 +172,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 			if (hostNode != null) {
 				refreshPreferenceSummaries();
 			}
-			//else: Un desired behavior
+			//else: Undesired behavior
 		});
 	}
 

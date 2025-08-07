@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -101,8 +102,8 @@ public class NearbyDiscoveryFragment extends Fragment {
 			viewModel.setHostDeviceName(hostDeviceName);
 		}
 		viewModel.getDescriptionState().observe(getViewLifecycleOwner(), descriptionState -> {
-			binding.nearbyDescription.setText(descriptionState.text);
-			binding.nearbyDescription.setTextColor(ContextCompat.getColor(requireContext(), descriptionState.color));
+			binding.nearbyDescription.setText(descriptionState.text());
+			binding.nearbyDescription.setTextColor(ContextCompat.getColor(requireContext(), descriptionState.color()));
 		});
 
 		viewModel.getRecyclerVisibility().observe(getViewLifecycleOwner(), binding.nearbyNodesRecyclerView::setVisibility);
@@ -111,13 +112,12 @@ public class NearbyDiscoveryFragment extends Fragment {
 
 		// Observe the combined list from ViewModel
 		viewModel.getDisplayNodeListLiveData().observe(getViewLifecycleOwner(), this::onNodesChanged);
-		viewModel.getDbNodesLiveDataSource().observe(getViewLifecycleOwner(), viewModel::merge);
 
 		adapter = new NearbyDiscoveryAdapter();
 		adapter.attachOnNodeClickListener(new OnNodeClickListener() {
 			@Override
 			public void onClick(@NonNull NodeDiscoveryItem item) {
-				if (item.state != NodeState.ON_CONNECTED) {
+				if (item.state() != NodeState.ON_CONNECTED) {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(item.getAddressName());
 					if (endpointId != null) {
 						Log.d(TAG, viewModel.getHostDeviceName() + " request connection to " + endpointId + "(" + item.getAddressName() + ")");
@@ -126,16 +126,21 @@ public class NearbyDiscoveryFragment extends Fragment {
 						Log.w(TAG, "Cannot request connection: No endpoint ID found for " + item.getAddressName());
 					}
 				} else {
+					if (!item.isSecured()) {
+						Log.w(TAG, "Cannot discuss with non-secured node: " + item.getAddressName());
+						Toast.makeText(requireContext(), R.string.status_waiting_for_their_keys, Toast.LENGTH_SHORT).show();
+						return;
+					}
 					// Redirect the user to chat fragment
 					if (discussionListener != null) {
-						discussionListener.discussWith(item.node, false);
+						discussionListener.discussWith(item.node(), false);
 					}
 				}
 			}
 
 			@Override
 			public void onLongClick(@NonNull NodeDiscoveryItem item) {
-				if (item.state == NodeState.ON_CONNECTED) {
+				if (item.state() == NodeState.ON_CONNECTED) {
 					String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(item.getAddressName());
 					if (endpointId != null) {
 						Log.d(TAG, viewModel.getHostDeviceName() + " request disconnect from " + endpointId + "(" + item.getAddressName() + ")");

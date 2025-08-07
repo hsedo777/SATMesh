@@ -14,6 +14,7 @@ import org.sedo.satmesh.signal.store.AndroidIdentityKeyStore;
 import org.sedo.satmesh.signal.store.AndroidPreKeyStore;
 import org.sedo.satmesh.signal.store.AndroidSessionStore;
 import org.sedo.satmesh.signal.store.AndroidSignedPreKeyStore;
+import org.sedo.satmesh.utils.Constants;
 import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.IdentityKeyPair;
 import org.whispersystems.libsignal.InvalidKeyException;
@@ -76,7 +77,7 @@ public class SignalManager {
 
 	// Utilities methods
 	public static SignalProtocolAddress getAddress(String deviceAddressName) {
-		return new SignalProtocolAddress(deviceAddressName, 1);
+		return new SignalProtocolAddress(deviceAddressName, Constants.SIGNAL_PROTOCOL_DEVICE_ID);
 	}
 
 	private static String byteArrayToHexString(byte[] bytes) {

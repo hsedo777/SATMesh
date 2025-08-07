@@ -59,7 +59,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 	/**
 	 * Creates a new instance of SettingsFragment.
 	 *
-	 * @param hostNodeAddressName The UUID of the local node.
+	 * @param hostNodeAddressName The address name of the local node.
 	 * @return A new instance of SettingsFragment.
 	 */
 	public static SettingsFragment newInstance(String hostNodeAddressName) {
@@ -167,11 +167,12 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 	 * @param defaultValueIndex The index of the default value in the values array.
 	 */
 	private void setupRegularPreference(@StringRes int keyResId, @ArrayRes int valuesResId, @ArrayRes int entriesResId, int defaultValueIndex) {
-		Preference preference = findPreference(getString(keyResId));
+		final String key = getString(keyResId);
+		Preference preference = findPreference(key);
 		if (preference != null) {
 			SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
 			String[] preferenceValues = getResources().getStringArray(valuesResId);
-			String currentValue = sharedPreferences.getString(getString(keyResId), preferenceValues[defaultValueIndex]);
+			String currentValue = sharedPreferences.getString(key, preferenceValues[defaultValueIndex]);
 			// Convert `currentValue` to its locale sensitive value
 			String[] localizedPreferenceEntries = getResources().getStringArray(entriesResId);
 			int index = Arrays.asList(preferenceValues).indexOf(currentValue);
@@ -248,7 +249,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 			if (hostNode != null) {
 				refreshPreferenceSummaries();
 			}
-			//else: Undesired behavior
+			//else: Undesired behavior, handle appropriately
 		});
 	}
 
@@ -311,13 +312,15 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 							// Revert the change in memory if the DB update fails.
 							hostNode.setDisplayName(oldUsername);
 							// Also revert the preference text on the UI thread
-							requireActivity().runOnUiThread(() -> {
-								EditTextPreference usernamePref = findPreference(getString(R.string.pref_key_username));
-								if (usernamePref != null) {
-									usernamePref.setText(oldUsername);
-								}
-								Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show();
-							});
+							if (isAdded()) {
+								requireActivity().runOnUiThread(() -> {
+									EditTextPreference usernamePref = findPreference(getString(R.string.pref_key_username));
+									if (usernamePref != null) {
+										usernamePref.setText(oldUsername);
+									}
+									Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show();
+								});
+							}
 						}
 					}
 				});

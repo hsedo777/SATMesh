@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Message;
 import org.sedo.satmesh.utils.Constants;
+import org.whispersystems.libsignal.SignalProtocolAddress;
 
 /**
  * Provides static utility methods for UI-related tasks.
@@ -94,5 +95,16 @@ public class UiUtils {
 	 */
 	public static SharedPreferences getAppDefaultSharedPreferences(@NonNull Context context) {
 		return context.getSharedPreferences(Constants.PREFS_FILE_NAME, Context.MODE_PRIVATE);
+	}
+
+	/**
+	 * Generates a unique string key for a given {@link SignalProtocolAddress}.
+	 * The key is a concatenation of the address name and device ID separated by a dot.
+	 *
+	 * @param address The SignalProtocolAddress.
+	 * @return A unique string key representing the address.
+	 */
+	public static String getAddressKey(SignalProtocolAddress address) {
+		return address.getName() + "." + address.getDeviceId();
 	}
 }

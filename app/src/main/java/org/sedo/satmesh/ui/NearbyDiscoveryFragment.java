@@ -112,7 +112,6 @@ public class NearbyDiscoveryFragment extends Fragment {
 
 		// Observe the combined list from ViewModel
 		viewModel.getDisplayNodeListLiveData().observe(getViewLifecycleOwner(), this::onNodesChanged);
-		viewModel.getDbNodesLiveDataSource().observe(getViewLifecycleOwner(), viewModel::merge);
 
 		adapter = new NearbyDiscoveryAdapter();
 		adapter.attachOnNodeClickListener(new OnNodeClickListener() {

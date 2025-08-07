@@ -6,8 +6,10 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.widget.Toast;
 
+import androidx.annotation.ArrayRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.preference.EditTextPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
@@ -23,25 +25,57 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Fragment to display and manage app settings.
+ * It allows users to customize theme, font size, username, and view their node ID.
+ *
+ * @author hsedo777
+ */
 public class SettingsFragment extends PreferenceFragmentCompat implements SharedPreferences.OnSharedPreferenceChangeListener {
 
+	/**
+	 * Default theme index, used if no theme is set.
+	 */
 	public static final int DEFAULT_THEME_INDEX = 2;
-	private static final String ARG_LOCAL_NODE_UUID = "local_node_uuid";
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	/**
+	 * Default font size index, used if no font size is set.
+	 */
+	public static final int DEFAULT_FONT_SIZE_INDEX = 1;
 
+	// Argument key for passing the local node UUID to the fragment.
+	private static final String ARG_HOST_ADDRESS_NAME = "local_node_uuid";
+
+	// Executor service for background tasks.
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	// Repository for accessing node data.
 	private NodeRepository nodeRepository;
+	// The local node object.
 	private Node hostNode;
-	private String localNodeUuid;
+	// The address name of the local node.
+	private String hostNodeAddressName;
+	// Listener for display name changes.
 	private UserDisplayNameListener displayNameListener;
 
-	public static SettingsFragment newInstance(String localNodeUuid) {
+	/**
+	 * Creates a new instance of SettingsFragment.
+	 *
+	 * @param hostNodeAddressName The UUID of the local node.
+	 * @return A new instance of SettingsFragment.
+	 */
+	public static SettingsFragment newInstance(String hostNodeAddressName) {
 		SettingsFragment fragment = new SettingsFragment();
 		Bundle args = new Bundle();
-		args.putString(ARG_LOCAL_NODE_UUID, localNodeUuid);
+		args.putString(ARG_HOST_ADDRESS_NAME, hostNodeAddressName);
 		fragment.setArguments(args);
 		return fragment;
 	}
 
+	/**
+	 * Retrieves the array of theme values.
+	 *
+	 * @param context The context.
+	 * @return An array of theme values.
+	 */
 	public static @NonNull String[] getThemeArray(@NonNull Context context) {
 		return context.getResources().getStringArray(R.array.pref_theme_values);
 	}
@@ -71,7 +105,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 	@Override
 	public void onSaveInstanceState(@NonNull Bundle outState) {
 		super.onSaveInstanceState(outState);
-		outState.putString(ARG_LOCAL_NODE_UUID, localNodeUuid);
+		outState.putString(ARG_HOST_ADDRESS_NAME, hostNodeAddressName);
 	}
 
 	@Override
@@ -79,13 +113,13 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		setPreferencesFromResource(R.xml.preferences, rootKey);
 
 		if (getArguments() != null) {
-			localNodeUuid = getArguments().getString(ARG_LOCAL_NODE_UUID);
+			hostNodeAddressName = getArguments().getString(ARG_HOST_ADDRESS_NAME);
 		} else if (savedInstanceState != null) {
-			localNodeUuid = savedInstanceState.getString(ARG_LOCAL_NODE_UUID);
+			hostNodeAddressName = savedInstanceState.getString(ARG_HOST_ADDRESS_NAME);
 		}
 
-		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext());
-		setupThemePreference(sharedPrefs);
+		setupThemePreference();
+		setupFontSizePreference();
 		setupUsernamePreference();
 		setupNodeIdPreference();
 		loadHostNodeAndRefreshUI();
@@ -117,22 +151,53 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		} else if (key.equals(getString(R.string.pref_key_username))) {
 			String newUsername = sharedPreferences.getString(key, null);
 			updateUsernameInRepository(newUsername);
+		} else if (key.equals(getString(R.string.pref_key_font_size))) {
+			// Re-set the summary to reflect the change, as the system might not do it automatically
+			// for list preferences if the entries and values are different.
+			setupFontSizePreference();
 		}
-		// No action for `key.equals(getString(R.string.pref_key_font_size)` now.
 	}
 
-	private void setupThemePreference(SharedPreferences sharedPrefs) {
-		Preference preference = findPreference(getString(R.string.pref_key_theme));
+	/**
+	 * Sets up a regular preference with a summary provider.
+	 *
+	 * @param keyResId          The resource ID of the preference key.
+	 * @param valuesResId       The resource ID of the preference values array.
+	 * @param entriesResId      The resource ID of the preference entries array, i.e. its localized values.
+	 * @param defaultValueIndex The index of the default value in the values array.
+	 */
+	private void setupRegularPreference(@StringRes int keyResId, @ArrayRes int valuesResId, @ArrayRes int entriesResId, int defaultValueIndex) {
+		Preference preference = findPreference(getString(keyResId));
 		if (preference != null) {
-			String[] themes = getThemeArray(requireContext());
-			String themeValue = sharedPrefs.getString(getString(R.string.pref_key_theme), themes[DEFAULT_THEME_INDEX]);
-			// Convert theme value to its locale sensitive value
-			String[] localeThemes = getResources().getStringArray(R.array.pref_theme_entries);
-			int index = Arrays.asList(themes).indexOf(themeValue);
-			preference.setSummary(localeThemes[index]);
+			SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
+			String[] preferenceValues = getResources().getStringArray(valuesResId);
+			String currentValue = sharedPreferences.getString(getString(keyResId), preferenceValues[defaultValueIndex]);
+			// Convert `currentValue` to its locale sensitive value
+			String[] localizedPreferenceEntries = getResources().getStringArray(entriesResId);
+			int index = Arrays.asList(preferenceValues).indexOf(currentValue);
+			preference.setSummary(localizedPreferenceEntries[index]);
 		}
 	}
 
+	/**
+	 * Sets up the theme preference.
+	 */
+	private void setupThemePreference() {
+		// Set up theme preference
+		setupRegularPreference(R.string.pref_key_theme, R.array.pref_theme_values, R.array.pref_theme_entries, DEFAULT_THEME_INDEX);
+	}
+
+	/**
+	 * Sets up the font size preference.
+	 */
+	private void setupFontSizePreference() {
+		// Set up font size preference
+		setupRegularPreference(R.string.pref_key_font_size, R.array.pref_font_size_values, R.array.pref_font_size_entries, DEFAULT_FONT_SIZE_INDEX);
+	}
+
+	/**
+	 * Sets up the username preference.
+	 */
 	private void setupUsernamePreference() {
 		EditTextPreference preference = findPreference(getString(R.string.pref_key_username));
 		if (preference != null) {
@@ -147,10 +212,13 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		}
 	}
 
+	/**
+	 * Sets up the node ID preference.
+	 */
 	private void setupNodeIdPreference() {
 		Preference preference = findPreference(getString(R.string.pref_key_node_id));
 		if (preference != null) {
-			preference.setSummary(localNodeUuid);
+			preference.setSummary(hostNodeAddressName);
 			preference.setOnPreferenceClickListener(pref -> {
 				CharSequence summary = pref.getSummary();
 				if (summary != null) {
@@ -161,13 +229,16 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		}
 	}
 
+	/**
+	 * Loads the host node from the repository and refreshes the UI.
+	 */
 	private void loadHostNodeAndRefreshUI() {
-		if (localNodeUuid == null) {
+		if (hostNodeAddressName == null) {
 			return;
 		}
 
 		executorService.execute(() -> {
-			hostNode = nodeRepository.findNodeSync(localNodeUuid);
+			hostNode = nodeRepository.findNodeSync(hostNodeAddressName);
 
 			if (hostNode != null) {
 				refreshPreferenceSummaries();
@@ -176,6 +247,9 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 		});
 	}
 
+	/**
+	 * Refreshes the summaries of preferences that depend on the host node data.
+	 */
 	private void refreshPreferenceSummaries() {
 		if (getActivity() != null) {
 			getActivity().runOnUiThread(() -> {
@@ -188,12 +262,18 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 				if (nodeIdPreference != null && hostNode != null && hostNode.getAddressName() != null) {
 					nodeIdPreference.setSummary(hostNode.getAddressName());
 				} else if (nodeIdPreference != null) {
-					nodeIdPreference.setSummary(localNodeUuid);
+					// Fallback to localNodeUuid if hostNode or addressName is null
+					nodeIdPreference.setSummary(hostNodeAddressName);
 				}
 			});
 		}
 	}
 
+	/**
+	 * Updates the username in the repository.
+	 *
+	 * @param newUsername The new username.
+	 */
 	private void updateUsernameInRepository(@Nullable String newUsername) {
 		boolean empty = newUsername == null || newUsername.trim().isEmpty();
 		if (!Utils.isUsernameValid(newUsername)) {
@@ -202,6 +282,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 					, Toast.LENGTH_SHORT).show();
 			EditTextPreference usernamePref = findPreference(getString(R.string.pref_key_username));
 			if (usernamePref != null && hostNode != null) {
+				// Revert to the old username in the preference display
 				requireActivity().runOnUiThread(() -> usernamePref.setText(hostNode.getDisplayName()));
 			}
 			return;
@@ -213,7 +294,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 				String newUsernameTrimmed = Objects.requireNonNull(newUsername).trim();
 				hostNode.setDisplayName(newUsernameTrimmed);
 				nodeRepository.update(hostNode, success -> {
-					if (isAdded()) {
+					if (isAdded()) { // Check if fragment is still added to an activity
 						if (success) {
 							requireActivity().runOnUiThread(() -> {
 								Toast.makeText(requireContext(), getString(R.string.username_updated_to, hostNode.getDisplayName()), Toast.LENGTH_SHORT).show();
@@ -224,16 +305,30 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 						} else {
 							// Revert the change in memory if the DB update fails.
 							hostNode.setDisplayName(oldUsername);
-							requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show());
+							// Also revert the preference text on the UI thread
+							requireActivity().runOnUiThread(() -> {
+								EditTextPreference usernamePref = findPreference(getString(R.string.pref_key_username));
+								if (usernamePref != null) {
+									usernamePref.setText(oldUsername);
+								}
+								Toast.makeText(requireContext(), R.string.username_update_failed, Toast.LENGTH_SHORT).show();
+							});
 						}
 					}
 				});
 			} else {
+				// This case should ideally not happen if localNodeUuid is always valid
+				// and loadHostNodeAndRefreshUI successfully loads the node.
 				requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.username_update_failed_no_node, Toast.LENGTH_SHORT).show());
 			}
 		});
 	}
 
+	/**
+	 * Copies the node ID to the clipboard.
+	 *
+	 * @param nodeId The node ID to copy.
+	 */
 	private void copyNodeIdToClipboard(@NonNull String nodeId) {
 		android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
 				requireActivity().getSystemService(Context.CLIPBOARD_SERVICE);

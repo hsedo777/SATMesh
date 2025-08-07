@@ -221,6 +221,10 @@ public class NearbyDiscoveryViewModel extends AndroidViewModel {
 		if (nodesLiveData != null) {
 			dbNodesLiveDataSource.removeSource(nodesLiveData);
 		}
+		if (secureSessionsLiveData != null) {
+			displayNodeListLiveData.removeSource(secureSessionsLiveData);
+		}
+		secureSessionsLiveData = null;
 		nodesLiveData = null;
 		viewModelExecutor.shutdown();
 	}

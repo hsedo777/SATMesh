@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -126,6 +127,11 @@ public class NearbyDiscoveryFragment extends Fragment {
 						Log.w(TAG, "Cannot request connection: No endpoint ID found for " + item.getAddressName());
 					}
 				} else {
+					if (!item.isSecured()) {
+						Log.w(TAG, "Cannot discuss with non-secured node: " + item.getAddressName());
+						Toast.makeText(requireContext(), R.string.status_waiting_for_their_keys, Toast.LENGTH_SHORT).show();
+						return;
+					}
 					// Redirect the user to chat fragment
 					if (discussionListener != null) {
 						discussionListener.discussWith(item.node(), false);

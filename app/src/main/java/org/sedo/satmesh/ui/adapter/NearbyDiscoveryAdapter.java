@@ -97,11 +97,11 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 
 		public void bind(@NonNull NodeDiscoveryItem item) {
 			itemBinding.nodeDisplayName.setText(item.getNonNullName());
-			int color = ContextCompat.getColor(itemView.getContext(), item.state.getColorResId());
+			int color = ContextCompat.getColor(itemView.getContext(), item.state().getColorResId());
 			itemBinding.statusIndicator.getBackground().setTint(color);
-			if (item.state == NodeState.ON_CONNECTED) {
+			if (item.state() == NodeState.ON_CONNECTED) {
 				int sbg, textCode;
-				if (item.isSecured) {
+				if (item.isSecured()) {
 					sbg = ContextCompat.getColor(itemView.getContext(), R.color.ic_lock_secure);
 					textCode = R.string.status_secure_session_active;
 				} else {
@@ -121,7 +121,7 @@ public class NearbyDiscoveryAdapter extends ListAdapter<NodeDiscoveryItem, NodeD
 
 		@Override
 		public boolean areItemsTheSame(@NonNull NodeDiscoveryItem oldItem, @NonNull NodeDiscoveryItem newItem) {
-			return Objects.equals(oldItem.node.getAddressName(), newItem.node.getAddressName());
+			return Objects.equals(oldItem.getAddressName(), newItem.getAddressName());
 		}
 
 		@Override

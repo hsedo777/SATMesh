@@ -64,7 +64,9 @@ public class RouteRequestEntry {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		RouteRequestEntry that = (RouteRequestEntry) o;
-		return Objects.equals(requestUuid, that.requestUuid) && Objects.equals(destinationNodeLocalId, that.destinationNodeLocalId) && Objects.equals(previousHopLocalId, that.previousHopLocalId);
+		return Objects.equals(requestUuid, that.requestUuid) &&
+				Objects.equals(destinationNodeLocalId, that.destinationNodeLocalId) &&
+				Objects.equals(previousHopLocalId, that.previousHopLocalId);
 	}
 
 	@Override

@@ -91,7 +91,9 @@ public class BroadcastStatusEntry {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		BroadcastStatusEntry that = (BroadcastStatusEntry) o;
-		return Objects.equals(requestUuid, that.requestUuid) && Objects.equals(neighborNodeLocalId, that.neighborNodeLocalId) && Objects.equals(isPendingResponseInProgress, that.isPendingResponseInProgress);
+		return Objects.equals(requestUuid, that.requestUuid) &&
+				Objects.equals(neighborNodeLocalId, that.neighborNodeLocalId) &&
+				Objects.equals(isPendingResponseInProgress, that.isPendingResponseInProgress);
 	}
 
 	@Override

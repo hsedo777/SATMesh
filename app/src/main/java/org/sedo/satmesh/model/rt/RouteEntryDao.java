@@ -7,7 +7,7 @@ import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
 
-import org.sedo.satmesh.model.rt.RouteEntry.RouteWithUsage;
+import org.sedo.satmesh.nearby.data.RouteWithUsage;
 
 /**
  * Data Access Object (DAO) for the RouteEntry entity.

@@ -1,8 +1,8 @@
 [versions]
-agp = "8.11.1"
+agp = "8.12.0"
 junit = "4.13.2"
-junitVersion = "1.2.1"
-espressoCore = "3.6.1"
+junitVersion = "1.3.0"
+espressoCore = "3.7.0"
 appcompat = "1.7.1"
 libsignalProtocolJava = "2.8.1"
 material = "1.12.0"
@@ -11,9 +11,10 @@ constraintlayout = "2.2.1"
 playServicesNearby = "19.3.0"
 roomCompiler = "2.7.2"
 roomRuntime = "2.7.2"
-sqlcipherAndroid = "4.9.0"
-protobuf = "3.10.0"
+sqlcipherAndroid = "4.10.0"
+protobuf = "3.10.0" # Do not alter, it's tied to `libsignalProtocolJava`
 androidxPreference = "1.2.1"
+robolectric = "4.15.1"
 
 [libraries]
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
@@ -31,6 +32,7 @@ protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
 androidx-preference = { group = "androidx.preference", name = "preference", version.ref = "androidxPreference" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

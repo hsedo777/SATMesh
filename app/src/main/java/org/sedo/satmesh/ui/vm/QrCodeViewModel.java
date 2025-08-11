@@ -5,10 +5,15 @@ import static org.sedo.satmesh.utils.Constants.QR_CODE_BITMAP_HEIGHT;
 import static org.sedo.satmesh.utils.Constants.QR_CODE_BITMAP_WIDTH;
 
 import android.app.Application;
+import android.content.ContentValues;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -25,14 +30,25 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.proto.QRIdentity;
 import org.sedo.satmesh.signal.SignalManager;
+import org.sedo.satmesh.utils.BiObjectHolder;
+import org.sedo.satmesh.utils.Constants;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 
+import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
+/**
+ * ViewModel for managing QR code generation and display.
+ * This ViewModel handles the logic for creating QR codes that contain identity information
+ * for establishing secure communication channels remotely.
+ *
+ * @author hsedo777
+ */
 public class QrCodeViewModel extends AndroidViewModel {
 
 	private static final String TAG = "QrCodeViewModel";
@@ -40,23 +56,38 @@ public class QrCodeViewModel extends AndroidViewModel {
 	private final MutableLiveData<String> uuidInput = new MutableLiveData<>();
 	private final MutableLiveData<Bitmap> qrCodeBitmap = new MutableLiveData<>();
 	private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+	private final MutableLiveData<BiObjectHolder<String, Boolean>> downloadMessage = new MutableLiveData<>();
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final Handler handler = new Handler(Looper.getMainLooper());
 	private final SignalManager signalManager;
 	private String hostNodeUuid;
 
-	// Default constructor
+	/**
+	 * Constructs a new QrCodeViewModel.
+	 *
+	 * @param application The application context.
+	 */
 	protected QrCodeViewModel(@NonNull Application application) {
 		super(application);
 		signalManager = SignalManager.getInstance(application);
 	}
 
-	// LiveData
+	/**
+	 * Gets the LiveData for the UUID input by the user.
+	 *
+	 * @return A {@code LiveData} representing the UUID input.
+	 */
 	public LiveData<String> getUuidInput() {
 		return uuidInput;
 	}
 
+	/**
+	 * Sets the UUID input. Trims the input and updates the LiveData
+	 * only if the new value is different from the current one.
+	 *
+	 * @param uuid The UUID string to set.
+	 */
 	public void setUuidInput(String uuid) {
 		String trimmed = uuid != null ? uuid.trim() : "";
 		if (!trimmed.equals(uuidInput.getValue())) {
@@ -64,19 +95,48 @@ public class QrCodeViewModel extends AndroidViewModel {
 		}
 	}
 
+	/**
+	 * Gets the LiveData for the generated QR code bitmap.
+	 *
+	 * @return A {@code LiveData} representing the QR code bitmap.
+	 */
 	public LiveData<Bitmap> getQrCodeBitmap() {
 		return qrCodeBitmap;
 	}
 
+	/**
+	 * Gets the LiveData for error messages.
+	 *
+	 * @return A {@code LiveData} representing error messages.
+	 */
 	public LiveData<String> getErrorMessage() {
 		return errorMessage;
 	}
 
+	/**
+	 * Gets the LiveData for information messages.
+	 *
+	 * @return A {@code LiveData} representing information messages.
+	 */
+	public LiveData<BiObjectHolder<String, Boolean>> getDownloadMessage() {
+		return downloadMessage;
+	}
+
+	/**
+	 * Sets the UUID of the host node. This is used as the source UUID in the QR code identity.
+	 *
+	 * @param hostNodeUuid The UUID of the host node.
+	 */
 	public void setHostNodeUuid(String hostNodeUuid) {
 		this.hostNodeUuid = hostNodeUuid;
 	}
 
-	// QR code generation
+	/**
+	 * Generates a QR code based on the current UUID input.
+	 * If a QR code has already been generated for the current UUID, this method does nothing.
+	 * Validates the UUID and then asynchronously serializes the identity and generates the QR bitmap.
+	 * Updates {@code LiveData} with the generated bitmap or an error message.
+	 */
 	public void generateQrCode() {
 		// Generate only if the target address has changed
 		if (getCurrentQrCodeBitmap() != null) {
@@ -109,7 +169,14 @@ public class QrCodeViewModel extends AndroidViewModel {
 		});
 	}
 
-	// UUID format validation
+	/**
+	 * Validates the format of a given UUID string.
+	 * The UUID must not be null or empty, must start with {@link Constants#NODE_ADDRESS_NAME_PREFIX},
+	 * and the remaining part must be a valid UUID.
+	 *
+	 * @param uuid The UUID string to validate.
+	 * @return True if the UUID is valid, false otherwise.
+	 */
 	public boolean validateUuid(String uuid) {
 		if (uuid == null || uuid.isEmpty()) return false;
 		if (!uuid.startsWith(NODE_ADDRESS_NAME_PREFIX)) return false;
@@ -121,7 +188,13 @@ public class QrCodeViewModel extends AndroidViewModel {
 		}
 	}
 
-	// Identity serialization
+	/**
+	 * Asynchronously serializes the identity information into a Base64 string.
+	 * This includes the source (host) UUID, destination UUID, and the host's PreKeyBundle.
+	 *
+	 * @param destinationUuid The UUID of the destination node.
+	 * @param callback        A consumer that accepts the Base64 encoded identity string, or null on failure.
+	 */
 	private void serializeIdentityAsync(String destinationUuid, Consumer<String> callback) {
 		executor.execute(() -> {
 			try {
@@ -151,6 +224,12 @@ public class QrCodeViewModel extends AndroidViewModel {
 		});
 	}
 
+	/**
+	 * Generates a QR code bitmap from the given data string.
+	 *
+	 * @param data The string data to encode in the QR code.
+	 * @return A Bitmap representing the QR code, or null if generation fails.
+	 */
 	private Bitmap generateQrBitmapFromData(String data) {
 		QRCodeWriter writer = new QRCodeWriter();
 		try {
@@ -168,18 +247,73 @@ public class QrCodeViewModel extends AndroidViewModel {
 		}
 	}
 
+	/**
+	 * Clears the currently displayed QR code and any error messages.
+	 */
 	public void clearQrCode() {
 		qrCodeBitmap.setValue(null);
 		errorMessage.setValue(null);
 	}
 
+	/**
+	 * Gets the current QR code bitmap.
+	 *
+	 * @return The current Bitmap of the QR code, or null if none is generated.
+	 */
 	public Bitmap getCurrentQrCodeBitmap() {
 		return qrCodeBitmap.getValue();
 	}
 
+	/**
+	 * Called when the ViewModel is no longer used and will be destroyed.
+	 * Shuts down the executor service.
+	 */
 	@Override
 	protected void onCleared() {
 		super.onCleared();
 		executor.shutdown();
 	}
+
+	/**
+	 * Saves the current QR code bitmap to the device's image gallery.
+	 * If no bitmap is currently active, this method does nothing.
+	 */
+	public void saveQrCodeToGallery() {
+		Bitmap bitmap = getCurrentQrCodeBitmap();
+		if (bitmap == null) {
+			Log.w(TAG, "There is no active bitmap at this time.");
+			return;
+		}
+		Context context = getApplication();
+		String filename = Constants.QR_CODE_IMAGE_EXPORT_NAME;
+		ContentValues values = new ContentValues();
+		values.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
+		values.put(MediaStore.Images.Media.MIME_TYPE, Constants.QR_CODE_IMAGE_MIME_TYPE);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			values.put(MediaStore.Images.Media.IS_PENDING, 1);
+		}
+
+		Uri uri = context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+		if (uri == null) {
+			Log.e(TAG, "Failed to create new MediaStore record.");
+			return;
+		}
+		BiObjectHolder<String, Boolean> holder = new BiObjectHolder<>();
+		try (OutputStream out = context.getContentResolver().openOutputStream(uri)) {
+			bitmap.compress(Bitmap.CompressFormat.PNG, Constants.QR_CODE_BITMAP_QUALITY, Objects.requireNonNull(out));
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+				values.clear();
+				values.put(MediaStore.Images.Media.IS_PENDING, 0);
+				context.getContentResolver().update(uri, values, null, null);
+			}
+			Log.d(TAG, "QR code saved to gallery.");
+			holder.post(context.getString(R.string.qr_code_download_success, filename), true);
+		} catch (Exception e) {
+			Log.e(TAG, "Failed to save the QR code.", e);
+			holder.post(context.getString(R.string.qr_code_download_failed), false);
+		}
+		downloadMessage.postValue(holder);
+	}
+
+
 }

@@ -1,10 +1,13 @@
 package org.sedo.satmesh.ui;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -17,6 +20,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.snackbar.Snackbar;
 
+import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentQrCodeBinding;
 import org.sedo.satmesh.ui.vm.QrCodeViewModel;
 import org.sedo.satmesh.ui.vm.ViewModelFactory;
@@ -89,7 +93,7 @@ public class QrCodeFragment extends Fragment {
 			binding.qrCodeImage.setImageBitmap(bitmap);
 			boolean alive = bitmap != null;
 			binding.qrCodeImage.setVisibility(alive ? View.VISIBLE : View.GONE);
-			binding.qrCodeToolbar.setEnabled(alive);
+			setMenuItemEnabled(alive);
 		});
 
 		viewModel.getErrorMessage().observe(getViewLifecycleOwner(), message -> {
@@ -99,6 +103,20 @@ public class QrCodeFragment extends Fragment {
 				binding.textError.setVisibility(View.VISIBLE);
 			} else {
 				binding.textError.setVisibility(View.GONE);
+			}
+		});
+
+		viewModel.getDownloadMessage().observe(getViewLifecycleOwner(), holder -> {
+			if (holder != null) {
+				Snackbar snackbar = Snackbar.make(binding.getRoot(), holder.getFirst(), Snackbar.LENGTH_LONG);
+				if (holder.getSecond()){
+					snackbar.setAction(R.string.open, v -> {
+						Intent intent = new Intent(Intent.ACTION_VIEW, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+						intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+						startActivity(intent);
+					});
+				}
+				snackbar.show();
 			}
 		});
 
@@ -133,6 +151,23 @@ public class QrCodeFragment extends Fragment {
 			viewModel.generateQrCode();
 		});
 
+		binding.qrCodeToolbar.setOnMenuItemClickListener(item -> {
+			if (item.getItemId() == R.id.action_download) {
+				viewModel.saveQrCodeToGallery();
+				return true;
+			}
+			if (item.getItemId() == R.id.action_share) {
+				//viewModel.shareImage();
+				return true;
+			}
+			if (item.getItemId() == R.id.action_reset) {
+				viewModel.clearQrCode();
+				return true;
+			}
+
+			return false;
+		});
+
 		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
@@ -141,6 +176,13 @@ public class QrCodeFragment extends Fragment {
 				}
 			}
 		});
+	}
+
+	private void setMenuItemEnabled(boolean enabled) {
+		Menu menu = binding.qrCodeToolbar.getMenu();
+		menu.findItem(R.id.action_download).setEnabled(enabled);
+		menu.findItem(R.id.action_reset).setEnabled(enabled);
+		menu.findItem(R.id.action_share).setEnabled(enabled);
 	}
 
 	@Override

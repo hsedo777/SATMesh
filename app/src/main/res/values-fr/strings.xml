@@ -102,7 +102,8 @@
 	<string name="action_download_description">Télécharger le code QR</string>
 	<string name="action_share">Partager</string>
 	<string name="action_share_description">Partager le code QR</string>
-
+	<string name="action_reset">Réinitialiser</string>
+	<string name="action_reset_description">Réinitialiser</string>
 
 	<string name="search_hint">Rechercher messages ou discussions</string>
 	<string name="no_results_found">Aucun résultat trouvé</string>
@@ -176,6 +177,9 @@
 	<string name="generate_qr">Générer le QR</string>
 	<string name="invalid_uuid">L\'ID fourni est invalide</string>
 	<string name="qr_code_generation_failed">Échec de génération du code QR</string>
+	<string name="qr_code_download_success">Code QR enregistré avec succès dans la galerie en utilisant le nom %s</string>
+	<string name="qr_code_download_failed">Échec de sauvegarde du code QR dans la galerie.</string>
+	<string name="open">Ouvrir</string>
 
 	<!--
 	<string name=""></string>

@@ -15,4 +15,12 @@
 		android:icon="@drawable/ic_menu_share"
 		android:title="@string/action_share"
 		app:showAsAction="ifRoom" />
+
+	<item
+		android:id="@+id/action_reset"
+		android:contentDescription="@string/action_reset_description"
+		android:enabled="false"
+		android:icon="@drawable/ic_menu_reset"
+		android:title="@string/action_reset"
+		app:showAsAction="ifRoom" />
 </menu>

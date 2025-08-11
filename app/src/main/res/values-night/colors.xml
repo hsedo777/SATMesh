@@ -23,6 +23,7 @@
 	<color name="toolbar_background">#204652</color>
 	<color name="toolbar_title">#DDDDDD</color>
 	<color name="toolbar_text">#DDDDDD</color>
+	<color name="toolbar_text_disabled">#999999</color>
 	<color name="toolbar_subtitle">#AAAAAA</color>
 
 	<!-- Message exchange -->

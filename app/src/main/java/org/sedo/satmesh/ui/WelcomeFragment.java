@@ -15,6 +15,8 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import org.sedo.satmesh.databinding.FragmentWelcomeBinding;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
+import org.sedo.satmesh.ui.vm.WelcomeViewModel;
 import org.sedo.satmesh.utils.Utils;
 
 /**

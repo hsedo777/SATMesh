@@ -26,6 +26,8 @@ import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
 import org.sedo.satmesh.ui.data.NodeRepository;
+import org.sedo.satmesh.ui.vm.ChatListViewModel;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

@@ -1,4 +1,4 @@
-package org.sedo.satmesh.ui;
+package org.sedo.satmesh.ui.vm;
 
 import android.app.Application;
 import android.os.Environment;

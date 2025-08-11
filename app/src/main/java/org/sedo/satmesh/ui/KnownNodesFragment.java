@@ -24,6 +24,8 @@ import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentKnownNodesBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.KnownNodesAdapter;
+import org.sedo.satmesh.ui.vm.KnownNodesViewModel;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
 
 import java.util.List;
 

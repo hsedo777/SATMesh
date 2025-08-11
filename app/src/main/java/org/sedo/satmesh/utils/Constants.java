@@ -21,6 +21,8 @@ public class Constants {
 	public static final String TAG_SEARCH_FRAGMENT = "SearchFragment";
 
 	public static final int SIGNAL_PROTOCOL_DEVICE_ID = 1;
+	public static final int QR_CODE_BITMAP_WIDTH = 512;
+	public static final int QR_CODE_BITMAP_HEIGHT = 512;
 
 	public static final String CHANNEL_ID_MESSAGES = "satmesh_messages_channel";
 	public static final String CHANNEL_ID_NETWORK_EVENTS = "satmesh_network_events_channel";

@@ -43,6 +43,9 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
 		if (modelClass.isAssignableFrom(ChatViewModel.class)) {
 			return (T) new ChatViewModel(application);
 		}
+		if (modelClass.isAssignableFrom(QrCodeViewModel.class)) {
+			return (T) new QrCodeViewModel(application);
+		}
 		if (modelClass == SearchViewModel.class) {
 			return (T) new SearchViewModel(application);
 		}

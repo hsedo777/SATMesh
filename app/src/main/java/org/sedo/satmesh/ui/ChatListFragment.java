@@ -19,13 +19,10 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import org.sedo.satmesh.R;
-import org.sedo.satmesh.SettingsActivity;
 import org.sedo.satmesh.databinding.FragmentChatListBinding;
-import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
-import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.vm.ChatListViewModel;
 import org.sedo.satmesh.ui.vm.ViewModelFactory;
 
@@ -152,20 +149,15 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 				return true;
 			}
 			if (id == R.id.menu_settings) {
-				executor.execute(() -> {
-					Long localNodeId = viewModel.getHostNodeId();
-					if (localNodeId == null) {
-						Log.e(TAG, "Failed to extract the host node ID from ViewModel");
-						return;
-					}
-					Node localNode = new NodeRepository(requireContext()).findNodeSync(localNodeId);
-					if (localNode == null) {
-						Log.w(TAG, "Unable to fetch the local node from DB.");
-						return;
-					}
-					requireActivity().runOnUiThread(() -> requireActivity().startActivity(SettingsActivity.newIntent(requireContext(), localNode.getAddressName())));
-				});
+				if (discussionMenuListener != null) {
+					discussionMenuListener.moveToSettingsFragment();
+				}
 				return true;
+			}
+			if (id == R.id.menu_generate_qr_code){
+				if (discussionMenuListener != null){
+					discussionMenuListener.moveToQrCodeFragment();
+				}
 			}
 			if (id == R.id.menu_renew_fingerprint) {
 				new AlertDialog.Builder(requireContext())

@@ -41,6 +41,7 @@ import org.sedo.satmesh.ui.LoadingFragment;
 import org.sedo.satmesh.ui.LoadingFragment.ServiceLoadingListener;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryListener;
+import org.sedo.satmesh.ui.QrCodeFragment;
 import org.sedo.satmesh.ui.QuitAppListener;
 import org.sedo.satmesh.ui.SearchFragment;
 import org.sedo.satmesh.ui.UiUtils;
@@ -190,6 +191,14 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 
 	private SharedPreferences defaultSharedPreferences() {
 		return UiUtils.getAppDefaultSharedPreferences(this);
+	}
+
+	private Long getHostNodeId() {
+		return defaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
+	}
+
+	private @Nullable String getHostNodeAddressName() {
+		return defaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 	}
 
 	private boolean isSetupCompleted() {
@@ -493,14 +502,14 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 
 	// implementation of NearbyDiscoveryListener
 	public void moveToDiscoveryView(boolean removeLast) {
-		String addressName = defaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
+		String addressName = getHostNodeAddressName();
 		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName)), Constants.TAG_DISCOVERY_FRAGMENT, removeLast);
 	}
 
 	// Implementation of `ChatListAccessor`
 	public void moveToChatList(boolean removeLast) {
 		resetToHomeScreen();
-		Long hostNodeId = defaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
+		Long hostNodeId = getHostNodeId();
 		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast);
 	}
 
@@ -524,6 +533,15 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 			return;
 		}
 		navigateTo(KnownNodesFragment.newInstance(hostNodeId), KnownNodesFragment.TAG, true);
+	}
+
+	public void moveToSettingsFragment() {
+		startActivity(SettingsActivity.newIntent(this, Objects.requireNonNull(getHostNodeAddressName())));
+	}
+
+	@Override
+	public void moveToQrCodeFragment() {
+		navigateTo(QrCodeFragment.newInstance(Objects.requireNonNull(getHostNodeAddressName())), QrCodeFragment.TAG, true);
 	}
 
 	private void onSetupCompleted() {

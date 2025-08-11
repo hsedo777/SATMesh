@@ -2,11 +2,14 @@ package org.sedo.satmesh.ui.vm;
 
 import static org.sedo.satmesh.utils.Constants.NODE_ADDRESS_NAME_PREFIX;
 import static org.sedo.satmesh.utils.Constants.QR_CODE_BITMAP_HEIGHT;
+import static org.sedo.satmesh.utils.Constants.QR_CODE_BITMAP_QUALITY;
 import static org.sedo.satmesh.utils.Constants.QR_CODE_BITMAP_WIDTH;
+import static org.sedo.satmesh.utils.Constants.QR_CODE_IMAGE_MIME_TYPE;
 
 import android.app.Application;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
@@ -17,6 +20,7 @@ import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -34,6 +38,9 @@ import org.sedo.satmesh.utils.BiObjectHolder;
 import org.sedo.satmesh.utils.Constants;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Objects;
@@ -288,7 +295,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 		String filename = Constants.QR_CODE_IMAGE_EXPORT_NAME;
 		ContentValues values = new ContentValues();
 		values.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
-		values.put(MediaStore.Images.Media.MIME_TYPE, Constants.QR_CODE_IMAGE_MIME_TYPE);
+		values.put(MediaStore.Images.Media.MIME_TYPE, QR_CODE_IMAGE_MIME_TYPE);
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 			values.put(MediaStore.Images.Media.IS_PENDING, 1);
 		}
@@ -300,7 +307,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 		}
 		BiObjectHolder<String, Boolean> holder = new BiObjectHolder<>();
 		try (OutputStream out = context.getContentResolver().openOutputStream(uri)) {
-			bitmap.compress(Bitmap.CompressFormat.PNG, Constants.QR_CODE_BITMAP_QUALITY, Objects.requireNonNull(out));
+			bitmap.compress(Bitmap.CompressFormat.PNG, QR_CODE_BITMAP_QUALITY, Objects.requireNonNull(out));
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 				values.clear();
 				values.put(MediaStore.Images.Media.IS_PENDING, 0);
@@ -315,5 +322,49 @@ public class QrCodeViewModel extends AndroidViewModel {
 		downloadMessage.postValue(holder);
 	}
 
+	public Intent shareQrCode() {
+		Bitmap bitmap = getCurrentQrCodeBitmap();
+		if (bitmap == null) {
+			Log.w(TAG, "No QR code available to share.");
+			return null;
+		}
 
+		try {
+			Context context = getApplication();
+			String filename = Constants.QR_CODE_IMAGE_EXPORT_NAME;
+			// 1. Save file temporary in `cache/`
+			File cachePath = new File(context.getCacheDir(), Constants.QR_CODE_ROOT_IN_CACHE);
+			if (!cachePath.exists()) {
+				Log.d(TAG, "Attempt to create QR code root directory in cache dir: " + cachePath.mkdirs());
+			}
+
+			File file = new File(cachePath, filename);
+			if (file.exists()) {
+				Log.d(TAG, "File already exists. Delete it first: " + file.delete());
+			}
+			try (FileOutputStream fos = new FileOutputStream(file)) {
+				// Process saving
+				bitmap.compress(Bitmap.CompressFormat.PNG, QR_CODE_BITMAP_QUALITY, fos);
+			}
+
+			// 2. Create an URI to the tmp file via FileProvider
+			Uri contentUri = FileProvider.getUriForFile(
+					context,
+					context.getPackageName() + "." + Constants.QR_CODE_ROOT_IN_PROVIDER,
+					file
+			);
+
+			// 3. Create Intent of sharing
+			Intent shareIntent = new Intent(Intent.ACTION_SEND);
+			shareIntent.setType(QR_CODE_IMAGE_MIME_TYPE);
+			shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+			shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+			return shareIntent;
+
+		} catch (IOException e) {
+			Log.e(TAG, "Error preparing QR code for sharing", e);
+			return null;
+		}
+	}
 }

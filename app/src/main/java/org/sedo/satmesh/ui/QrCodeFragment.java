@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
@@ -27,9 +28,11 @@ import org.sedo.satmesh.ui.vm.ViewModelFactory;
 import org.sedo.satmesh.utils.Constants;
 
 /**
- * A simple {@link Fragment} subclass.
+ * A {@link Fragment} subclass that displays a QR code for a given UUID.
  * Use the {@link QrCodeFragment#newInstance} factory method to
  * create an instance of this fragment.
+ *
+ * @author hsedo777
  */
 public class QrCodeFragment extends Fragment {
 
@@ -39,10 +42,20 @@ public class QrCodeFragment extends Fragment {
 	private QrCodeViewModel viewModel;
 	private AppHomeListener homeListener;
 
+	/**
+	 * Required empty public constructor
+	 */
 	public QrCodeFragment() {
 		// Required empty public constructor
 	}
 
+	/**
+	 * Use this factory method to create a new instance of
+	 * this fragment using the provided parameters.
+	 *
+	 * @param hostNodeUuid The UUID of the host node.
+	 * @return A new instance of fragment QrCodeFragment.
+	 */
 	public static QrCodeFragment newInstance(String hostNodeUuid) {
 		QrCodeFragment fragment = new QrCodeFragment();
 		Bundle args = new Bundle();
@@ -109,7 +122,7 @@ public class QrCodeFragment extends Fragment {
 		viewModel.getDownloadMessage().observe(getViewLifecycleOwner(), holder -> {
 			if (holder != null) {
 				Snackbar snackbar = Snackbar.make(binding.getRoot(), holder.getFirst(), Snackbar.LENGTH_LONG);
-				if (holder.getSecond()){
+				if (holder.getSecond()) {
 					snackbar.setAction(R.string.open, v -> {
 						Intent intent = new Intent(Intent.ACTION_VIEW, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
 						intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -157,14 +170,20 @@ public class QrCodeFragment extends Fragment {
 				return true;
 			}
 			if (item.getItemId() == R.id.action_share) {
-				//viewModel.shareImage();
+				Intent intent = viewModel.shareQrCode();
+				if (intent != null) {
+					startActivity(Intent.createChooser(intent, requireContext().getString(R.string.share_qr_code)));
+				} else {
+					Log.w(TAG, "Failed to create sharing intent.");
+				}
 				return true;
 			}
 			if (item.getItemId() == R.id.action_reset) {
+				// Reset the screen
+				binding.editTextUuid.setText("");
 				viewModel.clearQrCode();
 				return true;
 			}
-
 			return false;
 		});
 
@@ -178,6 +197,11 @@ public class QrCodeFragment extends Fragment {
 		});
 	}
 
+	/**
+	 * Enables or disables the menu items in the toolbar.
+	 *
+	 * @param enabled True to enable the menu items, false to disable them.
+	 */
 	private void setMenuItemEnabled(boolean enabled) {
 		Menu menu = binding.qrCodeToolbar.getMenu();
 		menu.findItem(R.id.action_download).setEnabled(enabled);

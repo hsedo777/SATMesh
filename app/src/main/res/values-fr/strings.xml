@@ -179,6 +179,7 @@
 	<string name="qr_code_generation_failed">Échec de génération du code QR</string>
 	<string name="qr_code_download_success">Code QR enregistré avec succès dans la galerie en utilisant le nom %s</string>
 	<string name="qr_code_download_failed">Échec de sauvegarde du code QR dans la galerie.</string>
+	<string name="share_qr_code">Partager le code QR</string>
 	<string name="open">Ouvrir</string>
 
 	<!--

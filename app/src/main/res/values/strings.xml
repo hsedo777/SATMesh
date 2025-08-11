@@ -183,6 +183,7 @@
 	<string name="qr_code_generation_failed">Failed to generate QR code</string>
 	<string name="qr_code_download_success">QR code successfully saved in gallery using name %s.</string>
 	<string name="qr_code_download_failed">Failed to save the QR code in gallery.</string>
+	<string name="share_qr_code">Share the QR code</string>
 	<string name="open">Open</string>
 
 	<!--

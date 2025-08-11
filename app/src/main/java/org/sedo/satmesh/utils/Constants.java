@@ -11,6 +11,8 @@ public class Constants {
 	public static final String NODE_ADDRESS_NAME_PREFIX = "satmesh-";
 	public static final String PREF_KEY_HOST_ADDRESS_NAME = "host_address_name";
 	public static final String PREF_KEY_LAST_PROFILE_UPDATE = "last_profile_update";
+	public static final String QR_CODE_ROOT_IN_CACHE = "shared_qr";
+	public static final String QR_CODE_ROOT_IN_PROVIDER = "file.provider";
 	// End : DO NOT ALTER ANY OF THESE CONSTANTS
 
 	// Fragment Tags

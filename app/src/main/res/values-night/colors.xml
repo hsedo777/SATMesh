@@ -22,6 +22,7 @@
 	<color name="button_disabled_text">#888888</color>
 	<color name="toolbar_background">#204652</color>
 	<color name="toolbar_title">#DDDDDD</color>
+	<color name="toolbar_text">#DDDDDD</color>
 	<color name="toolbar_subtitle">#AAAAAA</color>
 
 	<!-- Message exchange -->

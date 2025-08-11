@@ -20,6 +20,7 @@
 	<color name="button_disabled_text">@color/black</color>
 	<color name="toolbar_background">#426A79</color>
 	<color name="toolbar_title">@color/white</color>
+	<color name="toolbar_text">@color/white</color>
 	<color name="toolbar_subtitle">@color/white</color>
 
 	<!-- Message exchange -->

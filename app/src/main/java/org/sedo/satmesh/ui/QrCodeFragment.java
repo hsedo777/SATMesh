@@ -11,6 +11,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.activity.OnBackPressedCallback;
@@ -106,6 +107,24 @@ public class QrCodeFragment extends Fragment {
 			binding.qrCodeImage.setImageBitmap(bitmap);
 			boolean alive = bitmap != null;
 			binding.qrCodeImage.setVisibility(alive ? View.VISIBLE : View.GONE);
+			if (alive) {
+				binding.qrCodeImage.setImageBitmap(bitmap);
+
+				// Reinitialize before animation
+				binding.qrCodeImage.setAlpha(0f);
+				binding.qrCodeImage.setScaleX(0.8f);
+				binding.qrCodeImage.setScaleY(0.8f);
+
+				// Animate (fade + zoom)
+				binding.qrCodeImage.animate()
+						.alpha(1f)
+						.scaleX(1f)
+						.scaleY(1f)
+						.setDuration(300) // in ms
+						.setInterpolator(new AccelerateDecelerateInterpolator())
+						.start();
+			}
+
 			setMenuItemEnabled(alive);
 		});
 
@@ -136,6 +155,13 @@ public class QrCodeFragment extends Fragment {
 		viewModel.getUuidInput().observe(getViewLifecycleOwner(), uuid -> {
 			// If UUID changes then the current QR code is no longer valid
 			viewModel.clearQrCode();
+		});
+
+		viewModel.getIsGenerating().observe(getViewLifecycleOwner(), generating -> {
+			if (generating != null) {
+				binding.qrCodeProgressBar.setVisibility(generating ? View.VISIBLE : View.GONE);
+				binding.buttonGenerateQr.setEnabled(!generating);
+			}
 		});
 
 		binding.editTextUuid.addTextChangedListener(new TextWatcher() {

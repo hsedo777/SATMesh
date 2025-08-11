@@ -64,6 +64,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 	private final MutableLiveData<Bitmap> qrCodeBitmap = new MutableLiveData<>();
 	private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
 	private final MutableLiveData<BiObjectHolder<String, Boolean>> downloadMessage = new MutableLiveData<>();
+	private final MutableLiveData<Boolean> isGenerating = new MutableLiveData<>(false);
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -130,6 +131,15 @@ public class QrCodeViewModel extends AndroidViewModel {
 	}
 
 	/**
+	 * Get the {@code LiveData} for QR code in generating state.
+	 *
+	 * @return A {@code LiveData} representing QR code generating in progress.
+	 */
+	public LiveData<Boolean> getIsGenerating() {
+		return isGenerating;
+	}
+
+	/**
 	 * Sets the UUID of the host node. This is used as the source UUID in the QR code identity.
 	 *
 	 * @param hostNodeUuid The UUID of the host node.
@@ -159,15 +169,18 @@ public class QrCodeViewModel extends AndroidViewModel {
 			return;
 		}
 
+		isGenerating.postValue(true);
 		errorMessage.setValue(null);
 		serializeIdentityAsync(uuid, data -> {
 			// On main thread
 			if (data == null) {
 				Log.w(TAG, "Failed to serialize identity for UUID: " + uuid);
 				errorMessage.setValue(getApplication().getString(R.string.qr_code_generation_failed));
+				isGenerating.postValue(false);
 				return;
 			}
 			Bitmap bitmap = generateQrBitmapFromData(data);
+			isGenerating.postValue(false);
 			qrCodeBitmap.setValue(bitmap);
 			if (bitmap == null) {
 				Log.w(TAG, "Failed to generate QR code for UUID: " + uuid);

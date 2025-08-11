@@ -179,3 +179,10 @@ message MessageAckConfirmation {
   int32 ack_type = 1;
   int64 payload_id = 2;
 }
+
+// Provide the pack of shared data by QR code
+message QRIdentity {
+  string source_uuid = 1;
+  string destination_uuid = 2;
+  bytes pre_key_bundle = 3;
+}

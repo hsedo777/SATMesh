@@ -86,6 +86,9 @@ dependencies {
     implementation(libs.libsignal.protocol.java)
     // Preferences
     implementation(libs.androidx.preference)
+    // Zxing
+    implementation(libs.zxing)
+    implementation(libs.com.journeyapps)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

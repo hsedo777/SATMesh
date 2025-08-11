@@ -15,6 +15,8 @@ sqlcipherAndroid = "4.10.0"
 protobuf = "3.10.0" # Do not alter, it's tied to `libsignalProtocolJava`
 androidxPreference = "1.2.1"
 robolectric = "4.15.1"
+zxing = "3.5.3"
+journeyapps = "4.3.0"
 
 [libraries]
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
@@ -33,6 +35,8 @@ room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCom
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
 androidx-preference = { group = "androidx.preference", name = "preference", version.ref = "androidxPreference" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+zxing = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+com-journeyapps = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "journeyapps" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

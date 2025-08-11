@@ -104,6 +104,8 @@
 	<string name="action_share_description">Share the QR code</string>
 	<string name="action_reset">Reset</string>
 	<string name="action_reset_description">Reset</string>
+	<string name="action_import_via_camera">Import from Camera</string>
+	<string name="action_import_via_image">Import from Image</string>
 
 	<string name="search_hint">Search messages or discussions</string>
 	<string name="no_results_found">No results found</string>
@@ -185,6 +187,11 @@
 	<string name="qr_code_download_failed">Failed to save the QR code in gallery.</string>
 	<string name="share_qr_code">Share the QR code</string>
 	<string name="open">Open</string>
+
+	<string name="import_qr_title">Import QR Code</string>
+	<string name="qr_source_label">QR Code Source:</string>
+	<string name="no_qr_detected">No QR code detected</string>
+	<string name="preview">Preview</string>
 
 	<!--
 	<string name=""></string>

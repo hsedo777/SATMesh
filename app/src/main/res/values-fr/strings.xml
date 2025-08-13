@@ -203,6 +203,7 @@
 	<string name="execute">Executer</string>
 	<string name="execute_qr_code_description">Établir la session sécurisée.</string>
 	<string name="qr_code_secure_session_failed">Impossible d\'établir la session sécurisée.</string>
+	<string name="qr_code_process_failed">Échec du traitement du code QR.</string>
 
 	<!--
 	<string name=""></string>

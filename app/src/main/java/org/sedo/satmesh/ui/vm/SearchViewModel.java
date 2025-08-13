@@ -24,7 +24,7 @@ public class SearchViewModel extends ChatListViewModel {
 	private final MediatorLiveData<List<SearchMessageItem>> searchMessageItems = new MediatorLiveData<>();
 	private LiveData<List<SearchMessageItem>> currentSearchMessageItemsSource;
 
-	public SearchViewModel(@NonNull Application application) {
+	protected SearchViewModel(@NonNull Application application) {
 		super(application);
 
 		searchQueryLiveData.setValue("");

@@ -62,7 +62,7 @@ public class ChatViewModel extends AndroidViewModel {
 	private boolean hasAttemptedResendForCurrentSession = false;
 	private LiveData<Node> currentRemoteNodeSource;
 
-	public ChatViewModel(@NonNull Application application) {
+	protected ChatViewModel(@NonNull Application application) {
 		super(application);
 		this.messageRepository = new MessageRepository(application);
 		this.nodeRepository = new NodeRepository(application);

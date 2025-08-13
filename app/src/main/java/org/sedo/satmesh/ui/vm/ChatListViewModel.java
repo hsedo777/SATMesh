@@ -35,7 +35,7 @@ public class ChatListViewModel extends AndroidViewModel {
 	// LiveData for the raw chat list items from the messageRepository (before enrichment)
 	private LiveData<List<ChatListItem>> currentChatListItemsSource;
 
-	public ChatListViewModel(@NonNull Application application) {
+	protected ChatListViewModel(@NonNull Application application) {
 		super(application);
 
 		this.messageRepository = new MessageRepository(application);

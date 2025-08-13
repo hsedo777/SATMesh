@@ -46,6 +46,9 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
 		if (modelClass.isAssignableFrom(QrCodeViewModel.class)) {
 			return (T) new QrCodeViewModel(application);
 		}
+		if (modelClass.isAssignableFrom(ImportQrCodeViewModel.class)) {
+			return (T) new ImportQrCodeViewModel(application);
+		}
 		if (modelClass == SearchViewModel.class) {
 			return (T) new SearchViewModel(application);
 		}

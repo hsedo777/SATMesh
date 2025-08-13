@@ -22,7 +22,7 @@ public class KnownNodesViewModel extends AndroidViewModel {
 
 	private final LiveData<List<Node>> knownNodesExcludingHost;
 
-	public KnownNodesViewModel(@NonNull Application application) {
+	protected KnownNodesViewModel(@NonNull Application application) {
 		super(application);
 		this.nodeRepository = new NodeRepository(application);
 

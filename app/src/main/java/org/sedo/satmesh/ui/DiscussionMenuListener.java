@@ -27,4 +27,9 @@ public interface DiscussionMenuListener {
 	 * Navigates to the QR code fragment.
 	 */
 	void moveToQrCodeFragment();
+
+	/**
+	 * Navigates to the import QR code fragment.
+	 */
+	void moveToImportQrCodeFragment();
 }

@@ -25,6 +25,9 @@
 				android:id="@+id/menu_generate_qr_code"
 				android:title="@string/menu_generate_qr" />
 			<item
+				android:id="@+id/import_qr_code"
+				android:title="@string/menu_import_qr" />
+			<item
 				android:id="@+id/menu_help_feedback"
 				android:enabled="false"
 				android:title="@string/menu_help_feedback" />

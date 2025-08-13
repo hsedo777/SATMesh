@@ -158,6 +158,13 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 				if (discussionMenuListener != null){
 					discussionMenuListener.moveToQrCodeFragment();
 				}
+				return true;
+			}
+			if (id == R.id.import_qr_code){
+				if (discussionMenuListener != null){
+					discussionMenuListener.moveToImportQrCodeFragment();
+				}
+				return true;
 			}
 			if (id == R.id.menu_renew_fingerprint) {
 				new AlertDialog.Builder(requireContext())

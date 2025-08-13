@@ -36,6 +36,7 @@ import org.sedo.satmesh.ui.ChatListAccessor;
 import org.sedo.satmesh.ui.ChatListFragment;
 import org.sedo.satmesh.ui.DiscussionListener;
 import org.sedo.satmesh.ui.DiscussionMenuListener;
+import org.sedo.satmesh.ui.ImportQrCodeFragment;
 import org.sedo.satmesh.ui.KnownNodesFragment;
 import org.sedo.satmesh.ui.LoadingFragment;
 import org.sedo.satmesh.ui.LoadingFragment.ServiceLoadingListener;
@@ -521,6 +522,8 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	// Implementation of `DiscussionMenuListener`
+
+	@Override
 	public void moveToSearchFragment(Long hostNodeId) {
 		if (hostNodeId == null) {
 			return;
@@ -528,6 +531,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		navigateTo(SearchFragment.newInstance(hostNodeId), SearchFragment.TAG, true);
 	}
 
+	@Override
 	public void moveToKnownNodesFragment(Long hostNodeId) {
 		if (hostNodeId == null) {
 			return;
@@ -535,6 +539,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		navigateTo(KnownNodesFragment.newInstance(hostNodeId), KnownNodesFragment.TAG, true);
 	}
 
+	@Override
 	public void moveToSettingsFragment() {
 		startActivity(SettingsActivity.newIntent(this, Objects.requireNonNull(getHostNodeAddressName())));
 	}
@@ -542,6 +547,11 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	@Override
 	public void moveToQrCodeFragment() {
 		navigateTo(QrCodeFragment.newInstance(Objects.requireNonNull(getHostNodeAddressName())), QrCodeFragment.TAG, true);
+	}
+
+	@Override
+	public void moveToImportQrCodeFragment() {
+		navigateTo(ImportQrCodeFragment.newInstance(Objects.requireNonNull(getHostNodeAddressName())), ImportQrCodeFragment.TAG, true);
 	}
 
 	private void onSetupCompleted() {

@@ -164,14 +164,21 @@ public class QrCodeFragment extends Fragment {
 			return false;
 		});
 
-		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
-			@Override
-			public void handleOnBackPressed() {
-				if (homeListener != null) {
-					homeListener.backToHome();
-				}
+		binding.qrCodeToolbar.setNavigationOnClickListener(v -> {
+			if (homeListener != null) {
+				homeListener.backToHome();
 			}
 		});
+
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+				new OnBackPressedCallback(true) {
+					@Override
+					public void handleOnBackPressed() {
+						if (homeListener != null) {
+							homeListener.backToHome();
+						}
+					}
+				});
 		if (targetAddressName != null) {
 			// We need to generated a QR code that contains an acknowledge message
 			viewModel.processSecureSession(targetAddressName, success -> {

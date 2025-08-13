@@ -13,6 +13,7 @@
 		android:layout_width="match_parent"
 		android:layout_height="?attr/actionBarSize"
 		app:menu="@menu/menu_qr_code"
+		app:navigationIcon="@drawable/ic_arrow_back"
 		app:title="@string/qr_code_title" />
 
 	<!-- First section : UUID -->
@@ -68,11 +69,11 @@
 			android:layout_margin="@dimen/space_md"
 			android:gravity="center"
 			android:textColor="@color/error"
-			android:textStyle="bold"
 			android:textSize="@dimen/text_size_title"
+			android:textStyle="bold"
 			android:visibility="gone"
-			tools:visibility="visible"
-			tools:text="Please, download the displayed QR code."/>
+			tools:text="Please, download the displayed QR code."
+			tools:visibility="visible" />
 
 		<!-- QR code image -->
 		<ImageView

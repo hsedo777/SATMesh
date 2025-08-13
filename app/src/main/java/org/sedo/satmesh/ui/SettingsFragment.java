@@ -15,6 +15,8 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.data.NodeRepository;
@@ -336,12 +338,8 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
 	 * @param nodeId The node ID to copy.
 	 */
 	private void copyNodeIdToClipboard(@NonNull String nodeId) {
-		android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
-				requireActivity().getSystemService(Context.CLIPBOARD_SERVICE);
-		if (clipboard != null) {
-			android.content.ClipData clip = android.content.ClipData.newPlainText("Node ID", nodeId);
-			clipboard.setPrimaryClip(clip);
-			Toast.makeText(requireContext(), R.string.node_id_copied_to_clipboard, Toast.LENGTH_SHORT).show();
+		if (UiUtils.copyToClipboard(requireContext(), nodeId, "Node ID")) {
+			Snackbar.make(requireView(), R.string.node_id_copied_to_clipboard, Snackbar.LENGTH_SHORT).show();
 		}
 	}
 }

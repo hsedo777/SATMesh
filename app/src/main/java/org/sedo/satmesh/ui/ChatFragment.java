@@ -2,8 +2,6 @@ package org.sedo.satmesh.ui;
 
 import static org.sedo.satmesh.utils.Constants.TAG_CHAT_FRAGMENT;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Bundle;
 import android.text.Editable;
@@ -28,6 +26,8 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.snackbar.Snackbar;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatBinding;
@@ -147,10 +147,9 @@ public class ChatFragment extends Fragment {
 				}
 
 				if (copiedText.length() > 0) {
-					ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
-					ClipData clip = ClipData.newPlainText("SatMesh Message", copiedText.toString());
-					clipboard.setPrimaryClip(clip);
-					Toast.makeText(getContext(), R.string.message_copied, Toast.LENGTH_SHORT).show();
+					if (UiUtils.copyToClipboard(requireContext(), copiedText.toString(), "SatMesh Message")) {
+						Snackbar.make(binding.getRoot(), R.string.message_copied, Snackbar.LENGTH_SHORT).show();
+					}
 				}
 				mode.finish();
 				return true;

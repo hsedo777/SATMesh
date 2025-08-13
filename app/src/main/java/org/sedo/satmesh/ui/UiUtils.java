@@ -107,4 +107,23 @@ public class UiUtils {
 	public static String getAddressKey(SignalProtocolAddress address) {
 		return address.getName() + "." + address.getDeviceId();
 	}
+
+	/**
+	 * Copies the given text to the clipboard.
+	 *
+	 * @param context The context to use to access the clipboard service.
+	 * @param text    The text to copy to the clipboard.
+	 * @param label   A user-visible label for the clip data.
+	 * @return true if the text was successfully copied to the clipboard, false otherwise.
+	 */
+	public static boolean copyToClipboard(@NonNull Context context, @NonNull String text, @NonNull String label) {
+		android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+				context.getSystemService(Context.CLIPBOARD_SERVICE);
+		if (clipboard != null) {
+			android.content.ClipData clip = android.content.ClipData.newPlainText(label, text);
+			clipboard.setPrimaryClip(clip);
+			return true;
+		}
+		return false;
+	}
 }

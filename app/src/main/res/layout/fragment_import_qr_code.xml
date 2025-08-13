@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:app="http://schemas.android.com/apk/res-auto"
 	xmlns:tools="http://schemas.android.com/tools"
 	android:layout_width="match_parent"
-	android:layout_height="match_parent"
-	android:orientation="vertical">
+	android:layout_height="match_parent">
 
 	<!-- Toolbar -->
 	<androidx.appcompat.widget.Toolbar
@@ -16,8 +15,10 @@
 
 	<!-- Main content -->
 	<ScrollView
+		android:id="@+id/qr_import_scroll_view"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
+		android:layout_marginTop="?attr/actionBarSize"
 		android:contentDescription="@string/import_qr_code_title"
 		android:fillViewport="true">
 
@@ -58,7 +59,8 @@
 					android:maxLines="1"
 					android:textColor="@color/on_primary"
 					android:textStyle="bold"
-					tools:text="satmesh-78965-897965-554449ab854-626" />
+					tools:ignore="TouchTargetSizeCheck"
+					tools:text="satmesh-78965-897965-554449ab854-626dfa56" />
 
 			</LinearLayout>
 
@@ -84,4 +86,19 @@
 		</LinearLayout>
 	</ScrollView>
 
-</LinearLayout>
+	<com.google.android.material.floatingactionbutton.FloatingActionButton
+		android:id="@+id/qr_code_action_button"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_margin="@dimen/space_md"
+		android:contentDescription="@string/execute_qr_code_description"
+		android:src="@drawable/ic_exec_secure_session"
+		android:visibility="gone"
+		app:backgroundTint="@color/secondary"
+		app:layout_anchor="@id/qr_import_scroll_view"
+		app:layout_anchorGravity="bottom|end"
+		app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CircularFab"
+		app:tint="@color/on_secondary"
+		tools:visibility="visible" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

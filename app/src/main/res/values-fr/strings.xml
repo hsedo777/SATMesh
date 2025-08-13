@@ -186,7 +186,7 @@
 	<string name="open">Ouvrir</string>
 
 	<string name="import_qr_code_title">Importer un code QR</string>
-	<string name="qr_code_source_label">Source du code QR :</string>
+	<string name="qr_code_source_label">Source du QR :</string>
 	<string name="qr_code_source_description">La source du code QR.</string>
 	<string name="scan_qr_prompt">Scanner un code QR</string>
 	<string name="no_qr_code_detected">Aucun code QR détecté</string>
@@ -197,6 +197,8 @@
 	<string name="qr_code_decode_failed">Échec de décodage du code QR.</string>
 	<string name="qr_code_import_from_image_failed">Échec de l\'importation du code QR depuis l\'image.</string>
 	<string name="preview">Aperçu</string>
+	<string name="execute">Executer</string>
+	<string name="execute_qr_code_description">Établir la session sécurisée.</string>
 
 	<!--
 	<string name=""></string>

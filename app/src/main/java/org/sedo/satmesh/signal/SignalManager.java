@@ -20,6 +20,7 @@ import org.whispersystems.libsignal.IdentityKeyPair;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.InvalidKeyIdException;
 import org.whispersystems.libsignal.InvalidMessageException;
+import org.whispersystems.libsignal.InvalidVersionException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.SessionBuilder;
 import org.whispersystems.libsignal.SessionCipher;
@@ -331,6 +332,38 @@ public class SignalManager {
 		CiphertextMessage cipherMessage = sessionCipher.encrypt(message);
 		Log.d(TAG, "Message encrypted for " + recipientAddress.getName() + ". Type: " + cipherMessage.getType());
 		return cipherMessage;
+	}
+
+	/**
+	 * Deserializes a byte array into a CiphertextMessage.
+	 * <p>
+	 * This method attempts to reconstruct a {@link CiphertextMessage} from raw byte data.
+	 * It first tries to parse it as a {@link SignalMessage}. If that fails (e.g., if it's the
+	 * first message establishing a session, which would be a PreKeySignalMessage), it then
+	 * attempts to parse it as a {@link PreKeySignalMessage}.
+	 * </p>
+	 *
+	 * @param cipherData The raw byte array containing the serialized ciphertext message.
+	 * @return A {@link CiphertextMessage} (either {@link SignalMessage} or {@link PreKeySignalMessage}).
+	 * @throws InvalidMessageException if the an error occurs during an attempt to deserialize the message.
+	 * @throws InvalidVersionException if the an error occurs during an attempt to deserialize the message.
+	 * @see SignalMessage
+	 * @see PreKeySignalMessage
+	 */
+	public static CiphertextMessage toCiphertextMessage(byte[] cipherData) throws InvalidMessageException, InvalidVersionException {
+		/*
+		 * Reconstruct CiphertextMessage from raw bytes
+		 * Note: We need to properly determine if it's PREKEY_TYPE or WHISPER_TYPE.
+		 */
+		try {
+			return new SignalMessage(cipherData);
+		} catch (Exception ignored) {
+			/*
+			 * Instruction in the try clause will throw exception if the message
+			 * is the first encrypted through devices
+			 */
+			return new PreKeySignalMessage(cipherData);
+		}
 	}
 
 	/**

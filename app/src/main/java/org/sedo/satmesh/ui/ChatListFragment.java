@@ -68,12 +68,13 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
 							 @Nullable Bundle savedInstanceState) {
 		binding = FragmentChatListBinding.inflate(inflater, container, false);
-		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
-			@Override
-			public void handleOnBackPressed() {
-				requireActivity().finish();
-			}
-		});
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+						new OnBackPressedCallback(true) {
+							@Override
+							public void handleOnBackPressed() {
+								requireActivity().finish();
+							}
+						});
 		return binding.getRoot();
 	}
 

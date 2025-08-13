@@ -140,7 +140,8 @@ public class KnownNodesFragment extends Fragment {
 			hostNodeId = knownNodesViewModel.getHostNodeId();
 		}
 
-		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+				new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
 				if (chatListAccessor != null){

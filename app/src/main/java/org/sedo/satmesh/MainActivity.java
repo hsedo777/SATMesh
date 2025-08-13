@@ -545,8 +545,8 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	@Override
-	public void moveToQrCodeFragment() {
-		navigateTo(QrCodeFragment.newInstance(Objects.requireNonNull(getHostNodeAddressName())), QrCodeFragment.TAG, true);
+	public void moveToQrCodeFragment(@Nullable Bundle extra) {
+		navigateTo(QrCodeFragment.newInstance(Objects.requireNonNull(getHostNodeAddressName()), extra), QrCodeFragment.TAG, true);
 	}
 
 	@Override

@@ -9,9 +9,12 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.activity.OnBackPressedCallback;
@@ -57,22 +60,15 @@ public class QrCodeFragment extends Fragment {
 	 * @param hostNodeUuid The UUID of the host node.
 	 * @return A new instance of fragment QrCodeFragment.
 	 */
-	public static QrCodeFragment newInstance(String hostNodeUuid) {
+	public static QrCodeFragment newInstance(String hostNodeUuid, @Nullable Bundle extra) {
 		QrCodeFragment fragment = new QrCodeFragment();
 		Bundle args = new Bundle();
+		if (extra != null) {
+			args.putAll(extra);
+		}
 		args.putString(Constants.NODE_ADDRESS, hostNodeUuid);
 		fragment.setArguments(args);
 		return fragment;
-	}
-
-	@Override
-	public void onCreate(@Nullable Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance(requireActivity().getApplication())).get(QrCodeViewModel.class);
-		if (getArguments() != null) {
-			String hostNodeUuid = getArguments().getString(Constants.NODE_ADDRESS);
-			viewModel.setHostNodeUuid(hostNodeUuid);
-		}
 	}
 
 	@Override
@@ -102,7 +98,117 @@ public class QrCodeFragment extends Fragment {
 	public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 
+		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance(requireActivity().getApplication())).get(QrCodeViewModel.class);
+		String targetAddressName;
+		if (getArguments() != null) {
+			String hostNodeUuid = getArguments().getString(Constants.NODE_ADDRESS);
+			viewModel.setHostNodeUuid(hostNodeUuid);
+			targetAddressName = getArguments().getString(QrCodeGenerationListener.RECIPIENT_ADDRESS_NAME);
+		} else {
+			targetAddressName = null;
+		}
+
 		// Observers
+		setupObservers();
+
+		binding.editTextUuid.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void afterTextChanged(Editable s) {
+			}
+
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+			}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				viewModel.setUuidInput(s.toString());
+			}
+		});
+
+		// Actions UI
+		binding.buttonGenerateQr.setOnClickListener(v -> {
+			// Hide keyboard
+			InputMethodManager imm = (InputMethodManager) requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+			View focus;
+			if (imm != null && (focus = requireActivity().getCurrentFocus()) != null) {
+				imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+			}
+			viewModel.generateQrCode();
+		});
+
+		binding.qrCodeToolbar.setOnMenuItemClickListener(item -> {
+			if (item.getItemId() == R.id.action_download) {
+				viewModel.setIsBlinking(false);
+				viewModel.saveQrCodeToGallery();
+				if (getArguments() != null) {
+					getArguments().remove(QrCodeGenerationListener.RECIPIENT_ADDRESS_NAME);
+				}
+				return true;
+			}
+			if (item.getItemId() == R.id.action_share) {
+				Intent intent = viewModel.shareQrCode();
+				if (intent != null) {
+					startActivity(Intent.createChooser(intent, requireContext().getString(R.string.share_qr_code)));
+				} else {
+					Log.w(TAG, "Failed to create sharing intent.");
+				}
+				return true;
+			}
+			if (item.getItemId() == R.id.action_reset) {
+				// Reset the screen
+				binding.editTextUuid.setText("");
+				viewModel.clearQrCode();
+				return true;
+			}
+			return false;
+		});
+
+		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
+			@Override
+			public void handleOnBackPressed() {
+				if (homeListener != null) {
+					homeListener.backToHome();
+				}
+			}
+		});
+		if (targetAddressName != null) {
+			// We need to generated a QR code that contains an acknowledge message
+			viewModel.processSecureSession(targetAddressName, success -> {
+				if (success) {
+					Snackbar.make(binding.getRoot(), R.string.qr_code_ack_ready, Snackbar.LENGTH_LONG).show();
+					binding.textQrBlinking.setText(R.string.qr_code_ack_ready);
+					binding.textQrBlinking.setOnClickListener(v -> binding.textQrBlinking.clearAnimation());
+					View v = getDownloadMenuActionView();
+					if (v != null) {
+						startBlinking(v, 500);
+					}
+					viewModel.setIsBlinking(true);
+				} else {
+					Snackbar.make(binding.getRoot(), R.string.qr_code_ack_failed, Snackbar.LENGTH_SHORT).show();
+				}
+			});
+		}
+	}
+
+	/**
+	 * Enables or disables the menu items in the toolbar.
+	 *
+	 * @param enabled True to enable the menu items, false to disable them.
+	 */
+	private void setMenuItemEnabled(boolean enabled) {
+		Menu menu = binding.qrCodeToolbar.getMenu();
+		menu.findItem(R.id.action_download).setEnabled(enabled);
+		menu.findItem(R.id.action_reset).setEnabled(enabled);
+		menu.findItem(R.id.action_share).setEnabled(enabled);
+	}
+
+	private View getDownloadMenuActionView() {
+		MenuItem menuItem = binding.qrCodeToolbar.getMenu().findItem(R.id.action_download);
+		return menuItem.getActionView();
+	}
+
+	private void setupObservers() {
 		viewModel.getQrCodeBitmap().observe(getViewLifecycleOwner(), bitmap -> {
 			binding.qrCodeImage.setImageBitmap(bitmap);
 			boolean alive = bitmap != null;
@@ -164,75 +270,32 @@ public class QrCodeFragment extends Fragment {
 			}
 		});
 
-		binding.editTextUuid.addTextChangedListener(new TextWatcher() {
-			@Override
-			public void afterTextChanged(Editable s) {
-			}
-
-			@Override
-			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-			}
-
-			@Override
-			public void onTextChanged(CharSequence s, int start, int before, int count) {
-				viewModel.setUuidInput(s.toString());
-			}
-		});
-
-		// Actions UI
-		binding.buttonGenerateQr.setOnClickListener(v -> {
-			// Hide keyboard
-			InputMethodManager imm = (InputMethodManager) requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-			View focus;
-			if (imm != null && (focus = requireActivity().getCurrentFocus()) != null) {
-				imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
-			}
-			viewModel.generateQrCode();
-		});
-
-		binding.qrCodeToolbar.setOnMenuItemClickListener(item -> {
-			if (item.getItemId() == R.id.action_download) {
-				viewModel.saveQrCodeToGallery();
-				return true;
-			}
-			if (item.getItemId() == R.id.action_share) {
-				Intent intent = viewModel.shareQrCode();
-				if (intent != null) {
-					startActivity(Intent.createChooser(intent, requireContext().getString(R.string.share_qr_code)));
-				} else {
-					Log.w(TAG, "Failed to create sharing intent.");
+		viewModel.getIsBlinking().observe(getViewLifecycleOwner(), blinking -> {
+			boolean isGenerating = Boolean.TRUE.equals(viewModel.getIsGenerating().getValue());
+			boolean isBlinking = isGenerating && blinking != null && blinking;
+			binding.textQrBlinking.setVisibility(isBlinking ? View.VISIBLE : View.GONE);
+			if (isBlinking) {
+				startBlinking(binding.textQrBlinking, 300);
+				binding.editTextUuid.setEnabled(false);
+				binding.buttonGenerateQr.setEnabled(false);
+			} else {
+				binding.textQrBlinking.clearAnimation();
+				View v = getDownloadMenuActionView();
+				if (v != null) {
+					v.clearAnimation();
 				}
-				return true;
-			}
-			if (item.getItemId() == R.id.action_reset) {
-				// Reset the screen
-				binding.editTextUuid.setText("");
-				viewModel.clearQrCode();
-				return true;
-			}
-			return false;
-		});
-
-		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
-			@Override
-			public void handleOnBackPressed() {
-				if (homeListener != null) {
-					homeListener.backToHome();
-				}
+				binding.editTextUuid.setEnabled(true);
+				binding.buttonGenerateQr.setEnabled(true);
 			}
 		});
 	}
 
-	/**
-	 * Enables or disables the menu items in the toolbar.
-	 *
-	 * @param enabled True to enable the menu items, false to disable them.
-	 */
-	private void setMenuItemEnabled(boolean enabled) {
-		Menu menu = binding.qrCodeToolbar.getMenu();
-		menu.findItem(R.id.action_download).setEnabled(enabled);
-		menu.findItem(R.id.action_reset).setEnabled(enabled);
-		menu.findItem(R.id.action_share).setEnabled(enabled);
+	private void startBlinking(View view, int delay) {
+		AlphaAnimation blinkAnimation = new AlphaAnimation(1.0f, 0.0f);
+		blinkAnimation.setDuration(delay);
+		blinkAnimation.setRepeatMode(Animation.REVERSE);
+		blinkAnimation.setRepeatCount(Animation.INFINITE);
+		view.startAnimation(blinkAnimation);
 	}
 
 	@Override

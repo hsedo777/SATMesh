@@ -188,10 +188,13 @@
 	<string name="qr_code_download_failed">Failed to save the QR code in gallery.</string>
 	<string name="share_qr_code">Share the QR code</string>
 	<string name="open">Open</string>
+	<string name="qr_code_ack_ready">Secure session locally established. Please download the displayed QR code and send it to the remote user.</string>
+	<string name="qr_code_ack_failed">Failed to generate the response to send to the remote user, after secure session establishment.</string>
 
 	<string name="import_qr_code_title">Import QR code</string>
 	<string name="qr_code_source_label">QR source:</string>
 	<string name="qr_code_source_description">The source of the QR code.</string>
+	<string name="qr_code_source_copied">Copy of source QR code done successfully.</string>
 	<string name="scan_qr_prompt">Scan a QR code</string>
 	<string name="no_qr_code_detected">No QR code detected</string>
 	<string name="no_image_detected">No image to decode.</string>
@@ -203,6 +206,7 @@
 	<string name="preview">Preview</string>
 	<string name="execute">Execute</string>
 	<string name="execute_qr_code_description">Establish the secure session.</string>
+	<string name="qr_code_secure_session_failed">Unable to establish the secure session.</string>
 
 	<!--
 	<string name=""></string>

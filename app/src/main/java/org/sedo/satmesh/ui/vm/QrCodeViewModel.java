@@ -1,5 +1,6 @@
 package org.sedo.satmesh.ui.vm;
 
+import static org.sedo.satmesh.signal.SignalManager.getAddress;
 import static org.sedo.satmesh.utils.Constants.NODE_ADDRESS_NAME_PREFIX;
 import static org.sedo.satmesh.utils.Constants.QR_CODE_BITMAP_HEIGHT;
 import static org.sedo.satmesh.utils.Constants.QR_CODE_BITMAP_QUALITY;
@@ -27,13 +28,16 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.google.protobuf.ByteString;
 import com.google.zxing.BarcodeFormat;
-import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
 import org.sedo.satmesh.R;
+import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.proto.QrIdentity;
+import org.sedo.satmesh.proto.QrMessage;
 import org.sedo.satmesh.signal.SignalManager;
+import org.sedo.satmesh.ui.data.NodeRepository;
+import org.sedo.satmesh.ui.data.NodeRepository.NodeCallback;
 import org.sedo.satmesh.utils.BiObjectHolder;
 import org.sedo.satmesh.utils.Constants;
 import org.whispersystems.libsignal.state.PreKeyBundle;
@@ -65,9 +69,11 @@ public class QrCodeViewModel extends AndroidViewModel {
 	private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
 	private final MutableLiveData<BiObjectHolder<String, Boolean>> downloadMessage = new MutableLiveData<>();
 	private final MutableLiveData<Boolean> isGenerating = new MutableLiveData<>(false);
+	private final MutableLiveData<Boolean> isBlinking = new MutableLiveData<>(false);
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final Handler handler = new Handler(Looper.getMainLooper());
+	private final NodeRepository nodeRepository;
 	private final SignalManager signalManager;
 	private String hostNodeUuid;
 
@@ -79,6 +85,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 	protected QrCodeViewModel(@NonNull Application application) {
 		super(application);
 		signalManager = SignalManager.getInstance(application);
+		nodeRepository = new NodeRepository(application);
 	}
 
 	/**
@@ -99,7 +106,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 	public void setUuidInput(String uuid) {
 		String trimmed = uuid != null ? uuid.trim() : "";
 		if (!trimmed.equals(uuidInput.getValue())) {
-			uuidInput.setValue(trimmed);
+			uuidInput.postValue(trimmed);
 		}
 	}
 
@@ -140,6 +147,19 @@ public class QrCodeViewModel extends AndroidViewModel {
 	}
 
 	/**
+	 * Get the {@code LiveData} for QR code download invitation state.
+	 *
+	 * @return A {@code LiveData} representing the state of invitation to download the QR code.
+	 */
+	public LiveData<Boolean> getIsBlinking() {
+		return isBlinking;
+	}
+
+	public void setIsBlinking(boolean isBlinking) {
+		this.isBlinking.postValue(isBlinking);
+	}
+
+	/**
 	 * Sets the UUID of the host node. This is used as the source UUID in the QR code identity.
 	 *
 	 * @param hostNodeUuid The UUID of the host node.
@@ -162,29 +182,29 @@ public class QrCodeViewModel extends AndroidViewModel {
 		}
 		Log.d(TAG, "Generating QR code for UUID: " + uuidInput.getValue());
 		String uuid = uuidInput.getValue();
-		if (hostNodeUuid == null || !validateUuid(uuid)) {
+		if (hostNodeUuid == null || isNotValidUuid(uuid)) {
 			Log.d(TAG, "Invalid UUID: " + uuid);
-			qrCodeBitmap.setValue(null);
-			errorMessage.setValue(getApplication().getString(R.string.invalid_uuid));
+			qrCodeBitmap.postValue(null);
+			errorMessage.postValue(getApplication().getString(R.string.invalid_uuid));
 			return;
 		}
 
 		isGenerating.postValue(true);
-		errorMessage.setValue(null);
+		errorMessage.postValue(null);
 		serializeIdentityAsync(uuid, data -> {
 			// On main thread
 			if (data == null) {
 				Log.w(TAG, "Failed to serialize identity for UUID: " + uuid);
-				errorMessage.setValue(getApplication().getString(R.string.qr_code_generation_failed));
+				errorMessage.postValue(getApplication().getString(R.string.qr_code_generation_failed));
 				isGenerating.postValue(false);
 				return;
 			}
-			Bitmap bitmap = generateQrBitmapFromData(data);
+			Bitmap bitmap = generateQrBitmapFrom(data);
 			isGenerating.postValue(false);
-			qrCodeBitmap.setValue(bitmap);
+			qrCodeBitmap.postValue(bitmap);
 			if (bitmap == null) {
 				Log.w(TAG, "Failed to generate QR code for UUID: " + uuid);
-				errorMessage.setValue(getApplication().getString(R.string.qr_code_generation_failed));
+				errorMessage.postValue(getApplication().getString(R.string.qr_code_generation_failed));
 			}
 		});
 	}
@@ -195,16 +215,16 @@ public class QrCodeViewModel extends AndroidViewModel {
 	 * and the remaining part must be a valid UUID.
 	 *
 	 * @param uuid The UUID string to validate.
-	 * @return True if the UUID is valid, false otherwise.
+	 * @return True if the UUID is not valid, false otherwise.
 	 */
-	public boolean validateUuid(String uuid) {
-		if (uuid == null || uuid.isEmpty()) return false;
-		if (!uuid.startsWith(NODE_ADDRESS_NAME_PREFIX)) return false;
+	public boolean isNotValidUuid(String uuid) {
+		if (uuid == null || uuid.isEmpty()) return true;
+		if (!uuid.startsWith(NODE_ADDRESS_NAME_PREFIX)) return true;
 		try {
 			UUID.fromString(uuid.substring(NODE_ADDRESS_NAME_PREFIX.length()));
-			return true;
-		} catch (IllegalArgumentException | IndexOutOfBoundsException e) {
 			return false;
+		} catch (IllegalArgumentException | IndexOutOfBoundsException e) {
+			return true;
 		}
 	}
 
@@ -213,30 +233,26 @@ public class QrCodeViewModel extends AndroidViewModel {
 	 * This includes the source (host) UUID, destination UUID, and the host's PreKeyBundle.
 	 *
 	 * @param destinationUuid The UUID of the destination node.
-	 * @param callback        A consumer that accepts the Base64 encoded identity string, or null on failure.
+	 * @param callback        A consumer that accepts the {@code QrMessage} that
+	 *                        wraps identity data, or null on failure.
 	 */
-	private void serializeIdentityAsync(String destinationUuid, Consumer<String> callback) {
+	private void serializeIdentityAsync(String destinationUuid, Consumer<QrMessage> callback) {
 		executor.execute(() -> {
 			try {
 				PreKeyBundle localPreKeyBundle = signalManager.generateOurPreKeyBundle();
 				byte[] serializedPreKeyBundle = signalManager.serializePreKeyBundle(localPreKeyBundle);
 
 				QrIdentity identity = QrIdentity.newBuilder()
-						.setSourceUuid(hostNodeUuid)
-						.setDestinationUuid(destinationUuid)
 						.setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle))
 						.build();
 
-				byte[] identityBytes = identity.toByteArray();
-				String base64 = android.util.Base64.encodeToString(identityBytes, android.util.Base64.NO_WRAP);
-				Log.d(TAG, "Serialized identity: " + base64);
-				// Clear data from memory
-				Arrays.fill(serializedPreKeyBundle, (byte) 0);
-				Arrays.fill(identityBytes, (byte) 0);
-
-
-				handler.post(() -> callback.accept(base64));
-
+				handler.post(() -> callback.accept(
+						QrMessage.newBuilder()
+								.setType(QrMessage.MessageType.PRE_KEY_BUNDLE.getNumber())
+								.setData(identity.toByteString())
+								.setSourceUuid(hostNodeUuid)
+								.setDestinationUuid(destinationUuid)
+								.build()));
 			} catch (Exception e) {
 				Log.e(TAG, "Error serializing identity", e);
 				handler.post(() -> callback.accept(null));
@@ -247,21 +263,26 @@ public class QrCodeViewModel extends AndroidViewModel {
 	/**
 	 * Generates a QR code bitmap from the given data string.
 	 *
-	 * @param data The string data to encode in the QR code.
+	 * @param data The {@code QrMessage} to encode in the QR code.
 	 * @return A Bitmap representing the QR code, or null if generation fails.
 	 */
-	private Bitmap generateQrBitmapFromData(String data) {
+	private Bitmap generateQrBitmapFrom(QrMessage data) {
 		QRCodeWriter writer = new QRCodeWriter();
 		try {
-			BitMatrix bitMatrix = writer.encode(data, BarcodeFormat.QR_CODE, QR_CODE_BITMAP_WIDTH, QR_CODE_BITMAP_HEIGHT);
+			byte[] bytes = data.toByteArray();
+			String base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP);
+			Log.d(TAG, "Serialized QrMessage: " + base64);
+			BitMatrix bitMatrix = writer.encode(base64, BarcodeFormat.QR_CODE, QR_CODE_BITMAP_WIDTH, QR_CODE_BITMAP_HEIGHT);
 			Bitmap bitmap = Bitmap.createBitmap(QR_CODE_BITMAP_WIDTH, QR_CODE_BITMAP_HEIGHT, Bitmap.Config.RGB_565);
 			for (int x = 0; x < QR_CODE_BITMAP_WIDTH; x++) {
 				for (int y = 0; y < QR_CODE_BITMAP_HEIGHT; y++) {
 					bitmap.setPixel(x, y, bitMatrix.get(x, y) ? Color.BLACK : Color.WHITE);
 				}
 			}
+			// Clear data from memory
+			Arrays.fill(bytes, (byte) 0);
 			return bitmap;
-		} catch (WriterException e) {
+		} catch (Exception e) {
 			Log.e(TAG, "Error generating QR code", e);
 			return null;
 		}
@@ -271,8 +292,8 @@ public class QrCodeViewModel extends AndroidViewModel {
 	 * Clears the currently displayed QR code and any error messages.
 	 */
 	public void clearQrCode() {
-		qrCodeBitmap.setValue(null);
-		errorMessage.setValue(null);
+		qrCodeBitmap.postValue(null);
+		errorMessage.postValue(null);
 	}
 
 	/**
@@ -379,5 +400,58 @@ public class QrCodeViewModel extends AndroidViewModel {
 			Log.e(TAG, "Error preparing QR code for sharing", e);
 			return null;
 		}
+	}
+
+	public void processSecureSession(@NonNull String targetAddressName, @NonNull Consumer<Boolean> callback) {
+		if (hostNodeUuid == null || isNotValidUuid(targetAddressName)) {
+			Log.d(TAG, "The targeted address is unusable.");
+			callback.accept(false);
+			return;
+		}
+		isGenerating.postValue(true);
+		nodeRepository.findOrCreateNodeAsync(targetAddressName, new NodeCallback() {
+			@Override
+			public void onNodeReady(@NonNull Node remote) {
+				executor.execute(() -> {
+					try {
+						// Send ACK
+						Node host = nodeRepository.findNodeSync(hostNodeUuid);
+						byte[] encrypted = signalManager.encryptMessage(
+								getAddress(targetAddressName),
+								host.toPersonalInfo(false).toByteArray()
+						).serialize();
+						QrMessage qrMessage = QrMessage.newBuilder()
+								.setType(QrMessage.MessageType.PERSONAL_INFO.getNumber())
+								.setData(ByteString.copyFrom(encrypted))
+								.setSourceUuid(hostNodeUuid)
+								.setDestinationUuid(targetAddressName)
+								.build();
+						Bitmap bitmap = generateQrBitmapFrom(qrMessage);
+						handler.post(() -> {
+							qrCodeBitmap.postValue(bitmap);
+							callback.accept(bitmap != null);
+							isGenerating.postValue(false);
+						});
+					} catch (NullPointerException e) {
+						Log.d(TAG, "Encryption failed.", e);
+						handler.post(() -> callback.accept(false));
+					} catch (Exception e) {
+						Log.e(TAG, "Failed to process the operation.", e);
+						handler.post(() -> callback.accept(false));
+					} finally {
+						handler.post(() -> isGenerating.postValue(false));
+					}
+				});
+			}
+
+			@Override
+			public void onError(@NonNull String errorMessage) {
+				Log.d(TAG, "The targeted node is not found. Error message: " + errorMessage);
+				handler.post(() -> {
+					callback.accept(false);
+					isGenerating.postValue(false);
+				});
+			}
+		});
 	}
 }

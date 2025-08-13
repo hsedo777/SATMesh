@@ -80,6 +80,7 @@
 	<string name="menu_settings">Paramètres</string>
 	<string name="menu_known_nodes">Nœuds connus</string>
 	<string name="menu_generate_qr">Générer un QR</string>
+	<string name="menu_import_qr">Importer un QR</string>
 	<string name="menu_help_feedback">Aide &amp; Retour</string>
 	<string name="menu_renew_fingerprint">Réinitialiser l’empreinte</string>
 	<string name="renew_fingerprint_alert_description">Voulez-vous vraiment réinitialiser votre empreinte cryptographique ? Cette action ne peut pas être annulée.</string>
@@ -184,9 +185,17 @@
 	<string name="share_qr_code">Partager le code QR</string>
 	<string name="open">Ouvrir</string>
 
-	<string name="import_qr_title">Importer un code QR</string>
-	<string name="qr_source_label">Source du code QR :</string>
-	<string name="no_qr_detected">Aucun code QR détecté</string>
+	<string name="import_qr_code_title">Importer un code QR</string>
+	<string name="qr_code_source_label">Source du code QR :</string>
+	<string name="qr_code_source_description">La source du code QR.</string>
+	<string name="scan_qr_prompt">Scanner un code QR</string>
+	<string name="no_qr_code_detected">Aucun code QR détecté</string>
+	<string name="no_image_detected">No image to decode.</string>
+	<string name="qr_code_invalid_content">Le contenu du code QR est invalide.</string>
+	<string name="qr_code_self_targeting">Il s\'agit d\'un code QR généré par auto-ciblage. Il n\'est pas utilisable.</string>
+	<string name="qr_code_stealing_use">Ce code QR est adressé à un autre utilisateur, pas à vous.</string>
+	<string name="qr_code_decode_failed">Échec de décodage du code QR.</string>
+	<string name="qr_code_import_from_image_failed">Échec de l\'importation du code QR depuis l\'image.</string>
 	<string name="preview">Aperçu</string>
 
 	<!--

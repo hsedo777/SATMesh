@@ -80,6 +80,7 @@
 	<string name="menu_settings">Settings</string>
 	<string name="menu_known_nodes">Known Nodes</string>
 	<string name="menu_generate_qr">Generate a QR</string>
+	<string name="menu_import_qr">Import a QR</string>
 	<string name="menu_help_feedback">Help &amp; Feedback</string>
 	<string name="menu_renew_fingerprint">Reset Fingerprint</string>
 	<string name="renew_fingerprint_alert_description">Are you sure you want to reset your fingerprint? This action cannot be undone.</string>
@@ -188,9 +189,17 @@
 	<string name="share_qr_code">Share the QR code</string>
 	<string name="open">Open</string>
 
-	<string name="import_qr_title">Import QR Code</string>
-	<string name="qr_source_label">QR Code Source:</string>
-	<string name="no_qr_detected">No QR code detected</string>
+	<string name="import_qr_code_title">Import QR code</string>
+	<string name="qr_code_source_label">QR code source:</string>
+	<string name="qr_code_source_description">The source of the QR code.</string>
+	<string name="scan_qr_prompt">Scan a QR code</string>
+	<string name="no_qr_code_detected">No QR code detected</string>
+	<string name="no_image_detected">No image to decode.</string>
+	<string name="qr_code_invalid_content">The supplied QR code is unusable.</string>
+	<string name="qr_code_self_targeting">This is a self-targeting generated QR code. It is not usable.</string>
+	<string name="qr_code_stealing_use">This QR code is addressed to another user, not to you.</string>
+	<string name="qr_code_decode_failed">Failed to decode QR code.</string>
+	<string name="qr_code_import_from_image_failed">Unable to open image.</string>
 	<string name="preview">Preview</string>
 
 	<!--

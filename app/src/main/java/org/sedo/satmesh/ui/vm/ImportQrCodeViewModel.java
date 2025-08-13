@@ -21,7 +21,7 @@ import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 
 import org.sedo.satmesh.R;
-import org.sedo.satmesh.proto.QRIdentity;
+import org.sedo.satmesh.proto.QrIdentity;
 
 import java.io.InputStream;
 import java.util.Objects;
@@ -58,7 +58,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 	private void parseQrCode(String base64QrCode) {
 		try {
 			byte[] qrCodeBytes = android.util.Base64.decode(base64QrCode, android.util.Base64.NO_WRAP);
-			QRIdentity identity = QRIdentity.parseFrom(qrCodeBytes);
+			QrIdentity identity = QrIdentity.parseFrom(qrCodeBytes);
 			qrSource.setValue(identity.getSourceUuid());
 			if (Objects.equals(identity.getDestinationUuid(), identity.getSourceUuid())) {
 				Log.w(TAG, "QR code self targeting, ID=" + identity.getSourceUuid());

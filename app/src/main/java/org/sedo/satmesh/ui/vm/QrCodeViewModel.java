@@ -32,7 +32,7 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
 import org.sedo.satmesh.R;
-import org.sedo.satmesh.proto.QRIdentity;
+import org.sedo.satmesh.proto.QrIdentity;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.utils.BiObjectHolder;
 import org.sedo.satmesh.utils.Constants;
@@ -221,7 +221,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 				PreKeyBundle localPreKeyBundle = signalManager.generateOurPreKeyBundle();
 				byte[] serializedPreKeyBundle = signalManager.serializePreKeyBundle(localPreKeyBundle);
 
-				QRIdentity identity = QRIdentity.newBuilder()
+				QrIdentity identity = QrIdentity.newBuilder()
 						.setSourceUuid(hostNodeUuid)
 						.setDestinationUuid(destinationUuid)
 						.setPreKeyBundle(ByteString.copyFrom(serializedPreKeyBundle))

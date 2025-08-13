@@ -181,7 +181,7 @@ message MessageAckConfirmation {
 }
 
 // Provide the pack of shared data by QR code
-message QRIdentity {
+message QrIdentity {
   string source_uuid = 1;
   string destination_uuid = 2;
   bytes pre_key_bundle = 3;

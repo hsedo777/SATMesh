@@ -180,9 +180,20 @@ message MessageAckConfirmation {
   int64 payload_id = 2;
 }
 
+// Wrapper of all QR code messages
+message QrMessage {
+  enum MessageType {
+    PRE_KEY_BUNDLE = 0;
+    PERSONAL_INFO = 1;
+  }
+  int32 type = 1;
+  bytes data = 2; // ByteString of: `PersonalInfo`(type=PERSONAL_INFO), `QrIdentity`(type=PRE_KEY_BUNDLE)
+  int64 expire_at = 3; // Define an expiration date if needed
+  string source_uuid = 4;
+  string destination_uuid = 5;
+}
+
 // Provide the pack of shared data by QR code
 message QrIdentity {
-  string source_uuid = 1;
-  string destination_uuid = 2;
   bytes pre_key_bundle = 3;
 }

@@ -154,14 +154,14 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 				}
 				return true;
 			}
-			if (id == R.id.menu_generate_qr_code){
-				if (discussionMenuListener != null){
-					discussionMenuListener.moveToQrCodeFragment();
+			if (id == R.id.menu_generate_qr_code) {
+				if (discussionMenuListener != null) {
+					discussionMenuListener.moveToQrCodeFragment(null);
 				}
 				return true;
 			}
-			if (id == R.id.import_qr_code){
-				if (discussionMenuListener != null){
+			if (id == R.id.import_qr_code) {
+				if (discussionMenuListener != null) {
 					discussionMenuListener.moveToImportQrCodeFragment();
 				}
 				return true;

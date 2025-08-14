@@ -19,6 +19,8 @@ import org.sedo.satmesh.nearby.NearbySignalMessenger;
 import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.PersonalInfo;
 import org.sedo.satmesh.proto.TextMessage;
+import org.sedo.satmesh.signal.SignalManager;
+import org.sedo.satmesh.signal.store.AndroidSessionStore;
 import org.sedo.satmesh.ui.data.MessageRepository;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeState;
@@ -504,8 +506,25 @@ public class ChatViewModel extends AndroidViewModel {
 				}
 				messageRepository.deleteMessagesWithNode(remoteNode.getId());
 			} catch (Exception e) {
-				Log.e(TAG, e.getMessage(), e);
+				Log.e(TAG, "Failed to clear the chat", e);
 			}
+		});
+	}
+
+	/**
+	 * Deletes if exists the row of established Signal secure session with the current remote node.
+	 *
+	 * @param callback Called when the operation is complete.
+	 */
+	public void renewChatFingerprint(Consumer<Boolean> callback) {
+		executor.execute(() -> {
+			Node remoteNode = remoteNodeLiveData.getValue();
+			if (remoteNode == null) {
+				callback.accept(false);
+				return;
+			}
+			AndroidSessionStore.getInstance().deleteSession(SignalManager.getAddress(remoteNode.getAddressName()));
+			callback.accept(true);
 		});
 	}
 }

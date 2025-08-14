@@ -12,7 +12,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -158,7 +157,7 @@ public class ChatFragment extends Fragment {
 					Message message = adapter.getIfSingleSelected();
 					if (canClaimReadAckOn(message)) {
 						viewModel.claimMessageReadAck(message);
-						Toast.makeText(requireContext(), R.string.action_claim_ack_ongoing, Toast.LENGTH_SHORT).show();
+						Snackbar.make(binding.getRoot(), R.string.action_claim_ack_ongoing, Snackbar.LENGTH_SHORT).show();
 					}
 				}
 				return true;
@@ -167,7 +166,7 @@ public class ChatFragment extends Fragment {
 				if (canBeResend(message)) {
 					viewModel.requestManualResend(Objects.requireNonNull(message), isAborted -> {
 						if (isAborted) {
-							requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.message_resend_failed, Toast.LENGTH_SHORT).show());
+							requireActivity().runOnUiThread(() -> Snackbar.make(binding.getRoot(), R.string.message_resend_failed, Snackbar.LENGTH_SHORT).show());
 						}
 					});
 				}
@@ -264,7 +263,7 @@ public class ChatFragment extends Fragment {
 			if (hostNode == null || hostNode.getId() == null || remoteNode == null || remoteNode.getId() == null) {
 				// Alert and close the fragment
 				Log.e(TAG, "onCreate() : failed to fetch nodes from arguments or nodes are null!");
-				Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
+				Snackbar.make(binding.getRoot(), R.string.internal_error, Snackbar.LENGTH_LONG).show();
 				onBackPressed();
 				return false;
 			}
@@ -287,7 +286,7 @@ public class ChatFragment extends Fragment {
 		// IMPORTANT: Ensure hostNode and remoteNode are not null before proceeding
 		if (hostNode == null || remoteNode == null) {
 			Log.e(TAG, "retrieveAndValidateNodes() : hostNode or remoteNode is null! Cannot proceed.");
-			Toast.makeText(getContext(), R.string.internal_error, Toast.LENGTH_LONG).show();
+			Snackbar.make(binding.getRoot(), R.string.internal_error, Snackbar.LENGTH_LONG).show();
 			requireActivity().getOnBackPressedDispatcher().onBackPressed();
 			return false; // Indicate failure
 		}
@@ -306,15 +305,15 @@ public class ChatFragment extends Fragment {
 				// Attempt to re-initiate key exchange if there's an endpoint available
 				String endpointId = viewModel.getNearbyManager().getLinkedEndpointId(remoteNode.getAddressName());
 				if (endpointId != null) {
-					Toast.makeText(getContext(), R.string.re_initiating_key_exchange, Toast.LENGTH_SHORT).show();
+					Snackbar.make(binding.getRoot(), R.string.re_initiating_key_exchange, Snackbar.LENGTH_SHORT).show();
 					viewModel.getNearbyManager().requestConnection(endpointId, remoteNode.getAddressName()); // Re-request connection if needed
 					viewModel.setConversationNodes(hostNode, remoteNode); // This will trigger handleInitialKeyExchange
 				} else {
-					Toast.makeText(getContext(), getString(R.string.error_no_direct_connection, remoteNode.getDisplayName()), Toast.LENGTH_SHORT).show();
+					Snackbar.make(binding.getRoot(), getString(R.string.error_no_direct_connection, remoteNode.getDisplayName()), Snackbar.LENGTH_SHORT).show();
 				}
 			} else {
 				// If connection is active/secure, maybe show a "secured" toast or details
-				Toast.makeText(getContext(), R.string.status_secure_session_active, Toast.LENGTH_LONG).show();
+				Snackbar.make(binding.getRoot(), R.string.status_secure_session_active, Snackbar.LENGTH_LONG).show();
 			}
 		});
 		if (toolbar.getOverflowIcon() != null) {
@@ -343,8 +342,34 @@ public class ChatFragment extends Fragment {
 			} else if (itemId == R.id.action_export_chat) {
 				String result = viewModel.exportChatMessages();
 				if (result != null) {
-					Toast.makeText(getContext(), result, Toast.LENGTH_LONG).show();
+					Snackbar.make(binding.getRoot(), result, Snackbar.LENGTH_LONG).show();
 				}
+				return true;
+			} else if (itemId == R.id.action_renew_chat_fingerprint) {
+				new AlertDialog.Builder(requireContext())
+						.setTitle(R.string.menu_renew_fingerprint)
+						.setMessage(R.string.renew_fingerprint_alert_description)
+						.setPositiveButton(R.string.menu_renew_fingerprint, (dialog, which) -> {
+							Log.d(TAG, "Confirmation received. Delete the if exists the current secure session with the remote node.");
+							viewModel.renewChatFingerprint(success -> {
+								if (isAdded()) {
+									requireActivity().runOnUiThread(() -> {
+										if (success) {
+											Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_success, Snackbar.LENGTH_SHORT).show();
+										} else {
+											Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_failed, Snackbar.LENGTH_SHORT).show();
+										}
+									});
+								}
+							});
+							dialog.dismiss();
+						})
+						.setNegativeButton(R.string.cancel, (dialog, which) -> {
+							Log.d(TAG, "Fingerprint reinitialization in private chat cancelled by user.");
+							dialog.dismiss();
+						})
+						.setIcon(android.R.drawable.ic_dialog_alert)
+						.show();
 				return true;
 			}
 			return false;
@@ -441,7 +466,7 @@ public class ChatFragment extends Fragment {
 		viewModel.getUiMessage().observe(getViewLifecycleOwner(), message -> {
 			if (message != null && !message.isEmpty()) {
 				Log.d(TAG, message);
-				Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
+				Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
 			}
 		});
 

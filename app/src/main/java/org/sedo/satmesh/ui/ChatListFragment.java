@@ -138,35 +138,27 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 
 		binding.chatListAppBar.setOnMenuItemClickListener(item -> {
 			int id = item.getItemId();
-			if (id == R.id.action_search) {
-				if (discussionMenuListener != null) {
-					discussionMenuListener.moveToSearchFragment(viewModel.getHostNodeId());
+			if (discussionMenuListener != null) {
+				if (id == R.id.action_search) {
+					discussionMenuListener.moveToSearchFragment();
+					return true;
 				}
-				return true;
-			}
-			if (id == R.id.menu_known_nodes) {
-				if (discussionMenuListener != null) {
-					discussionMenuListener.moveToKnownNodesFragment(viewModel.getHostNodeId());
+				if (id == R.id.menu_known_nodes) {
+					discussionMenuListener.moveToKnownNodesFragment();
+					return true;
 				}
-				return true;
-			}
-			if (id == R.id.menu_settings) {
-				if (discussionMenuListener != null) {
+				if (id == R.id.menu_settings) {
 					discussionMenuListener.moveToSettingsFragment();
+					return true;
 				}
-				return true;
-			}
-			if (id == R.id.menu_generate_qr_code) {
-				if (discussionMenuListener != null) {
+				if (id == R.id.menu_generate_qr_code) {
 					discussionMenuListener.moveToQrCodeFragment(null);
+					return true;
 				}
-				return true;
-			}
-			if (id == R.id.import_qr_code) {
-				if (discussionMenuListener != null) {
+				if (id == R.id.import_qr_code) {
 					discussionMenuListener.moveToImportQrCodeFragment();
+					return true;
 				}
-				return true;
 			}
 			if (id == R.id.menu_renew_fingerprint) {
 				new AlertDialog.Builder(requireContext())

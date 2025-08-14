@@ -511,6 +511,15 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		}
 	}
 
+	private void withHostNodeId(Consumer<Long> action, String errorMessage) {
+		Long hostNodeId = getHostNodeId();
+		if (hostNodeId != -1L) {
+			action.accept(hostNodeId);
+		} else {
+			Log.e(TAG, errorMessage);
+		}
+	}
+
 	// implementation of NearbyDiscoveryListener
 	public void moveToDiscoveryView(boolean removeLast) {
 		withHostNodeAddressName(
@@ -536,19 +545,15 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	// Implementation of `DiscussionMenuListener`
 
 	@Override
-	public void moveToSearchFragment(Long hostNodeId) {
-		if (hostNodeId == null) {
-			return;
-		}
-		navigateTo(SearchFragment.newInstance(hostNodeId), SearchFragment.TAG, true);
+	public void moveToSearchFragment() {
+		withHostNodeId(id -> navigateTo(SearchFragment.newInstance(id), SearchFragment.TAG, true),
+				"Failed to retrieve host node ID.");
 	}
 
 	@Override
-	public void moveToKnownNodesFragment(Long hostNodeId) {
-		if (hostNodeId == null) {
-			return;
-		}
-		navigateTo(KnownNodesFragment.newInstance(hostNodeId), KnownNodesFragment.TAG, true);
+	public void moveToKnownNodesFragment() {
+		withHostNodeId(id -> navigateTo(KnownNodesFragment.newInstance(id), KnownNodesFragment.TAG, true),
+				"Failed to retrieve host node ID. This is an undesirable behavior.");
 	}
 
 	@Override

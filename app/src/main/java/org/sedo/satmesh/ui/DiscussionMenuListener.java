@@ -11,17 +11,13 @@ import androidx.annotation.Nullable;
 public interface DiscussionMenuListener extends QrCodeGenerationListener {
 	/**
 	 * Navigates to the search fragment.
-	 *
-	 * @param hostNodeId The ID of the host node.
 	 */
-	void moveToSearchFragment(Long hostNodeId);
+	void moveToSearchFragment();
 
 	/**
 	 * Navigates to the known nodes fragment.
-	 *
-	 * @param hostNodeId The ID of the host node.
 	 */
-	void moveToKnownNodesFragment(Long hostNodeId);
+	void moveToKnownNodesFragment();
 
 	/**
 	 * Navigates to the settings fragment.

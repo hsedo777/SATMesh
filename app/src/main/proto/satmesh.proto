@@ -19,7 +19,6 @@ message SignalPreKeyBundle {
 // New message for Key Exchange (wrapping the serialized PreKeyBundle)
 message PreKeyBundleExchange {
   bytes pre_key_bundle = 1;       // The serialized SignalPreKeyBundle
-  //bool response_expected = 2;     // Specify if the sender is expecting response from receiver
 }
 
 // New message for personal information exchange
@@ -65,7 +64,7 @@ enum NearbyMessageType {
 
 // New generic message body type for all Nearby Signal encrypted communications
 message NearbyMessageBody {
-  //MessageType message_type = 1;
+  reserved 1, 2;
   /*
   * Raw bytes of CiphertextMessage (SignalMessage) : in {PersonalInfo, TextMessage,
   * MessageAck, TypingIndicator, RoutedMessage}
@@ -123,7 +122,7 @@ message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
   // The UUID of the original RouteRequestMessage that this response pertains to.
   string request_uuid = 1;
 
-  //Status status = 2;
+  reserved 2;
 
   /*
    * If the status indicates a successful route discovery (ROUTE_FOUND),
@@ -138,8 +137,7 @@ message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
 // The end-to-end encrypted payload that only the final destination can decrypt.
 // This message encapsulates the original NearbyMessageBody and the original sender's ID.
 message RoutedMessageBody {
-  // The SignalProtocolAddress.name of the original sender node.
-  // string original_sender_node_id = 1;
+  reserved 1;
 
   // The actual NearbyMessageBody (e.g., ENCRYPTED_MESSAGE, TYPING_INDICATOR) that the original sender intended for the final destination.
   NearbyMessageBody internal_message_body = 2;

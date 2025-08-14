@@ -1,5 +1,8 @@
 package org.sedo.satmesh.ui;
 
+import static org.sedo.satmesh.proto.QrMessageType.QR_PERSONAL_INFO_VALUE;
+import static org.sedo.satmesh.proto.QrMessageType.QR_PRE_KEY_BUNDLE_VALUE;
+
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
@@ -25,7 +28,6 @@ import com.journeyapps.barcodescanner.ScanOptions;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentImportQrCodeBinding;
 import org.sedo.satmesh.proto.QrMessage;
-import org.sedo.satmesh.proto.QrMessageType;
 import org.sedo.satmesh.ui.vm.ImportQrCodeViewModel;
 import org.sedo.satmesh.ui.vm.ViewModelFactory;
 import org.sedo.satmesh.utils.Constants;
@@ -225,18 +227,23 @@ public class ImportQrCodeFragment extends Fragment {
 			if (success) {
 				// On success, the `QrMessage` exists
 				QrMessage qrMessage = Objects.requireNonNull(viewModel.getQrMessageSource().getValue());
-				if (qrMessage.getType() == QrMessageType.PRE_KEY_BUNDLE.getNumber()) {
-					if (qrCodeGenerationListener != null) {
-						qrCodeGenerationListener.generatedAcknowledgeTo(qrMessage.getSourceUuid());
-					}
-				} else if (qrMessage.getType() == QrMessageType.PERSONAL_INFO.getNumber()) {
-					viewModel.retrieveNodeAsync(qrMessage.getSourceUuid(), node -> {
-						if (discussionListener != null && node != null) {
-							discussionListener.discussWith(node, true);
-						} else {
-							Log.w(TAG, "Failed to init discussion with the node: " + node);
+				switch (qrMessage.getType()) {
+					case QR_PRE_KEY_BUNDLE_VALUE:
+						if (qrCodeGenerationListener != null) {
+							qrCodeGenerationListener.generatedAcknowledgeTo(qrMessage.getSourceUuid());
 						}
-					});
+						break;
+					case QR_PERSONAL_INFO_VALUE:
+						viewModel.retrieveNodeAsync(qrMessage.getSourceUuid(), node -> {
+							if (discussionListener != null && node != null) {
+								discussionListener.discussWith(node, true);
+							} else {
+								Log.w(TAG, "Failed to init discussion with the node: " + node);
+							}
+						});
+						break;
+					default:
+						Log.e(TAG, "Unknown QrMessageType of value: " + qrMessage.getType());
 				}
 			} else if (viewModel.getErrorMessage().getValue() == null) {
 				Snackbar.make(binding.getRoot(), R.string.qr_code_process_failed, Snackbar.LENGTH_SHORT).show();

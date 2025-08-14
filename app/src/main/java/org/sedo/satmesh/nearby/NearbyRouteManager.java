@@ -21,6 +21,7 @@ import org.sedo.satmesh.nearby.data.RouteWithUsage;
 import org.sedo.satmesh.nearby.data.SelectionCallback;
 import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.NearbyMessageBody;
+import org.sedo.satmesh.proto.NearbyMessageType;
 import org.sedo.satmesh.proto.RouteDestroyMessage;
 import org.sedo.satmesh.proto.RouteRequestMessage;
 import org.sedo.satmesh.proto.RouteResponseMessage;
@@ -134,7 +135,7 @@ public class NearbyRouteManager {
 				@Override
 				public void onNodeReady(@NonNull Node node) {
 					NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
-							.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_REQ)
+							.setMessageTypeValue(NearbyMessageType.ROUTE_DISCOVERY_REQ_VALUE)
 							.setBinaryData(messageBody.toByteString())
 							.build();
 
@@ -372,7 +373,7 @@ public class NearbyRouteManager {
 		try {
 			Log.d(TAG, "Sending RouteResponseMessage to " + recipientAddressName + " for UUID: " + messageBody.getRequestUuid() + " with status: " + messageBody.getStatus());
 			NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
-					.setMessageType(NearbyMessageBody.MessageType.ROUTE_DISCOVERY_RESP)
+					.setMessageTypeValue(NearbyMessageType.ROUTE_DISCOVERY_RESP_VALUE)
 					.setBinaryData(messageBody.toByteString())
 					.build();
 
@@ -1105,7 +1106,7 @@ public class NearbyRouteManager {
 		RouteDestroyMessage routeDestroyMessage = RouteDestroyMessage.newBuilder()
 				.setRouteUuid(routeUuid).build();
 		NearbyMessageBody nearbyMessageBody = NearbyMessageBody.newBuilder()
-				.setMessageType(NearbyMessageBody.MessageType.ROUTE_DESTROY)
+				.setMessageTypeValue(NearbyMessageType.ROUTE_DESTROY_VALUE)
 				.setBinaryData(routeDestroyMessage.toByteString()).build();
 		nearbyManager.encryptAndSendInternal(null, neighborAddressName, nearbyMessageBody, TransmissionCallback.NULL_CALLBACK);
 	}
@@ -1197,7 +1198,7 @@ public class NearbyRouteManager {
 			// Create an OUTER NearbyMessageBody with the RoutedMessage
 			// The `encrypted_routed_message_body` is left untouched, as it's E2E encrypted.
 			NearbyMessageBody outerNearbyMessageBody = NearbyMessageBody.newBuilder()
-					.setMessageType(NearbyMessageBody.MessageType.ROUTED_MESSAGE)
+					.setMessageTypeValue(NearbyMessageType.ROUTED_MESSAGE_VALUE)
 					.setBinaryData(routedMessage.toByteString())
 					.build();
 			TransmissionCallback transmissionCallback = new TransmissionCallback() {

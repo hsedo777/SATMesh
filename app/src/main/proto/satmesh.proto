@@ -46,24 +46,26 @@ message NearbyMessage {
   }
 }
 
+// Message types for `NearbyMessageBody`
+enum NearbyMessageType {
+  UNKNOWN_MESSAGE_TYPE = 0; // Used by default
+  ROUTE_DISCOVERY_REQ = 1;
+  ENCRYPTED_MESSAGE = 2;
+  MESSAGE_DELIVERED_ACK = 3;
+  MESSAGE_READ_ACK = 4;
+  PERSONAL_INFO = 5;
+  ROUTE_DISCOVERY_RESP = 6;
+  TYPING_INDICATOR = 7;
+  ROUTED_MESSAGE = 8;
+  KNOWLEDGE = 9;
+  CLAIM_READ_ACK = 10;
+  ROUTE_DESTROY = 11;
+  ACK_CONFIRMATION = 12;
+}
+
 // New generic message body type for all Nearby Signal encrypted communications
 message NearbyMessageBody {
-  enum MessageType {
-    UNKNOWN = 0;
-    ROUTE_DISCOVERY_REQ = 1;
-    ENCRYPTED_MESSAGE = 2;
-    MESSAGE_DELIVERED_ACK = 3;
-    MESSAGE_READ_ACK = 4;
-    PERSONAL_INFO = 5;
-    ROUTE_DISCOVERY_RESP = 6;
-    TYPING_INDICATOR = 7;
-    ROUTED_MESSAGE = 8;
-    KNOWLEDGE = 9;
-    CLAIM_READ_ACK = 10;
-    ROUTE_DESTROY = 11;
-    ACK_CONFIRMATION = 12;
-  }
-  MessageType message_type = 1;
+  //MessageType message_type = 1;
   /*
   * Raw bytes of CiphertextMessage (SignalMessage) : in {PersonalInfo, TextMessage,
   * MessageAck, TypingIndicator, RoutedMessage}
@@ -72,6 +74,7 @@ message NearbyMessageBody {
   * of a serialized `RoutedMessage` (which is itself encrypted hop-by-hop).
   */
   bytes binary_data = 3;
+  int32 message_type_value = 4;
 }
 
 //Message for types `MESSAGE_DELIVERED_ACK`, `MESSAGE_READ_ACK` and `CLAIM_READ_ACK`
@@ -182,8 +185,8 @@ message MessageAckConfirmation {
 
 // Enum constant from which to deduct `QrMessage.type`
 enum QrMessageType {
-  PRE_KEY_BUNDLE = 0;
-  PERSONAL_INFO = 1;
+  QR_PRE_KEY_BUNDLE = 0;
+  QR_PERSONAL_INFO = 1;
 }
 
 // Wrapper of all QR code messages

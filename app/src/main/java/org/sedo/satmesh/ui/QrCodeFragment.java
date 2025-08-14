@@ -9,7 +9,6 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
@@ -186,7 +185,7 @@ public class QrCodeFragment extends Fragment {
 					Snackbar.make(binding.getRoot(), R.string.qr_code_ack_ready, Snackbar.LENGTH_LONG).show();
 					binding.textQrBlinking.setText(R.string.qr_code_ack_ready);
 					binding.textQrBlinking.setOnClickListener(v -> binding.textQrBlinking.clearAnimation());
-					View v = getDownloadMenuActionView();
+					View v = getDownloadMenuView();
 					if (v != null) {
 						startBlinking(v, 500);
 					}
@@ -210,9 +209,8 @@ public class QrCodeFragment extends Fragment {
 		menu.findItem(R.id.action_share).setEnabled(enabled);
 	}
 
-	private View getDownloadMenuActionView() {
-		MenuItem menuItem = binding.qrCodeToolbar.getMenu().findItem(R.id.action_download);
-		return menuItem.getActionView();
+	private View getDownloadMenuView() {
+		return binding.qrCodeToolbar.findViewById(R.id.action_download);
 	}
 
 	private void setupObservers() {
@@ -287,7 +285,7 @@ public class QrCodeFragment extends Fragment {
 				binding.buttonGenerateQr.setEnabled(false);
 			} else {
 				binding.textQrBlinking.clearAnimation();
-				View v = getDownloadMenuActionView();
+				View v = getDownloadMenuView();
 				if (v != null) {
 					v.clearAnimation();
 				}

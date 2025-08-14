@@ -29,7 +29,6 @@ import org.sedo.satmesh.nearby.data.PayloadListener;
 import org.sedo.satmesh.nearby.data.TransmissionCallback;
 import org.sedo.satmesh.proto.NearbyMessage;
 import org.sedo.satmesh.proto.NearbyMessageBody;
-import org.sedo.satmesh.proto.RouteResponseMessage;
 import org.sedo.satmesh.ui.data.NodeState;
 import org.sedo.satmesh.ui.data.NodeTransientStateRepository;
 import org.sedo.satmesh.utils.DataLog;
@@ -722,7 +721,7 @@ public class NearbyManager {
 	 * @param finalStatus            The final status indicating why the route could not be found
 	 *                               (e.g., NO_ROUTE_FOUND, TTL_EXPIRED, REQUEST_ALREADY_IN_PROGRESS).
 	 */
-	public void onRouteNotFound(@NonNull String requestUuid, @NonNull String destinationAddressName, @NonNull RouteResponseMessage.Status finalStatus) {
+	public void onRouteNotFound(@NonNull String requestUuid, @NonNull String destinationAddressName, int finalStatus) {
 		Log.d(TAG, requestUuid + " " + destinationAddressName + " " + finalStatus);
 		NodeTransientStateRepository.getInstance().updateTransientNodeState(destinationAddressName, NodeState.ON_DISCONNECTED);
 		NearbySignalMessenger.getInstance().onRouteNotFound(destinationAddressName);

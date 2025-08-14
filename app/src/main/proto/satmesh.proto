@@ -74,7 +74,7 @@ message NearbyMessageBody {
   * of a serialized `RoutedMessage` (which is itself encrypted hop-by-hop).
   */
   bytes binary_data = 3;
-  int32 message_type_value = 4;
+  int32 message_type_value = 4; // The integer value of the message type
 }
 
 //Message for types `MESSAGE_DELIVERED_ACK`, `MESSAGE_READ_ACK` and `CLAIM_READ_ACK`
@@ -107,22 +107,23 @@ message RouteRequestMessage {// Message type `ROUTE_DISCOVERY_REQ`
   string initiator_node_id = 5;
 }
 
+// The precise status or type of outcome for the route discovery request.
+enum RouteResponseStatus {
+  UNKNOWN_STATUS = 0;             // Default or uninitialized status.
+  NO_ROUTE_FOUND = 1;             // Indicates that no path to the destination could be found.
+  TTL_EXPIRED = 2;                // The message's Time To Live (TTL) expired before reaching the destination.
+  MAX_HOPS_REACHED = 3;           // The maximum number of intermediate hops was reached.
+  ROUTE_FOUND = 4;                // A valid route to the destination has been successfully discovered.
+  REQUEST_ALREADY_IN_PROGRESS = 5; // The request was already being processed by an intermediate node.
+}
+
 // Defines the RouteResponseMessage structure used to respond to route discovery requests.
 // This message indicates the specific outcome of a route discovery attempt.
 message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
   // The UUID of the original RouteRequestMessage that this response pertains to.
   string request_uuid = 1;
 
-  // The precise status or type of outcome for the route discovery request.
-  enum Status {
-    UNKNOWN_STATUS = 0;             // Default or uninitialized status.
-    NO_ROUTE_FOUND = 1;             // Indicates that no path to the destination could be found.
-    TTL_EXPIRED = 2;                // The message's Time To Live (TTL) expired before reaching the destination.
-    MAX_HOPS_REACHED = 3;           // The maximum number of intermediate hops was reached.
-    ROUTE_FOUND = 4;                // A valid route to the destination has been successfully discovered.
-    REQUEST_ALREADY_IN_PROGRESS = 5; // The request was already being processed by an intermediate node.
-  }
-  Status status = 2;
+  //Status status = 2;
 
   /*
    * If the status indicates a successful route discovery (ROUTE_FOUND),
@@ -131,6 +132,7 @@ message RouteResponseMessage {// Message type `ROUTE_DISCOVERY_RESP`
    * This value helps in evaluating the path length. It is irrelevant for failure statuses.
    */
   int32 hop_count = 3;
+  int32 status_value = 4; // The integer constant bound to the response status
 }
 
 // The end-to-end encrypted payload that only the final destination can decrypt.

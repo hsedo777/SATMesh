@@ -500,14 +500,23 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		});
 	}
 
-	// implementation of NearbyDiscoveryListener
-	public void moveToDiscoveryView(boolean removeLast) {
+	// Helper method
+
+	private void withHostNodeAddressName(Consumer<String> action, String errorMessage) {
 		String hostNodeAddressName = getHostNodeAddressName();
 		if (hostNodeAddressName != null) {
-			navigateTo(NearbyDiscoveryFragment.newInstance(hostNodeAddressName), Constants.TAG_DISCOVERY_FRAGMENT, removeLast);
+			action.accept(hostNodeAddressName);
 		} else {
-			Log.e(TAG, "Cannot move to NearbyDiscoveryFragment, host node address is null.");
+			Log.e(TAG, errorMessage);
 		}
+	}
+
+	// implementation of NearbyDiscoveryListener
+	public void moveToDiscoveryView(boolean removeLast) {
+		withHostNodeAddressName(
+				addressName -> navigateTo(NearbyDiscoveryFragment.newInstance(addressName),
+						Constants.TAG_DISCOVERY_FRAGMENT, removeLast),
+				"Cannot move to NearbyDiscoveryFragment, host node address is null.");
 	}
 
 	// Implementation of `ChatListAccessor`
@@ -544,32 +553,22 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 
 	@Override
 	public void moveToSettingsFragment() {
-		String hostNodeAddressName = getHostNodeAddressName();
-		if (hostNodeAddressName != null) {
-			startActivity(SettingsActivity.newIntent(this, hostNodeAddressName));
-		} else {
-			Log.e(TAG, "Cannot move to settings activity, host node address is null.");
-		}
+		withHostNodeAddressName(addressName -> startActivity(SettingsActivity.newIntent(this, addressName)),
+				"Cannot move to settings activity, host node address is null.");
 	}
 
 	@Override
 	public void moveToQrCodeFragment(@Nullable Bundle extra) {
-		String hostNodeAddressName = getHostNodeAddressName();
-		if (hostNodeAddressName != null) {
-			navigateTo(QrCodeFragment.newInstance(hostNodeAddressName, extra), QrCodeFragment.TAG, true);
-		} else {
-			Log.e(TAG, "Cannot move to QrCodeFragment, host node address is null.");
-		}
+		withHostNodeAddressName(addressName -> navigateTo(QrCodeFragment.newInstance(addressName, extra),
+						QrCodeFragment.TAG, true),
+				"Cannot move to QrCodeFragment, host node address is null.");
 	}
 
 	@Override
 	public void moveToImportQrCodeFragment() {
-		String hostNodeAddressName = getHostNodeAddressName();
-		if (hostNodeAddressName != null) {
-			navigateTo(ImportQrCodeFragment.newInstance(hostNodeAddressName), ImportQrCodeFragment.TAG, true);
-		} else {
-			Log.e(TAG, "Cannot move to ImportQrCodeFragment, host node address is null.");
-		}
+		withHostNodeAddressName(addressName -> navigateTo(ImportQrCodeFragment.newInstance(addressName),
+						ImportQrCodeFragment.TAG, true),
+				"Cannot move to ImportQrCodeFragment, host node address is null.");
 	}
 
 	private void onSetupCompleted() {

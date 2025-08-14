@@ -25,6 +25,7 @@ import com.journeyapps.barcodescanner.ScanOptions;
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentImportQrCodeBinding;
 import org.sedo.satmesh.proto.QrMessage;
+import org.sedo.satmesh.proto.QrMessageType;
 import org.sedo.satmesh.ui.vm.ImportQrCodeViewModel;
 import org.sedo.satmesh.ui.vm.ViewModelFactory;
 import org.sedo.satmesh.utils.Constants;
@@ -226,11 +227,11 @@ public class ImportQrCodeFragment extends Fragment {
 			if (success) {
 				// On success, the `QrMessage` exists
 				QrMessage qrMessage = Objects.requireNonNull(viewModel.getQrMessageSource().getValue());
-				if (qrMessage.getType() == QrMessage.MessageType.PRE_KEY_BUNDLE.getNumber()) {
+				if (qrMessage.getType() == QrMessageType.PRE_KEY_BUNDLE.getNumber()) {
 					if (qrCodeGenerationListener != null) {
 						qrCodeGenerationListener.generatedAcknowledgeTo(qrMessage.getSourceUuid());
 					}
-				} else if (qrMessage.getType() == QrMessage.MessageType.PERSONAL_INFO.getNumber()) {
+				} else if (qrMessage.getType() == QrMessageType.PERSONAL_INFO.getNumber()) {
 					viewModel.retrieveNodeAsync(qrMessage.getSourceUuid(), node -> {
 						if (discussionListener != null && node != null) {
 							discussionListener.discussWith(node, true);

@@ -8,7 +8,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -17,6 +16,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
+
+import com.google.android.material.snackbar.Snackbar;
 
 import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentChatListBinding;
@@ -69,12 +70,12 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 							 @Nullable Bundle savedInstanceState) {
 		binding = FragmentChatListBinding.inflate(inflater, container, false);
 		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
-						new OnBackPressedCallback(true) {
-							@Override
-							public void handleOnBackPressed() {
-								requireActivity().finish();
-							}
-						});
+				new OnBackPressedCallback(true) {
+					@Override
+					public void handleOnBackPressed() {
+						requireActivity().finish();
+					}
+				});
 		return binding.getRoot();
 	}
 
@@ -178,12 +179,16 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 								signalManager.reinitialize(new SignalManager.SignalInitializationCallback() {
 									@Override
 									public void onSuccess() {
-										requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_success, Toast.LENGTH_LONG).show());
+										if (isAdded()) {
+											requireActivity().runOnUiThread(() -> Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_success, Snackbar.LENGTH_LONG).show());
+										}
 									}
 
 									@Override
 									public void onError(Exception e) {
-										requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_failed, Toast.LENGTH_LONG).show());
+										if (isAdded()) {
+											requireActivity().runOnUiThread(() -> Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_failed, Snackbar.LENGTH_LONG).show());
+										}
 									}
 								});
 							});

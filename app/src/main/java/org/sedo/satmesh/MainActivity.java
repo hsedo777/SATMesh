@@ -506,7 +506,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		if (hostNodeAddressName != null) {
 			navigateTo(NearbyDiscoveryFragment.newInstance(hostNodeAddressName), Constants.TAG_DISCOVERY_FRAGMENT, removeLast);
 		} else {
-			Log.e(TAG, "Cannot move to QrCodeFragment, host node address is null.");
+			Log.e(TAG, "Cannot move to NearbyDiscoveryFragment, host node address is null.");
 		}
 	}
 
@@ -548,7 +548,7 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		if (hostNodeAddressName != null) {
 			startActivity(SettingsActivity.newIntent(this, hostNodeAddressName));
 		} else {
-			Log.e(TAG, "Cannot move to settings, host node address is null.");
+			Log.e(TAG, "Cannot move to settings activity, host node address is null.");
 		}
 	}
 

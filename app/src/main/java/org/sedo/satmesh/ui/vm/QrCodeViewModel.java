@@ -369,8 +369,9 @@ public class QrCodeViewModel extends AndroidViewModel {
 			String filename = Constants.QR_CODE_IMAGE_EXPORT_NAME;
 			// 1. Save file temporary in `cache/`
 			File cachePath = new File(context.getCacheDir(), Constants.QR_CODE_ROOT_IN_CACHE);
-			if (!cachePath.exists()) {
-				Log.d(TAG, "Attempt to create QR code root directory in cache dir: " + cachePath.mkdirs());
+			if (!cachePath.exists() && !cachePath.mkdirs()) {
+				Log.e(TAG, "Failed to create cache directory for sharing QR code.");
+				return null;
 			}
 
 			File file = new File(cachePath, filename);

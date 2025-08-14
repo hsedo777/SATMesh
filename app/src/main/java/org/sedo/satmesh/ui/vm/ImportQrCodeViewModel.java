@@ -145,6 +145,9 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 			Result result = new MultiFormatReader().decode(binaryBitmap);
 
 			parseQrCode(result.getText());
+		} catch (com.google.zxing.NotFoundException e) {
+			Log.w(TAG, "No QR code found in the provided image.", e);
+			errorMessage.postValue(getApplication().getString(R.string.no_qr_code_detected));
 		} catch (Exception e) {
 			Log.e(TAG, "Decoding failed", e);
 			errorMessage.postValue(getApplication().getString(R.string.qr_code_decode_failed));

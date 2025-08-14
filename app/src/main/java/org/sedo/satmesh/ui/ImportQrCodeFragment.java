@@ -132,15 +132,13 @@ public class ImportQrCodeFragment extends Fragment {
 		// Toolbar actions
 		binding.toolbarImportQrCode.setOnMenuItemClickListener(this::handleMenuItem);
 		binding.toolbarImportQrCode.setNavigationOnClickListener(v -> {
-			Log.d(TAG, "NavigationOnClickListener: homeListener=" + homeListener);
 			if (homeListener != null) {
 				homeListener.backToHome();
 			}
 		});
-		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
-				Log.d(TAG, "handleOnBackPressed: homeListener=" + homeListener);
 				if (homeListener != null) {
 					homeListener.backToHome();
 				}

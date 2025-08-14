@@ -357,11 +357,12 @@ public class SignalManager {
 		 */
 		try {
 			return new SignalMessage(cipherData);
-		} catch (Exception ignored) {
+		} catch (Exception e) {
 			/*
 			 * Instruction in the try clause will throw exception if the message
 			 * is the first encrypted through devices
 			 */
+			Log.d(TAG, "Could not parse as SignalMessage, trying as PreKeySignalMessage.", e);
 			return new PreKeySignalMessage(cipherData);
 		}
 	}

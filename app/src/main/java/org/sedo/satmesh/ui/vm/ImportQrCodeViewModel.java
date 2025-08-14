@@ -109,11 +109,9 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 				}
 				qrMessageSource.postValue(qrMessage);
 			}
-		} catch (InvalidProtocolBufferException e) {
+		} catch (InvalidProtocolBufferException | IllegalArgumentException e) {
 			Log.e(TAG, "Failed to parse QR code", e);
 			errorMessage.postValue(getApplication().getString(R.string.qr_code_invalid_content));
-		} finally {
-			isTaskOnExecution.postValue(false);
 		}
 	}
 

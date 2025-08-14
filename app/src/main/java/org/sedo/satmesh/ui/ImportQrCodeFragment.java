@@ -8,7 +8,6 @@ import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultCallback;
@@ -58,7 +57,7 @@ public class ImportQrCodeFragment extends Fragment {
 				if (content != null) {
 					viewModel.decodeFromCameraResult(content);
 				} else {
-					Snackbar.make(binding.getRoot(), R.string.no_qr_code_detected, Toast.LENGTH_SHORT).show();
+					Snackbar.make(binding.getRoot(), R.string.no_qr_code_detected, Snackbar.LENGTH_SHORT).show();
 				}
 			});
 

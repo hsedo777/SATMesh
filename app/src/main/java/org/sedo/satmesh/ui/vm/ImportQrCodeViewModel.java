@@ -88,7 +88,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 		try {
 			byte[] qrCodeBytes = android.util.Base64.decode(base64QrCode, android.util.Base64.NO_WRAP);
 			QrMessage qrMessage = QrMessage.parseFrom(qrCodeBytes);
-			if (qrMessage.getType() == QrMessageType.PRE_KEY_BUNDLE.getNumber()) {
+			if (qrMessage.getType() == QrMessageType.QR_PRE_KEY_BUNDLE_VALUE) {
 				if (Objects.equals(qrMessage.getDestinationUuid(), qrMessage.getSourceUuid())) {
 					Log.w(TAG, "QR code self targeting, ID=" + qrMessage.getSourceUuid());
 					errorMessage.postValue(getApplication().getString(R.string.qr_code_self_targeting));
@@ -101,7 +101,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 					return;
 				}
 				qrMessageSource.postValue(qrMessage);
-			} else if (qrMessage.getType() == QrMessageType.PERSONAL_INFO.getNumber()) {
+			} else if (qrMessage.getType() == QrMessageType.QR_PERSONAL_INFO_VALUE) {
 				if (!Objects.equals(hostNodeAddressName, qrMessage.getDestinationUuid())) {
 					Log.w(TAG, "PERSONAL_INFO: QR code stealing, it's originally designated to '" + qrMessage.getDestinationUuid() +
 							"' but '" + hostNodeAddressName + "' is decoding it.");
@@ -188,7 +188,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 				callback.accept(false);
 				return;
 			}
-			if (qrMessage.getType() == QrMessageType.PRE_KEY_BUNDLE.getNumber()) {
+			if (qrMessage.getType() == QrMessageType.QR_PRE_KEY_BUNDLE_VALUE) {
 				executor.execute(() -> {
 					handler.post(() -> isTaskOnExecution.postValue(true));
 					try {
@@ -221,7 +221,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 						handler.post(() -> isTaskOnExecution.postValue(false));
 					}
 				});
-			} else if (qrMessage.getType() == QrMessageType.PERSONAL_INFO.getNumber()) {
+			} else if (qrMessage.getType() == QrMessageType.QR_PERSONAL_INFO_VALUE) {
 				executor.execute(() -> {
 					handler.post(() -> isTaskOnExecution.postValue(true));
 					try {

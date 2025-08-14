@@ -249,7 +249,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 
 				handler.post(() -> callback.accept(
 						QrMessage.newBuilder()
-								.setType(QrMessageType.PRE_KEY_BUNDLE.getNumber())
+								.setType(QrMessageType.QR_PRE_KEY_BUNDLE_VALUE)
 								.setData(identity.toByteString())
 								.setSourceUuid(hostNodeUuid)
 								.setDestinationUuid(destinationUuid)
@@ -423,7 +423,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 								host.toPersonalInfo(false).toByteArray()
 						).serialize();
 						QrMessage qrMessage = QrMessage.newBuilder()
-								.setType(QrMessageType.PERSONAL_INFO.getNumber())
+								.setType(QrMessageType.QR_PERSONAL_INFO_VALUE)
 								.setData(ByteString.copyFrom(encrypted))
 								.setSourceUuid(hostNodeUuid)
 								.setDestinationUuid(targetAddressName)

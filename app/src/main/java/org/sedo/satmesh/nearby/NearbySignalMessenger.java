@@ -1,9 +1,17 @@
 package org.sedo.satmesh.nearby;
 
-import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.CLAIM_READ_ACK;
-import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.ENCRYPTED_MESSAGE;
-import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.MESSAGE_DELIVERED_ACK_VALUE;
-import static org.sedo.satmesh.proto.NearbyMessageBody.MessageType.MESSAGE_READ_ACK_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.ACK_CONFIRMATION_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.CLAIM_READ_ACK_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.ENCRYPTED_MESSAGE_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.KNOWLEDGE_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.MESSAGE_DELIVERED_ACK_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.MESSAGE_READ_ACK_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.PERSONAL_INFO_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.ROUTED_MESSAGE_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.ROUTE_DESTROY_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.ROUTE_DISCOVERY_REQ_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.ROUTE_DISCOVERY_RESP_VALUE;
+import static org.sedo.satmesh.proto.NearbyMessageType.TYPING_INDICATOR_VALUE;
 import static org.sedo.satmesh.signal.SignalManager.getAddress;
 
 import android.annotation.SuppressLint;
@@ -482,7 +490,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			try {
 				// Construct NearbyMessageBody with the actual TextMessage
 				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder()
-						.setMessageType(ENCRYPTED_MESSAGE).setBinaryData(textMessage.toByteString()).build();
+						.setMessageTypeValue(ENCRYPTED_MESSAGE_VALUE).setBinaryData(textMessage.toByteString()).build();
 
 				// Send the wrapped message
 				sendNearbyMessageInternal(messageBody, recipientAddressName,
@@ -547,8 +555,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				MessageAck messageAck = MessageAck.newBuilder().setPayloadId(originalPayloadId).build();
 
 				NearbyMessageBody messageBody = NearbyMessageBody
-						.newBuilder().setMessageType(
-								delivered ? NearbyMessageBody.MessageType.MESSAGE_DELIVERED_ACK : NearbyMessageBody.MessageType.MESSAGE_READ_ACK
+						.newBuilder().setMessageTypeValue(
+								delivered ? MESSAGE_DELIVERED_ACK_VALUE : MESSAGE_READ_ACK_VALUE
 						)
 						.setBinaryData(messageAck.toByteString()).build();
 
@@ -588,7 +596,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 						.build();
 
 				NearbyMessageBody messageBody = NearbyMessageBody
-						.newBuilder().setMessageType(NearbyMessageBody.MessageType.ACK_CONFIRMATION)
+						.newBuilder().setMessageTypeValue(ACK_CONFIRMATION_VALUE)
 						.setBinaryData(ackConfirmation.toByteString()).build();
 
 				sendNearbyMessageInternal(
@@ -618,7 +626,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 				String recipientAddressName = recipient.getAddressName();
 				MessageAck ack = MessageAck.newBuilder().setPayloadId(originalPayloadId).build();
 				NearbyMessageBody body = NearbyMessageBody.newBuilder()
-						.setMessageType(CLAIM_READ_ACK)
+						.setMessageTypeValue(CLAIM_READ_ACK_VALUE)
 						.setBinaryData(ack.toByteString()).build();
 				sendNearbyMessageInternal(body, recipientAddressName, TransmissionCallback.NULL_CALLBACK, null, null);
 			} catch (Exception e) {
@@ -636,7 +644,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	public void sendPersonalInfo(@NonNull PersonalInfo info, @NonNull String recipientAddressName) {
 		executor.execute(() -> {
 			try {
-				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageType(NearbyMessageBody.MessageType.PERSONAL_INFO).setBinaryData(info.toByteString()).build();
+				NearbyMessageBody messageBody = NearbyMessageBody.newBuilder().setMessageTypeValue(PERSONAL_INFO_VALUE).setBinaryData(info.toByteString()).build();
 				sendNearbyMessageInternal(messageBody, recipientAddressName, TransmissionCallback.NULL_CALLBACK, null, null);
 
 			} catch (Exception e) {
@@ -861,7 +869,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			// Send knowledge message
 			byte[] data = new byte[]{0, 1};
 			NearbyMessageBody body = NearbyMessageBody.newBuilder()
-					.setMessageType(NearbyMessageBody.MessageType.KNOWLEDGE)
+					.setMessageTypeValue(KNOWLEDGE_VALUE)
 					.setBinaryData(ByteString.copyFrom(data)).build();
 
 			nearbyManager.encryptAndSendInternal(null, senderAddressName, body,
@@ -960,8 +968,8 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 			long payloadId, boolean isRouted) throws Exception {
 		SignalProtocolAddress senderAddress = getAddress(senderAddressName);
 		Message message;
-		switch (messageBody.getMessageType()) {
-			case ENCRYPTED_MESSAGE:
+		switch (messageBody.getMessageTypeValue()) {
+			case ENCRYPTED_MESSAGE_VALUE:
 				TextMessage textMessage = TextMessage.parseFrom(messageBody.getBinaryData());
 				Node senderNode = nodeRepository.findNodeSync(senderAddressName);
 				if (senderNode == null) {
@@ -1010,7 +1018,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					}
 				});
 				break;
-			case MESSAGE_DELIVERED_ACK:
+			case MESSAGE_DELIVERED_ACK_VALUE:
 				MessageAck deliveredAck = MessageAck.parseFrom(messageBody.getBinaryData());
 				// Update status of the original message in DB
 				updateMessageStatus(null, Message.MESSAGE_STATUS_DELIVERED, deliveredAck.getPayloadId(), null);
@@ -1019,7 +1027,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					sendMessageAckConfirmation(senderAddressName, deliveredAck.getPayloadId(), MESSAGE_DELIVERED_ACK_VALUE);
 				}
 				break;
-			case MESSAGE_READ_ACK:
+			case MESSAGE_READ_ACK_VALUE:
 				MessageAck readAck = MessageAck.parseFrom(messageBody.getBinaryData());
 				// Update status of the original message in DB
 				updateMessageStatus(null, Message.MESSAGE_STATUS_READ, readAck.getPayloadId(), null);
@@ -1028,7 +1036,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					sendMessageAckConfirmation(senderAddressName, readAck.getPayloadId(), MESSAGE_READ_ACK_VALUE);
 				}
 				break;
-			case ACK_CONFIRMATION:
+			case ACK_CONFIRMATION_VALUE:
 				MessageAckConfirmation ackConfirmation = MessageAckConfirmation.parseFrom(messageBody.getBinaryData());
 				Log.d(TAG, "Received ACK confirmation for payload " + ackConfirmation.getPayloadId() + " with type " + ackConfirmation.getAckType());
 				if (ackConfirmation.getAckType() == MESSAGE_DELIVERED_ACK_VALUE) {
@@ -1039,7 +1047,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					Log.w(TAG, "Received ACK confirmation with unhandled ackType: " + ackConfirmation.getAckType());
 				}
 				break;
-			case PERSONAL_INFO:
+			case PERSONAL_INFO_VALUE:
 				PersonalInfo personalInfo = PersonalInfo.parseFrom(messageBody.getBinaryData());
 				// Update node's display name and potentially other info in DB
 				Node nodeToUpdate = nodeRepository.findNodeSync(senderAddressName);
@@ -1057,34 +1065,34 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					return;
 				}
 				break;
-			case TYPING_INDICATOR:
+			case TYPING_INDICATOR_VALUE:
 				// TypingIndicator typingIndicator = TypingIndicator.parseFrom(messageBody.getBinaryData());
 				// Log.d(TAG, "Received TypingIndicator from " + senderAddressName + ": " + typingIndicator.getIsTyping());
 				// TODO: Notify UI via NodeStateRepository to show/hide typing indicator if needed
 				break;
-			case ROUTE_DISCOVERY_REQ:
+			case ROUTE_DISCOVERY_REQ_VALUE:
 				Log.d(TAG, "Received ROUTE_DISCOVERY_REQ from " + senderAddressName);
 				RouteRequestMessage routeRequestMessage = RouteRequestMessage.parseFrom(messageBody.getBinaryData());
 				nearbyRouteManager.handleIncomingRouteRequest(senderAddressName, routeRequestMessage, hostNode.getAddressName());
 				break;
-			case ROUTE_DISCOVERY_RESP:
+			case ROUTE_DISCOVERY_RESP_VALUE:
 				Log.d(TAG, "Received ROUTE_DISCOVERY_RESP from " + senderAddressName);
 				RouteResponseMessage routeResponseMessage = RouteResponseMessage.parseFrom(messageBody.getBinaryData());
 				nearbyRouteManager.handleIncomingRouteResponse(senderAddressName, routeResponseMessage);
 				break;
-			case ROUTED_MESSAGE:
+			case ROUTED_MESSAGE_VALUE:
 				Log.d(TAG, "Parsing routed message relayed by neighbor: " + senderAddressName);
 				RoutedMessage routedMessage = RoutedMessage.parseFrom(messageBody.getBinaryData());
 				nearbyRouteManager.handleIncomingRoutedMessage(routedMessage, hostNode.getAddressName(), payloadId);
 				break;
-			case KNOWLEDGE:
+			case KNOWLEDGE_VALUE:
 				// Success decryption of the body, above, is enough
 				Log.d(TAG, "Receiving KNOWLEDGE message from: " + senderAddress);
 				Node hostCopy = nodeRepository.findNodeSync(hostNode.getAddressName());
 				sendPersonalInfo(hostCopy.toPersonalInfo(true), senderAddressName);
 				hostNode.setDisplayName(hostCopy.getDisplayName());
 				break;
-			case CLAIM_READ_ACK:
+			case CLAIM_READ_ACK_VALUE:
 				MessageAck ack = MessageAck.parseFrom(messageBody.getBinaryData());
 				Log.d(TAG, "Receiving claimMessageReadAck of read ack for message with payload ID: " + ack.getPayloadId());
 				if (messageRepository.isMessageRead(ack.getPayloadId())) {
@@ -1092,15 +1100,13 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 					sendMessageAck(ack.getPayloadId(), senderAddressName, false, null);
 				}
 				break;
-			case ROUTE_DESTROY:
+			case ROUTE_DESTROY_VALUE:
 				Log.d(TAG, "Received ROUTE_DESTROY from " + senderAddressName);
 				RouteDestroyMessage destroy = RouteDestroyMessage.parseFrom(messageBody.getBinaryData());
 				nearbyRouteManager.handleIncomingRouteDestroyMessage(destroy, senderAddressName);
 				break;
-			case UNRECOGNIZED:
-			case UNKNOWN:
 			default:
-				Log.w(TAG, "Received UNKNOWN or unhandled message type: " + messageBody.getMessageType() + " from " + senderAddressName);
+				Log.w(TAG, "Received UNKNOWN or unhandled message type: " + messageBody.getMessageTypeValue() + " from " + senderAddressName);
 				break;
 		}
 	}

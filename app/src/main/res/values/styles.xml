@@ -95,4 +95,9 @@
 	<style name="ThemeOverlay.App.Toolbar" parent="">
 		<item name="colorControlNormal">@color/toolbar_title</item>
 	</style>
+
+	<style name="ShapeAppearanceOverlay.App.CircularFab" parent="">
+		<item name="cornerFamily">rounded</item>
+		<item name="cornerSize">50%</item>
+	</style>
 </resources>

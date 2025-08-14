@@ -21,6 +21,8 @@ import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter;
 import org.sedo.satmesh.ui.adapter.NearbyDiscoveryAdapter.OnNodeClickListener;
 import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
 import org.sedo.satmesh.ui.data.NodeState;
+import org.sedo.satmesh.ui.vm.NearbyDiscoveryViewModel;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
 import org.sedo.satmesh.utils.Constants;
 
 import java.util.List;

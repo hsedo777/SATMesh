@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent">
+
+	<!-- Toolbar -->
+	<androidx.appcompat.widget.Toolbar
+		android:id="@+id/toolbar_import_qr_code"
+		android:layout_width="match_parent"
+		android:layout_height="?attr/actionBarSize"
+		app:menu="@menu/menu_import_qr_code"
+		app:navigationIcon="@drawable/ic_arrow_back"
+		app:title="@string/import_qr_code_title" />
+
+	<!-- Main content -->
+	<ScrollView
+		android:id="@+id/qr_import_scroll_view"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:layout_marginTop="?attr/actionBarSize"
+		android:contentDescription="@string/import_qr_code_title"
+		android:fillViewport="true">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:gravity="center_horizontal"
+			android:orientation="vertical"
+			android:padding="@dimen/space_md">
+
+			<!-- Decoded QR code source -->
+			<LinearLayout
+				android:id="@+id/qr_code_source_container"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="@dimen/space_lg"
+				android:orientation="horizontal"
+				android:visibility="gone"
+				tools:visibility="visible">
+
+				<TextView
+					android:id="@+id/text_qr_code_source_label"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginEnd="@dimen/space_sm"
+					android:text="@string/qr_code_source_label"
+					android:textColor="@color/on_primary" />
+
+				<TextView
+					android:id="@+id/text_qr_code_source"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:clickable="true"
+					android:contentDescription="@string/qr_code_source_description"
+					android:ellipsize="end"
+					android:focusable="true"
+					android:maxLines="1"
+					android:textColor="@color/on_primary"
+					android:textStyle="bold"
+					tools:ignore="TouchTargetSizeCheck"
+					tools:text="satmesh-78965-897965-554449ab854-626dfa56" />
+
+			</LinearLayout>
+
+			<!-- Preview zone -->
+			<ImageView
+				android:id="@+id/image_qr_preview"
+				android:layout_width="200dp"
+				android:layout_height="200dp"
+				android:contentDescription="@string/preview"
+				android:scaleType="centerInside"
+				android:visibility="gone" />
+
+			<!-- Error message -->
+			<TextView
+				android:id="@+id/text_qr_error"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/space_md"
+				android:gravity="center"
+				android:textColor="@color/error"
+				android:visibility="gone" />
+
+			<!-- Progress bar -->
+			<ProgressBar
+				android:id="@+id/import_qr_progress_bar"
+				style="?android:attr/progressBarStyleLarge"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="center"
+				android:visibility="gone"
+				tools:visibility="visible" />
+
+		</LinearLayout>
+	</ScrollView>
+
+	<com.google.android.material.floatingactionbutton.FloatingActionButton
+		android:id="@+id/qr_code_action_button"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_margin="@dimen/space_md"
+		android:contentDescription="@string/execute_qr_code_description"
+		android:src="@drawable/ic_exec_secure_session"
+		android:visibility="gone"
+		app:backgroundTint="@color/secondary"
+		app:layout_anchor="@id/qr_import_scroll_view"
+		app:layout_anchorGravity="bottom|end"
+		app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CircularFab"
+		app:tint="@color/on_secondary"
+		tools:visibility="visible" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

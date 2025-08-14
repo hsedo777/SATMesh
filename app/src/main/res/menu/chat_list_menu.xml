@@ -22,14 +22,22 @@
 				android:id="@+id/menu_known_nodes"
 				android:title="@string/menu_known_nodes" />
 			<item
-				android:id="@+id/menu_renew_fingerprint"
-				android:title="@string/menu_renew_fingerprint" />
+				android:id="@+id/menu_generate_qr_code"
+				android:title="@string/menu_generate_qr" />
+			<item
+				android:id="@+id/import_qr_code"
+				android:title="@string/menu_import_qr" />
 			<item
 				android:id="@+id/menu_help_feedback"
+				android:enabled="false"
 				android:title="@string/menu_help_feedback" />
 			<item
 				android:id="@+id/menu_about"
+				android:enabled="false"
 				android:title="@string/menu_about" />
+			<item
+				android:id="@+id/menu_renew_fingerprint"
+				android:title="@string/menu_renew_fingerprint" />
 			<item
 				android:id="@+id/chat_list_menu_quit"
 				android:title="@string/menu_quit" />

@@ -52,8 +52,6 @@ import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.protocol.CiphertextMessage;
-import org.whispersystems.libsignal.protocol.PreKeySignalMessage;
-import org.whispersystems.libsignal.protocol.SignalMessage;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 
 import java.util.Arrays;
@@ -908,21 +906,7 @@ public class NearbySignalMessenger implements DeviceConnectionListener, PayloadL
 	@Nullable
 	protected byte[] decrypt(byte[] cipherData, @NonNull String remoteAddressName) throws Exception {
 		try {
-			CiphertextMessage receivedCipherMessage;
-			/*
-			 * Reconstruct CiphertextMessage from raw bytes
-			 * Note: We need to properly determine if it's PREKEY_TYPE or WHISPER_TYPE.
-			 */
-			try {
-				receivedCipherMessage = new SignalMessage(cipherData);
-			} catch (Exception ignored) {
-				/*
-				 * Instruction in the try clause will throw exception if the message
-				 * is the first encrypted through devices
-				 */
-				receivedCipherMessage = new PreKeySignalMessage(cipherData);
-			}
-
+			CiphertextMessage receivedCipherMessage = SignalManager.toCiphertextMessage(cipherData);
 			SignalProtocolAddress senderAddress = getAddress(remoteAddressName);
 			return signalManager.decryptMessage(senderAddress, receivedCipherMessage);
 		} catch (InvalidProtocolBufferException e) {

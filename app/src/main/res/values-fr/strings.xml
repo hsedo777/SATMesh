@@ -79,6 +79,8 @@
 	<!-- Menu -->
 	<string name="menu_settings">Paramètres</string>
 	<string name="menu_known_nodes">Nœuds connus</string>
+	<string name="menu_generate_qr">Générer un QR</string>
+	<string name="menu_import_qr">Importer un QR</string>
 	<string name="menu_help_feedback">Aide &amp; Retour</string>
 	<string name="menu_renew_fingerprint">Réinitialiser l’empreinte</string>
 	<string name="renew_fingerprint_alert_description">Voulez-vous vraiment réinitialiser votre empreinte cryptographique ? Cette action ne peut pas être annulée.</string>
@@ -89,7 +91,6 @@
 
 	<string name="action_refresh">Actualiser</string>
 	<string name="action_refresh_description">Actualiser la liste des appareils à proximité</string>
-
 	<string name="action_delete">Supprimer</string>
 	<string name="action_copy">Copier</string>
 	<string name="action_claim_ack">Réclamer l\'accusé de lecture</string>
@@ -98,6 +99,14 @@
 	<string name="message_copied">Message copié</string>
 	<string name="action_resend">Renvoyer</string>
 	<string name="message_resend_failed">Échec de renvoi du message</string>
+	<string name="action_download">Télécharger</string>
+	<string name="action_download_description">Télécharger le code QR</string>
+	<string name="action_share">Partager</string>
+	<string name="action_share_description">Partager le code QR</string>
+	<string name="action_reset">Réinitialiser</string>
+	<string name="action_reset_description">Réinitialiser</string>
+	<string name="action_import_via_camera">Importer depuis la caméra</string>
+	<string name="action_import_via_image">Importer depuis une image</string>
 
 	<string name="search_hint">Rechercher messages ou discussions</string>
 	<string name="no_results_found">Aucun résultat trouvé</string>
@@ -164,6 +173,38 @@
 	<string name="exit_dialog_message">Souhaitez-vous désactiver le Bluetooth et/ou le Wi-Fi avant de quitter l’application ?</string>
 	<string name="yes">Oui</string>
 	<string name="no">Non</string>
+
+	<!-- QR Code -->
+	<string name="qr_code_title">Code QR</string>
+	<string name="hint_destination_uuid">ID de destination</string>
+	<string name="generate_qr">Générer le QR</string>
+	<string name="invalid_uuid">L\'ID fourni est invalide</string>
+	<string name="qr_code_generation_failed">Échec de génération du code QR</string>
+	<string name="qr_code_download_success">Code QR enregistré avec succès dans la galerie en utilisant le nom %s</string>
+	<string name="qr_code_download_failed">Échec de sauvegarde du code QR dans la galerie.</string>
+	<string name="share_qr_code">Partager le code QR</string>
+	<string name="open">Ouvrir</string>
+	<string name="qr_code_ack_ready">Connexion sécurisée localement établie. Veuillez télécharger le code QR et l\'envoyer à l\'appareil distant.</string>
+	<string name="qr_code_ack_failed">Échec de génération de la réponse à envoyer à l\'appareil distant, après l\'établissement de la session sécurisée.</string>
+
+	<string name="import_qr_code_title">Importer un code QR</string>
+	<string name="qr_code_source_label">Source du QR :</string>
+	<string name="qr_code_source_description">La source du code QR.</string>
+	<string name="qr_code_source_copied">Copie du code QR de la source effectuée avec succès.</string>
+	<string name="scan_qr_prompt">Scanner un code QR</string>
+	<string name="no_qr_code_detected">Aucun code QR détecté</string>
+	<string name="no_image_detected">No image to decode.</string>
+	<string name="qr_code_invalid_content">Le contenu du code QR est invalide.</string>
+	<string name="qr_code_self_targeting">Il s\'agit d\'un code QR généré par auto-ciblage. Il n\'est pas utilisable.</string>
+	<string name="qr_code_stealing_use">Ce code QR est adressé à un autre utilisateur, pas à vous.</string>
+	<string name="qr_code_decode_failed">Échec de décodage du code QR.</string>
+	<string name="qr_code_import_from_image_failed">Échec de l\'importation du code QR depuis l\'image.</string>
+	<string name="preview">Aperçu</string>
+	<string name="execute">Executer</string>
+	<string name="execute_qr_code_description">Établir la session sécurisée.</string>
+	<string name="qr_code_secure_session_failed">Impossible d\'établir la session sécurisée.</string>
+	<string name="qr_code_process_failed">Échec du traitement du code QR.</string>
+
 	<!--
 	<string name=""></string>
 	-->

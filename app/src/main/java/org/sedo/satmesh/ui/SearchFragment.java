@@ -26,6 +26,8 @@ import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentSearchBinding;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.adapter.SearchMessageAdapter;
+import org.sedo.satmesh.ui.vm.SearchViewModel;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
 
 public class SearchFragment extends Fragment {
 

@@ -20,6 +20,7 @@ import org.whispersystems.libsignal.IdentityKeyPair;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.InvalidKeyIdException;
 import org.whispersystems.libsignal.InvalidMessageException;
+import org.whispersystems.libsignal.InvalidVersionException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.SessionBuilder;
 import org.whispersystems.libsignal.SessionCipher;
@@ -280,10 +281,12 @@ public class SignalManager {
 
 		// 2. Get the current active SignedPreKey
 		SignedPreKeyRecord signedPreKeyRecord = signedPreKeyStore.getLatestSignedPreKey();
-		Log.d(TAG, "Generated our PreKeyBundle for RegId: " + registrationId + ", PreKeyId: " + preKeyRecord.getId() + ", SignedPreKeyId: " + signedPreKeyRecord.getId());
+		Log.d(TAG, "Generated our PreKeyBundle for RegId: " + registrationId + ", PreKeyId: " + preKeyRecord.getId() +
+				", SignedPreKeyId: " + signedPreKeyRecord.getId());
 
-		return new PreKeyBundle(registrationId, 1, // deviceId
-				preKeyRecord.getId(), preKeyRecord.getKeyPair().getPublicKey(), signedPreKeyRecord.getId(), signedPreKeyRecord.getKeyPair().getPublicKey(), signedPreKeyRecord.getSignature(), identityKeyPair.getPublicKey());
+		return new PreKeyBundle(registrationId, Constants.SIGNAL_PROTOCOL_DEVICE_ID, // deviceId
+				preKeyRecord.getId(), preKeyRecord.getKeyPair().getPublicKey(), signedPreKeyRecord.getId(),
+				signedPreKeyRecord.getKeyPair().getPublicKey(), signedPreKeyRecord.getSignature(), identityKeyPair.getPublicKey());
 	}
 
 	/**
@@ -302,7 +305,8 @@ public class SignalManager {
 			Log.w(TAG, "establishSessionFromRemotePreKeyBundle: handling untrusted identity from address=" + senderAddress.getName());
 			identityKeyStore.deleteIdentityForAddress(senderAddress);
 			sessionBuilder.process(preKeyBundle);
-			Log.d(TAG, "establishSessionFromRemotePreKeyBundle: Delete old value and process prekey bundle with untrusted identity from address=" + senderAddress.getName());
+			Log.d(TAG, "establishSessionFromRemotePreKeyBundle: Delete old value and process prekey bundle with untrusted identity from address=" +
+					senderAddress.getName());
 		}
 		Log.d(TAG, "Signal session established with " + senderAddress.getName() + " after processing remote bundle.");
 	}
@@ -328,6 +332,39 @@ public class SignalManager {
 		CiphertextMessage cipherMessage = sessionCipher.encrypt(message);
 		Log.d(TAG, "Message encrypted for " + recipientAddress.getName() + ". Type: " + cipherMessage.getType());
 		return cipherMessage;
+	}
+
+	/**
+	 * Deserializes a byte array into a CiphertextMessage.
+	 * <p>
+	 * This method attempts to reconstruct a {@link CiphertextMessage} from raw byte data.
+	 * It first tries to parse it as a {@link SignalMessage}. If that fails (e.g., if it's the
+	 * first message establishing a session, which would be a PreKeySignalMessage), it then
+	 * attempts to parse it as a {@link PreKeySignalMessage}.
+	 * </p>
+	 *
+	 * @param cipherData The raw byte array containing the serialized ciphertext message.
+	 * @return A {@link CiphertextMessage} (either {@link SignalMessage} or {@link PreKeySignalMessage}).
+	 * @throws InvalidMessageException if the an error occurs during an attempt to deserialize the message.
+	 * @throws InvalidVersionException if the an error occurs during an attempt to deserialize the message.
+	 * @see SignalMessage
+	 * @see PreKeySignalMessage
+	 */
+	public static CiphertextMessage toCiphertextMessage(byte[] cipherData) throws InvalidMessageException, InvalidVersionException {
+		/*
+		 * Reconstruct CiphertextMessage from raw bytes
+		 * Note: We need to properly determine if it's PREKEY_TYPE or WHISPER_TYPE.
+		 */
+		try {
+			return new SignalMessage(cipherData);
+		} catch (Exception e) {
+			/*
+			 * Instruction in the try clause will throw exception if the message
+			 * is the first encrypted through devices
+			 */
+			Log.d(TAG, "Could not parse as SignalMessage, trying as PreKeySignalMessage.", e);
+			return new PreKeySignalMessage(cipherData);
+		}
 	}
 
 	/**
@@ -421,7 +458,16 @@ public class SignalManager {
 	 * @return A byte array representing the serialized bundle.
 	 */
 	public byte[] serializePreKeyBundle(PreKeyBundle bundle) {
-		SignalPreKeyBundle protoBundle = SignalPreKeyBundle.newBuilder().setRegistrationId(bundle.getRegistrationId()).setDeviceId(bundle.getDeviceId()).setPreKeyId(bundle.getPreKeyId()).setPreKeyPublicKey(ByteString.copyFrom(bundle.getPreKey().serialize())).setSignedPreKeyId(bundle.getSignedPreKeyId()).setSignedPreKeyPublicKey(ByteString.copyFrom(bundle.getSignedPreKey().serialize())).setSignedPreKeySignature(ByteString.copyFrom(bundle.getSignedPreKeySignature())).setIdentityKeyPublicKey(ByteString.copyFrom(bundle.getIdentityKey().serialize())).build();
+		SignalPreKeyBundle protoBundle = SignalPreKeyBundle.newBuilder()
+				.setRegistrationId(bundle.getRegistrationId()).
+				setDeviceId(bundle.getDeviceId())
+				.setPreKeyId(bundle.getPreKeyId())
+				.setPreKeyPublicKey(ByteString.copyFrom(bundle.getPreKey().serialize()))
+				.setSignedPreKeyId(bundle.getSignedPreKeyId())
+				.setSignedPreKeyPublicKey(ByteString.copyFrom(bundle.getSignedPreKey().serialize()))
+				.setSignedPreKeySignature(ByteString.copyFrom(bundle.getSignedPreKeySignature()))
+				.setIdentityKeyPublicKey(ByteString.copyFrom(bundle.getIdentityKey().serialize()))
+				.build();
 		return protoBundle.toByteArray();
 	}
 
@@ -443,7 +489,8 @@ public class SignalManager {
 		ECPublicKey signedPreKey = Curve.decodePoint(protoBundle.getSignedPreKeyPublicKey().toByteArray(), 0);
 		IdentityKey identityKey = new IdentityKey(protoBundle.getIdentityKeyPublicKey().toByteArray(), 0);
 
-		return new PreKeyBundle(protoBundle.getRegistrationId(), protoBundle.getDeviceId(), protoBundle.getPreKeyId(), preKey, protoBundle.getSignedPreKeyId(), signedPreKey, protoBundle.getSignedPreKeySignature().toByteArray(), identityKey);
+		return new PreKeyBundle(protoBundle.getRegistrationId(), protoBundle.getDeviceId(), protoBundle.getPreKeyId(),
+				preKey, protoBundle.getSignedPreKeyId(), signedPreKey, protoBundle.getSignedPreKeySignature().toByteArray(), identityKey);
 	}
 
 	// Callback interfaces

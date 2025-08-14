@@ -24,6 +24,8 @@ import org.sedo.satmesh.R;
 import org.sedo.satmesh.databinding.FragmentKnownNodesBinding;
 import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.ui.adapter.KnownNodesAdapter;
+import org.sedo.satmesh.ui.vm.KnownNodesViewModel;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
 
 import java.util.List;
 
@@ -138,7 +140,8 @@ public class KnownNodesFragment extends Fragment {
 			hostNodeId = knownNodesViewModel.getHostNodeId();
 		}
 
-		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+				new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
 				if (chatListAccessor != null){

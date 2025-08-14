@@ -1,0 +1,311 @@
+package org.sedo.satmesh.ui;
+
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.provider.MediaStore;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.inputmethod.InputMethodManager;
+
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.google.android.material.snackbar.Snackbar;
+
+import org.sedo.satmesh.R;
+import org.sedo.satmesh.databinding.FragmentQrCodeBinding;
+import org.sedo.satmesh.ui.vm.QrCodeViewModel;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
+import org.sedo.satmesh.utils.Constants;
+
+/**
+ * A {@link Fragment} subclass that displays a QR code for a given UUID.
+ * Use the {@link QrCodeFragment#newInstance} factory method to
+ * create an instance of this fragment.
+ *
+ * @author hsedo777
+ */
+public class QrCodeFragment extends Fragment {
+
+	public static final String TAG = "QrCodeFragment";
+
+	private FragmentQrCodeBinding binding;
+	private QrCodeViewModel viewModel;
+	private AppHomeListener homeListener;
+
+	/**
+	 * Required empty public constructor
+	 */
+	public QrCodeFragment() {
+		// Required empty public constructor
+	}
+
+	/**
+	 * Use this factory method to create a new instance of
+	 * this fragment using the provided parameters.
+	 *
+	 * @param hostNodeUuid The UUID of the host node.
+	 * @return A new instance of fragment QrCodeFragment.
+	 */
+	public static QrCodeFragment newInstance(String hostNodeUuid, @Nullable Bundle extra) {
+		QrCodeFragment fragment = new QrCodeFragment();
+		Bundle args = new Bundle();
+		if (extra != null) {
+			args.putAll(extra);
+		}
+		args.putString(Constants.NODE_ADDRESS, hostNodeUuid);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onAttach(@NonNull Context context) {
+		super.onAttach(context);
+		if (context instanceof AppHomeListener) {
+			homeListener = (AppHomeListener) context;
+		} else {
+			throw new RuntimeException("The context require to implement interface `AppHomeListener`.");
+		}
+	}
+
+	@Override
+	public void onDetach() {
+		super.onDetach();
+		homeListener = null;
+	}
+
+	@Override
+	public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
+							 Bundle savedInstanceState) {
+		binding = FragmentQrCodeBinding.inflate(inflater, container, false);
+		return binding.getRoot();
+	}
+
+	@Override
+	public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+		super.onViewCreated(view, savedInstanceState);
+
+		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance(requireActivity().getApplication())).get(QrCodeViewModel.class);
+		String targetAddressName;
+		if (getArguments() != null) {
+			String hostNodeUuid = getArguments().getString(Constants.NODE_ADDRESS);
+			viewModel.setHostNodeUuid(hostNodeUuid);
+			targetAddressName = getArguments().getString(QrCodeGenerationListener.RECIPIENT_ADDRESS_NAME);
+		} else {
+			targetAddressName = null;
+		}
+
+		// Observers
+		setupObservers();
+
+		binding.editTextUuid.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void afterTextChanged(Editable s) {
+			}
+
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+			}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				viewModel.setUuidInput(s.toString());
+			}
+		});
+
+		// Actions UI
+		binding.buttonGenerateQr.setOnClickListener(v -> {
+			// Hide keyboard
+			InputMethodManager imm = (InputMethodManager) requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+			View focus;
+			if (imm != null && (focus = requireActivity().getCurrentFocus()) != null) {
+				imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+			}
+			viewModel.generateQrCode();
+		});
+
+		binding.qrCodeToolbar.setOnMenuItemClickListener(item -> {
+			if (item.getItemId() == R.id.action_download) {
+				viewModel.setIsBlinking(false);
+				viewModel.saveQrCodeToGallery();
+				if (getArguments() != null) {
+					getArguments().remove(QrCodeGenerationListener.RECIPIENT_ADDRESS_NAME);
+				}
+				return true;
+			}
+			if (item.getItemId() == R.id.action_share) {
+				Intent intent = viewModel.shareQrCode();
+				if (intent != null) {
+					startActivity(Intent.createChooser(intent, requireContext().getString(R.string.share_qr_code)));
+				} else {
+					Log.w(TAG, "Failed to create sharing intent.");
+				}
+				return true;
+			}
+			if (item.getItemId() == R.id.action_reset) {
+				// Reset the screen
+				binding.editTextUuid.setText("");
+				viewModel.clearQrCode();
+				return true;
+			}
+			return false;
+		});
+
+		binding.qrCodeToolbar.setNavigationOnClickListener(v -> {
+			if (homeListener != null) {
+				homeListener.backToHome();
+			}
+		});
+
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+				new OnBackPressedCallback(true) {
+					@Override
+					public void handleOnBackPressed() {
+						if (homeListener != null) {
+							homeListener.backToHome();
+						}
+					}
+				});
+		if (targetAddressName != null) {
+			// We need to generated a QR code that contains an acknowledge message
+			viewModel.processSecureSession(targetAddressName, success -> {
+				if (success) {
+					Snackbar.make(binding.getRoot(), R.string.qr_code_ack_ready, Snackbar.LENGTH_LONG).show();
+					binding.textQrBlinking.setText(R.string.qr_code_ack_ready);
+					binding.textQrBlinking.setOnClickListener(v -> binding.textQrBlinking.clearAnimation());
+					View v = getDownloadMenuView();
+					if (v != null) {
+						startBlinking(v, 500);
+					}
+					viewModel.setIsBlinking(true);
+				} else {
+					Snackbar.make(binding.getRoot(), R.string.qr_code_ack_failed, Snackbar.LENGTH_SHORT).show();
+				}
+			});
+		}
+	}
+
+	/**
+	 * Enables or disables the menu items in the toolbar.
+	 *
+	 * @param enabled True to enable the menu items, false to disable them.
+	 */
+	private void setMenuItemEnabled(boolean enabled) {
+		Menu menu = binding.qrCodeToolbar.getMenu();
+		menu.findItem(R.id.action_download).setEnabled(enabled);
+		menu.findItem(R.id.action_reset).setEnabled(enabled);
+		menu.findItem(R.id.action_share).setEnabled(enabled);
+	}
+
+	private View getDownloadMenuView() {
+		return binding.qrCodeToolbar.findViewById(R.id.action_download);
+	}
+
+	private void setupObservers() {
+		viewModel.getQrCodeBitmap().observe(getViewLifecycleOwner(), bitmap -> {
+			binding.qrCodeImage.setImageBitmap(bitmap);
+			boolean alive = bitmap != null;
+			binding.qrCodeImage.setVisibility(alive ? View.VISIBLE : View.GONE);
+			if (alive) {
+				binding.qrCodeImage.setImageBitmap(bitmap);
+
+				// Reinitialize before animation
+				binding.qrCodeImage.setAlpha(0f);
+				binding.qrCodeImage.setScaleX(0.8f);
+				binding.qrCodeImage.setScaleY(0.8f);
+
+				// Animate (fade + zoom)
+				binding.qrCodeImage.animate()
+						.alpha(1f)
+						.scaleX(1f)
+						.scaleY(1f)
+						.setDuration(300) // in ms
+						.setInterpolator(new AccelerateDecelerateInterpolator())
+						.start();
+			}
+
+			setMenuItemEnabled(alive);
+		});
+
+		viewModel.getErrorMessage().observe(getViewLifecycleOwner(), message -> {
+			if (message != null) {
+				Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_SHORT).show();
+				binding.textError.setText(message);
+				binding.textError.setVisibility(View.VISIBLE);
+			} else {
+				binding.textError.setVisibility(View.GONE);
+			}
+		});
+
+		viewModel.getDownloadMessage().observe(getViewLifecycleOwner(), holder -> {
+			if (holder != null) {
+				Snackbar snackbar = Snackbar.make(binding.getRoot(), holder.getFirst(), Snackbar.LENGTH_LONG);
+				if (holder.getSecond()) {
+					snackbar.setAction(R.string.open, v -> {
+						Intent intent = new Intent(Intent.ACTION_VIEW, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+						intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+						startActivity(intent);
+					});
+				}
+				snackbar.show();
+			}
+		});
+
+		viewModel.getUuidInput().observe(getViewLifecycleOwner(), uuid -> {
+			// If UUID changes then the current QR code is no longer valid
+			viewModel.clearQrCode();
+		});
+
+		viewModel.getIsGenerating().observe(getViewLifecycleOwner(), generating -> {
+			if (generating != null) {
+				binding.qrCodeProgressBar.setVisibility(generating ? View.VISIBLE : View.GONE);
+				binding.buttonGenerateQr.setEnabled(!generating);
+			}
+		});
+
+		viewModel.getIsBlinking().observe(getViewLifecycleOwner(), blinking -> {
+			boolean isGenerating = Boolean.TRUE.equals(viewModel.getIsGenerating().getValue());
+			boolean isBlinking = isGenerating && blinking != null && blinking;
+			binding.textQrBlinking.setVisibility(isBlinking ? View.VISIBLE : View.GONE);
+			if (isBlinking) {
+				startBlinking(binding.textQrBlinking, 300);
+				binding.editTextUuid.setEnabled(false);
+				binding.buttonGenerateQr.setEnabled(false);
+			} else {
+				binding.textQrBlinking.clearAnimation();
+				View v = getDownloadMenuView();
+				if (v != null) {
+					v.clearAnimation();
+				}
+				binding.editTextUuid.setEnabled(true);
+				binding.buttonGenerateQr.setEnabled(true);
+			}
+		});
+	}
+
+	private void startBlinking(View view, int delay) {
+		AlphaAnimation blinkAnimation = new AlphaAnimation(1.0f, 0.0f);
+		blinkAnimation.setDuration(delay);
+		blinkAnimation.setRepeatMode(Animation.REVERSE);
+		blinkAnimation.setRepeatCount(Animation.INFINITE);
+		view.startAnimation(blinkAnimation);
+	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		binding = null;
+	}
+}

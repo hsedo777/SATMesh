@@ -15,6 +15,8 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import org.sedo.satmesh.databinding.FragmentWelcomeBinding;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
+import org.sedo.satmesh.ui.vm.WelcomeViewModel;
 import org.sedo.satmesh.utils.Utils;
 
 /**
@@ -47,7 +49,7 @@ public class WelcomeFragment extends Fragment {
 		super.onCreate(savedInstanceState);
 		viewModel = new ViewModelProvider(this, ViewModelFactory.getInstance(requireActivity().getApplication())).get(WelcomeViewModel.class);
 		// Finish the activity on back key pressed
-		requireActivity().getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
 			@Override
 			public void handleOnBackPressed() {
 				requireActivity().finish();

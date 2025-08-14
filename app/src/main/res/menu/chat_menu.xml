@@ -11,4 +11,8 @@
 		android:icon="@android:drawable/ic_menu_save"
 		android:title="@string/export_chat"
 		app:showAsAction="never" />
+
+	<item
+		android:id="@+id/action_renew_chat_fingerprint"
+		android:title="@string/menu_renew_fingerprint" />
 </menu>

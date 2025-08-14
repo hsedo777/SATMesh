@@ -36,11 +36,13 @@ import org.sedo.satmesh.ui.ChatListAccessor;
 import org.sedo.satmesh.ui.ChatListFragment;
 import org.sedo.satmesh.ui.DiscussionListener;
 import org.sedo.satmesh.ui.DiscussionMenuListener;
+import org.sedo.satmesh.ui.ImportQrCodeFragment;
 import org.sedo.satmesh.ui.KnownNodesFragment;
 import org.sedo.satmesh.ui.LoadingFragment;
 import org.sedo.satmesh.ui.LoadingFragment.ServiceLoadingListener;
 import org.sedo.satmesh.ui.NearbyDiscoveryFragment;
 import org.sedo.satmesh.ui.NearbyDiscoveryListener;
+import org.sedo.satmesh.ui.QrCodeFragment;
 import org.sedo.satmesh.ui.QuitAppListener;
 import org.sedo.satmesh.ui.SearchFragment;
 import org.sedo.satmesh.ui.UiUtils;
@@ -49,7 +51,6 @@ import org.sedo.satmesh.ui.WelcomeFragment.OnWelcomeCompletedListener;
 import org.sedo.satmesh.utils.Constants;
 import org.sedo.satmesh.utils.NotificationType;
 
-import java.util.Objects;
 import java.util.function.Consumer;
 
 public class MainActivity extends AppCompatActivity implements OnWelcomeCompletedListener,
@@ -190,6 +191,14 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 
 	private SharedPreferences defaultSharedPreferences() {
 		return UiUtils.getAppDefaultSharedPreferences(this);
+	}
+
+	private Long getHostNodeId() {
+		return defaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
+	}
+
+	private @Nullable String getHostNodeAddressName() {
+		return defaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
 	}
 
 	private boolean isSetupCompleted() {
@@ -491,16 +500,38 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 		});
 	}
 
+	// Helper method
+
+	private void withHostNodeAddressName(Consumer<String> action, String errorMessage) {
+		String hostNodeAddressName = getHostNodeAddressName();
+		if (hostNodeAddressName != null) {
+			action.accept(hostNodeAddressName);
+		} else {
+			Log.e(TAG, errorMessage);
+		}
+	}
+
+	private void withHostNodeId(Consumer<Long> action, String errorMessage) {
+		Long hostNodeId = getHostNodeId();
+		if (hostNodeId != -1L) {
+			action.accept(hostNodeId);
+		} else {
+			Log.e(TAG, errorMessage);
+		}
+	}
+
 	// implementation of NearbyDiscoveryListener
 	public void moveToDiscoveryView(boolean removeLast) {
-		String addressName = defaultSharedPreferences().getString(Constants.PREF_KEY_HOST_ADDRESS_NAME, null);
-		navigateTo(NearbyDiscoveryFragment.newInstance(Objects.requireNonNull(addressName)), Constants.TAG_DISCOVERY_FRAGMENT, removeLast);
+		withHostNodeAddressName(
+				addressName -> navigateTo(NearbyDiscoveryFragment.newInstance(addressName),
+						Constants.TAG_DISCOVERY_FRAGMENT, removeLast),
+				"Cannot move to NearbyDiscoveryFragment, host node address is null.");
 	}
 
 	// Implementation of `ChatListAccessor`
 	public void moveToChatList(boolean removeLast) {
 		resetToHomeScreen();
-		Long hostNodeId = defaultSharedPreferences().getLong(Constants.PREF_KEY_HOST_NODE_ID, -1L);
+		Long hostNodeId = getHostNodeId();
 		navigateTo(ChatListFragment.newInstance(hostNodeId), Constants.TAG_CHAT_LIST_FRAGMENT, removeLast);
 	}
 
@@ -512,18 +543,37 @@ public class MainActivity extends AppCompatActivity implements OnWelcomeComplete
 	}
 
 	// Implementation of `DiscussionMenuListener`
-	public void moveToSearchFragment(Long hostNodeId) {
-		if (hostNodeId == null) {
-			return;
-		}
-		navigateTo(SearchFragment.newInstance(hostNodeId), SearchFragment.TAG, true);
+
+	@Override
+	public void moveToSearchFragment() {
+		withHostNodeId(id -> navigateTo(SearchFragment.newInstance(id), SearchFragment.TAG, true),
+				"Failed to retrieve host node ID.");
 	}
 
-	public void moveToKnownNodesFragment(Long hostNodeId) {
-		if (hostNodeId == null) {
-			return;
-		}
-		navigateTo(KnownNodesFragment.newInstance(hostNodeId), KnownNodesFragment.TAG, true);
+	@Override
+	public void moveToKnownNodesFragment() {
+		withHostNodeId(id -> navigateTo(KnownNodesFragment.newInstance(id), KnownNodesFragment.TAG, true),
+				"Failed to retrieve host node ID. This is an undesirable behavior.");
+	}
+
+	@Override
+	public void moveToSettingsFragment() {
+		withHostNodeAddressName(addressName -> startActivity(SettingsActivity.newIntent(this, addressName)),
+				"Cannot move to settings activity, host node address is null.");
+	}
+
+	@Override
+	public void moveToQrCodeFragment(@Nullable Bundle extra) {
+		withHostNodeAddressName(addressName -> navigateTo(QrCodeFragment.newInstance(addressName, extra),
+						QrCodeFragment.TAG, true),
+				"Cannot move to QrCodeFragment, host node address is null.");
+	}
+
+	@Override
+	public void moveToImportQrCodeFragment() {
+		withHostNodeAddressName(addressName -> navigateTo(ImportQrCodeFragment.newInstance(addressName),
+						ImportQrCodeFragment.TAG, true),
+				"Cannot move to ImportQrCodeFragment, host node address is null.");
 	}
 
 	private void onSetupCompleted() {

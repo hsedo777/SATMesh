@@ -8,7 +8,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -18,14 +17,15 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import org.sedo.satmesh.R;
-import org.sedo.satmesh.SettingsActivity;
 import org.sedo.satmesh.databinding.FragmentChatListBinding;
-import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.ui.adapter.ChatListAdapter;
 import org.sedo.satmesh.ui.data.ChatListItem;
-import org.sedo.satmesh.ui.data.NodeRepository;
+import org.sedo.satmesh.ui.vm.ChatListViewModel;
+import org.sedo.satmesh.ui.vm.ViewModelFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -69,12 +69,13 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 	public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
 							 @Nullable Bundle savedInstanceState) {
 		binding = FragmentChatListBinding.inflate(inflater, container, false);
-		requireActivity().getOnBackPressedDispatcher().addCallback(new OnBackPressedCallback(true) {
-			@Override
-			public void handleOnBackPressed() {
-				requireActivity().finish();
-			}
-		});
+		requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+				new OnBackPressedCallback(true) {
+					@Override
+					public void handleOnBackPressed() {
+						requireActivity().finish();
+					}
+				});
 		return binding.getRoot();
 	}
 
@@ -137,33 +138,27 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 
 		binding.chatListAppBar.setOnMenuItemClickListener(item -> {
 			int id = item.getItemId();
-			if (id == R.id.action_search) {
-				if (discussionMenuListener != null) {
-					discussionMenuListener.moveToSearchFragment(viewModel.getHostNodeId());
+			if (discussionMenuListener != null) {
+				if (id == R.id.action_search) {
+					discussionMenuListener.moveToSearchFragment();
+					return true;
 				}
-				return true;
-			}
-			if (id == R.id.menu_known_nodes) {
-				if (discussionMenuListener != null) {
-					discussionMenuListener.moveToKnownNodesFragment(viewModel.getHostNodeId());
+				if (id == R.id.menu_known_nodes) {
+					discussionMenuListener.moveToKnownNodesFragment();
+					return true;
 				}
-				return true;
-			}
-			if (id == R.id.menu_settings) {
-				executor.execute(() -> {
-					Long localNodeId = viewModel.getHostNodeId();
-					if (localNodeId == null) {
-						Log.e(TAG, "Failed to extract the host node ID from ViewModel");
-						return;
-					}
-					Node localNode = new NodeRepository(requireContext()).findNodeSync(localNodeId);
-					if (localNode == null) {
-						Log.w(TAG, "Unable to fetch the local node from DB.");
-						return;
-					}
-					requireActivity().runOnUiThread(() -> requireActivity().startActivity(SettingsActivity.newIntent(requireContext(), localNode.getAddressName())));
-				});
-				return true;
+				if (id == R.id.menu_settings) {
+					discussionMenuListener.moveToSettingsFragment();
+					return true;
+				}
+				if (id == R.id.menu_generate_qr_code) {
+					discussionMenuListener.moveToQrCodeFragment(null);
+					return true;
+				}
+				if (id == R.id.import_qr_code) {
+					discussionMenuListener.moveToImportQrCodeFragment();
+					return true;
+				}
 			}
 			if (id == R.id.menu_renew_fingerprint) {
 				new AlertDialog.Builder(requireContext())
@@ -176,12 +171,16 @@ public class ChatListFragment extends Fragment implements ChatListAdapter.OnItem
 								signalManager.reinitialize(new SignalManager.SignalInitializationCallback() {
 									@Override
 									public void onSuccess() {
-										requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_success, Toast.LENGTH_LONG).show());
+										if (isAdded()) {
+											requireActivity().runOnUiThread(() -> Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_success, Snackbar.LENGTH_LONG).show());
+										}
 									}
 
 									@Override
 									public void onError(Exception e) {
-										requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), R.string.renew_fingerprint_failed, Toast.LENGTH_LONG).show());
+										if (isAdded()) {
+											requireActivity().runOnUiThread(() -> Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_failed, Snackbar.LENGTH_LONG).show());
+										}
 									}
 								});
 							});

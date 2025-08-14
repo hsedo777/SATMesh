@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/qr_code_root"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical">
+
+	<!-- Toolbar -->
+	<androidx.appcompat.widget.Toolbar
+		android:id="@+id/qr_code_toolbar"
+		android:layout_width="match_parent"
+		android:layout_height="?attr/actionBarSize"
+		app:menu="@menu/menu_qr_code"
+		app:navigationIcon="@drawable/ic_arrow_back"
+		app:title="@string/qr_code_title" />
+
+	<!-- First section : UUID -->
+	<LinearLayout
+		android:id="@+id/input_section"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:padding="@dimen/space_md">
+
+		<EditText
+			android:id="@+id/edit_text_uuid"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:autofillHints="@string/hint_destination_uuid"
+			android:hint="@string/hint_destination_uuid"
+			android:imeOptions="actionDone"
+			android:inputType="text"
+			android:maxLines="2" />
+
+		<Button
+			android:id="@+id/button_generate_qr"
+			style="@style/Widget.SATMesh.Button"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="end"
+			android:text="@string/generate_qr" />
+	</LinearLayout>
+
+	<!-- Second section : error message or QR code -->
+	<FrameLayout
+		android:id="@+id/result_section"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1"
+		android:padding="@dimen/space_xs">
+
+		<!-- Error message -->
+		<TextView
+			android:id="@+id/text_error"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:gravity="center"
+			android:text="@string/invalid_uuid"
+			android:textColor="@color/error"
+			android:visibility="gone" />
+
+		<!-- QR code download invitation -->
+		<TextView
+			android:id="@+id/text_qr_blinking"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_margin="@dimen/space_md"
+			android:gravity="center"
+			android:textColor="@color/error"
+			android:textSize="@dimen/text_size_title"
+			android:textStyle="bold"
+			android:visibility="gone"
+			tools:text="Please, download the displayed QR code."
+			tools:visibility="visible" />
+
+		<!-- QR code image -->
+		<ImageView
+			android:id="@+id/qr_code_image"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:adjustViewBounds="true"
+			android:contentDescription="@string/qr_code_title"
+			android:scaleType="fitCenter"
+			android:visibility="gone" />
+
+		<!-- Progress bar -->
+		<ProgressBar
+			android:id="@+id/qr_code_progress_bar"
+			style="?android:attr/progressBarStyleLarge"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center"
+			android:visibility="gone" />
+	</FrameLayout>
+
+</LinearLayout>

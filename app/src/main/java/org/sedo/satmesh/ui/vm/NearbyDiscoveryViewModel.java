@@ -1,4 +1,4 @@
-package org.sedo.satmesh.ui;
+package org.sedo.satmesh.ui.vm;
 
 import android.app.Application;
 import android.util.Log;
@@ -17,6 +17,7 @@ import org.sedo.satmesh.model.Node;
 import org.sedo.satmesh.nearby.NearbyManager;
 import org.sedo.satmesh.signal.SignalManager;
 import org.sedo.satmesh.signal.store.AndroidSessionStore;
+import org.sedo.satmesh.ui.UiUtils;
 import org.sedo.satmesh.ui.data.NodeDiscoveryItem;
 import org.sedo.satmesh.ui.data.NodeRepository;
 import org.sedo.satmesh.ui.data.NodeTransientState;

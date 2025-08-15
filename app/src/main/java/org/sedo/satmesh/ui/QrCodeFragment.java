@@ -271,7 +271,8 @@ public class QrCodeFragment extends Fragment {
 		viewModel.getIsGenerating().observe(getViewLifecycleOwner(), generating -> {
 			if (generating != null) {
 				binding.qrCodeProgressBar.setVisibility(generating ? View.VISIBLE : View.GONE);
-				binding.buttonGenerateQr.setEnabled(!generating);
+				boolean isBlinking = Boolean.TRUE.equals(viewModel.getIsBlinking().getValue());
+				binding.buttonGenerateQr.setEnabled(!generating && !isBlinking);
 			}
 		});
 

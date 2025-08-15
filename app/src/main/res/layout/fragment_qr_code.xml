@@ -66,7 +66,7 @@
 			android:id="@+id/text_qr_blinking"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_margin="@dimen/space_md"
+			android:layout_marginVertical="@dimen/space_sm"
 			android:gravity="center"
 			android:textColor="@color/error"
 			android:textSize="@dimen/text_size_title"

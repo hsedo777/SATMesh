@@ -288,10 +288,10 @@ public class QrCodeFragment extends Fragment {
 			}
 		});
 
-		viewModel.getIsNewGeneratingToPause().observe(getViewLifecycleOwner(), isToPause -> {
-			if (isToPause != null){
-				binding.buttonGenerateQr.setEnabled(!isToPause);
-				binding.editTextUuid.setEnabled(!isToPause);
+		viewModel.getCanGenerate().observe(getViewLifecycleOwner(), canGenerate -> {
+			if (canGenerate != null) {
+				binding.buttonGenerateQr.setEnabled(canGenerate);
+				binding.editTextUuid.setEnabled(canGenerate);
 			}
 		});
 	}

@@ -72,7 +72,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 	private final MutableLiveData<BiObjectHolder<String, Boolean>> downloadMessage = new MutableLiveData<>();
 	private final MutableLiveData<Boolean> isGenerating = new MutableLiveData<>(false);
 	private final MutableLiveData<Boolean> isBlinking = new MutableLiveData<>(false);
-	private final MediatorLiveData<Boolean> isNewGeneratingToPause = new MediatorLiveData<>();
+	private final MediatorLiveData<Boolean> canGenerate = new MediatorLiveData<>();
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -89,14 +89,14 @@ public class QrCodeViewModel extends AndroidViewModel {
 		super(application);
 		signalManager = SignalManager.getInstance(application);
 		nodeRepository = new NodeRepository(application);
-		isNewGeneratingToPause.addSource(isGenerating, b -> updateTaskState());
-		isNewGeneratingToPause.addSource(isBlinking, b -> updateTaskState());
+		canGenerate.addSource(isGenerating, b -> updateTaskState());
+		canGenerate.addSource(isBlinking, b -> updateTaskState());
 	}
 
 	private void updateTaskState() {
 		boolean generating = Boolean.TRUE.equals(isGenerating.getValue());
 		boolean blinking = Boolean.TRUE.equals(isBlinking.getValue());
-		isNewGeneratingToPause.postValue(!generating && !blinking);
+		canGenerate.postValue(!generating && !blinking);
 	}
 
 	/**
@@ -171,12 +171,12 @@ public class QrCodeViewModel extends AndroidViewModel {
 	}
 
 	/**
-	 * Get the {@code LiveData} for QR code execution state.
+	 * Get the {@code LiveData} for QR code new generating state.
 	 *
 	 * @return A {@code LiveData} representing the state of possibility to execute QR code generating.
 	 */
-	public LiveData<Boolean> getIsNewGeneratingToPause() {
-		return isNewGeneratingToPause;
+	public LiveData<Boolean> getCanGenerate() {
+		return canGenerate;
 	}
 
 	/**

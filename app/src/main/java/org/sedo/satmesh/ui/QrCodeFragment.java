@@ -137,8 +137,8 @@ public class QrCodeFragment extends Fragment {
 		});
 
 		binding.qrCodeToolbar.setOnMenuItemClickListener(item -> {
+			viewModel.setIsBlinking(false);
 			if (item.getItemId() == R.id.action_download) {
-				viewModel.setIsBlinking(false);
 				viewModel.saveQrCodeToGallery();
 				if (getArguments() != null) {
 					getArguments().remove(QrCodeGenerationListener.RECIPIENT_ADDRESS_NAME);
@@ -271,26 +271,27 @@ public class QrCodeFragment extends Fragment {
 		viewModel.getIsGenerating().observe(getViewLifecycleOwner(), generating -> {
 			if (generating != null) {
 				binding.qrCodeProgressBar.setVisibility(generating ? View.VISIBLE : View.GONE);
-				binding.buttonGenerateQr.setEnabled(!generating);
 			}
 		});
 
 		viewModel.getIsBlinking().observe(getViewLifecycleOwner(), blinking -> {
-			boolean isGenerating = Boolean.TRUE.equals(viewModel.getIsGenerating().getValue());
-			boolean isBlinking = isGenerating && blinking != null && blinking;
+			boolean isBlinking = blinking != null && blinking;
 			binding.textQrBlinking.setVisibility(isBlinking ? View.VISIBLE : View.GONE);
 			if (isBlinking) {
 				startBlinking(binding.textQrBlinking, 300);
-				binding.editTextUuid.setEnabled(false);
-				binding.buttonGenerateQr.setEnabled(false);
 			} else {
 				binding.textQrBlinking.clearAnimation();
 				View v = getDownloadMenuView();
 				if (v != null) {
 					v.clearAnimation();
 				}
-				binding.editTextUuid.setEnabled(true);
-				binding.buttonGenerateQr.setEnabled(true);
+			}
+		});
+
+		viewModel.getCanGenerate().observe(getViewLifecycleOwner(), canGenerate -> {
+			if (canGenerate != null) {
+				binding.buttonGenerateQr.setEnabled(canGenerate);
+				binding.editTextUuid.setEnabled(canGenerate);
 			}
 		});
 	}

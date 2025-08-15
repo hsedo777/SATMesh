@@ -13,6 +13,7 @@
 		app:showAsAction="never" />
 
 	<item
-		android:id="@+id/action_renew_chat_fingerprint"
-		android:title="@string/menu_renew_fingerprint" />
+		android:id="@+id/action_clear_chat_fingerprint"
+		android:contentDescription="@string/clear_fingerprint_alert_description"
+		android:title="@string/menu_clear_fingerprint" />
 </menu>

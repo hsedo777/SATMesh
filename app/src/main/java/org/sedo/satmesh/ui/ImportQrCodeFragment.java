@@ -203,8 +203,11 @@ public class ImportQrCodeFragment extends Fragment {
 			if (qrMessage != null) {
 				binding.textQrCodeSource.setText(qrMessage.getSourceUuid());
 				binding.qrCodeSourceContainer.setVisibility(View.VISIBLE);
+				binding.qrCodeActionButton.setVisibility(View.VISIBLE);
+				Snackbar.make(binding.getRoot(), R.string.qr_code_decode_succeed, Snackbar.LENGTH_LONG).show();
 			} else {
 				binding.qrCodeSourceContainer.setVisibility(View.GONE);
+				binding.qrCodeActionButton.setVisibility(View.GONE);
 			}
 		});
 

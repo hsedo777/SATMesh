@@ -189,36 +189,52 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 				return;
 			}
 			if (qrMessage.getType() == QrMessageType.QR_PRE_KEY_BUNDLE_VALUE) {
-				executor.execute(() -> {
-					handler.post(() -> isTaskOnExecution.postValue(true));
-					try {
-						QrIdentity identity = QrIdentity.parseFrom(qrMessage.getData());
-						signalManager.establishSessionFromRemotePreKeyBundle(
-								getAddress(qrMessage.getSourceUuid()),
-								signalManager.deserializePreKeyBundle(identity.getPreKeyBundle().toByteArray()));
-						Log.d(TAG, "Signal secure session established successfully by '" +
-								hostNodeAddressName + "' with '" + qrMessage.getSourceUuid() + "'.");
-						handler.post(() -> callback.accept(true));
-					} catch (InvalidProtocolBufferException e) {
-						Log.e(TAG, "The identity data may have been malformed.", e);
-						handler.post(() -> {
-							errorMessage.postValue(getApplication().getString(R.string.qr_code_invalid_content));
-							callback.accept(false);
+				isTaskOnExecution.postValue(true);
+				// Ensure the node is persisted before secure session establishment
+				nodeRepository.findOrCreateNodeAsync(qrMessage.getSourceUuid(), new NodeCallback() {
+					@Override
+					public void onNodeReady(@NonNull Node node) {
+						executor.execute(() -> {
+							try {
+								QrIdentity identity = QrIdentity.parseFrom(qrMessage.getData());
+								signalManager.establishSessionFromRemotePreKeyBundle(
+										getAddress(qrMessage.getSourceUuid()),
+										signalManager.deserializePreKeyBundle(identity.getPreKeyBundle().toByteArray()));
+								Log.d(TAG, "Signal secure session established successfully by '" +
+										hostNodeAddressName + "' with '" + qrMessage.getSourceUuid() + "'.");
+								handler.post(() -> callback.accept(true));
+							} catch (InvalidProtocolBufferException e) {
+								Log.e(TAG, "The identity data may have been malformed.", e);
+								handler.post(() -> {
+									errorMessage.postValue(getApplication().getString(R.string.qr_code_invalid_content));
+									callback.accept(false);
+								});
+							} catch (InvalidKeyException | UntrustedIdentityException e) {
+								Log.e(TAG, "Failed to establish the Signal secure session.", e);
+								handler.post(() -> {
+									errorMessage.postValue(getApplication().getString(R.string.qr_code_secure_session_failed));
+									callback.accept(false);
+								});
+							} catch (Exception e) {
+								Log.e(TAG, "Failed to establish the Signal secure session.", e);
+								handler.post(() -> {
+									errorMessage.postValue(getApplication().getString(R.string.qr_code_process_failed));
+									callback.accept(false);
+								});
+							} finally {
+								handler.post(() -> isTaskOnExecution.postValue(false));
+							}
 						});
-					} catch (InvalidKeyException | UntrustedIdentityException e) {
-						Log.e(TAG, "Failed to establish the Signal secure session.", e);
-						handler.post(() -> {
-							errorMessage.postValue(getApplication().getString(R.string.qr_code_secure_session_failed));
-							callback.accept(false);
-						});
-					} catch (Exception e) {
-						Log.e(TAG, "Failed to establish the Signal secure session.", e);
+					}
+
+					@Override
+					public void onError(@NonNull String error) {
+						Log.e(TAG, "Failed to persist the node in database, getting error: " + error);
 						handler.post(() -> {
 							errorMessage.postValue(getApplication().getString(R.string.qr_code_process_failed));
 							callback.accept(false);
+							isTaskOnExecution.postValue(false);
 						});
-					} finally {
-						handler.post(() -> isTaskOnExecution.postValue(false));
 					}
 				});
 			} else if (qrMessage.getType() == QrMessageType.QR_PERSONAL_INFO_VALUE) {
@@ -230,6 +246,11 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 								toCiphertextMessage(qrMessage.getData().toByteArray()));
 						PersonalInfo info = PersonalInfo.parseFrom(decryptedData);
 						Log.d(TAG, "Personal information decrypted successfully.");
+						if (!Objects.equals(info.getAddressName(), qrMessage.getSourceUuid())){
+							Log.w(TAG, "Identity usurpation. The message metadata was altered.");
+							handler.post(() -> callback.accept(false));
+							return; // move to finally clause
+						}
 						nodeRepository.findOrCreateNodeAsync(info.getAddressName(), new NodeCallback() {
 							@Override
 							public void onNodeReady(@NonNull Node node) {
@@ -242,6 +263,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 											callback.accept(true);
 										});
 									} else {
+										Log.w(TAG, "Operation os setting the node's personal info up to date failed.");
 										handler.post(() -> {
 											ImportQrCodeViewModel.this.errorMessage.postValue(getApplication().getString(R.string.qr_code_process_failed));
 											isTaskOnExecution.postValue(false);
@@ -265,9 +287,10 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 						Log.e(TAG, "Failed to decrypt the personal information.", e);
 						handler.post(() -> {
 							errorMessage.postValue(getApplication().getString(R.string.qr_code_invalid_content));
-							isTaskOnExecution.postValue(false);
 							callback.accept(false);
 						});
+					} finally {
+						handler.post(() -> isTaskOnExecution.postValue(false));
 					}
 				});
 			} else {
@@ -282,12 +305,15 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 	}
 
 	public void retrieveNodeAsync(String addressName, Consumer<Node> onReady) {
-		try {
-			Node node = nodeRepository.findNodeSync(addressName);
-			handler.post(() -> onReady.accept(node));
-		} catch (Exception e) {
-			handler.post(() -> onReady.accept(null));
-		}
+		executor.execute(() -> {
+			try {
+				Node node = nodeRepository.findNodeSync(addressName);
+				handler.post(() -> onReady.accept(node));
+			} catch (Exception e) {
+				Log.e(TAG, "Failed to fetch the node from DB.");
+				handler.post(() -> onReady.accept(null));
+			}
+		});
 	}
 
 	@Override

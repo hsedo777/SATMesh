@@ -24,6 +24,7 @@ import androidx.annotation.NonNull;
 import androidx.core.content.FileProvider;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.google.protobuf.ByteString;
@@ -71,6 +72,7 @@ public class QrCodeViewModel extends AndroidViewModel {
 	private final MutableLiveData<BiObjectHolder<String, Boolean>> downloadMessage = new MutableLiveData<>();
 	private final MutableLiveData<Boolean> isGenerating = new MutableLiveData<>(false);
 	private final MutableLiveData<Boolean> isBlinking = new MutableLiveData<>(false);
+	private final MediatorLiveData<Boolean> isNewGeneratingToPause = new MediatorLiveData<>();
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -87,6 +89,14 @@ public class QrCodeViewModel extends AndroidViewModel {
 		super(application);
 		signalManager = SignalManager.getInstance(application);
 		nodeRepository = new NodeRepository(application);
+		isNewGeneratingToPause.addSource(isGenerating, b -> updateTaskState());
+		isNewGeneratingToPause.addSource(isBlinking, b -> updateTaskState());
+	}
+
+	private void updateTaskState() {
+		boolean generating = Boolean.TRUE.equals(isGenerating.getValue());
+		boolean blinking = Boolean.TRUE.equals(isBlinking.getValue());
+		isNewGeneratingToPause.postValue(!generating && !blinking);
 	}
 
 	/**
@@ -158,6 +168,15 @@ public class QrCodeViewModel extends AndroidViewModel {
 
 	public void setIsBlinking(boolean isBlinking) {
 		this.isBlinking.postValue(isBlinking);
+	}
+
+	/**
+	 * Get the {@code LiveData} for QR code execution state.
+	 *
+	 * @return A {@code LiveData} representing the state of possibility to execute QR code generating.
+	 */
+	public LiveData<Boolean> getIsNewGeneratingToPause() {
+		return isNewGeneratingToPause;
 	}
 
 	/**

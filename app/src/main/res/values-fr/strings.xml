@@ -82,10 +82,14 @@
 	<string name="menu_generate_qr">Générer un QR</string>
 	<string name="menu_import_qr">Importer un QR</string>
 	<string name="menu_help_feedback">Aide &amp; Retour</string>
-	<string name="menu_renew_fingerprint">Réinitialiser l’empreinte</string>
+	<string name="menu_renew_fingerprint">Réinitialiser l\’empreinte</string>
 	<string name="renew_fingerprint_alert_description">Voulez-vous vraiment réinitialiser votre empreinte cryptographique ? Cette action ne peut pas être annulée.</string>
 	<string name="renew_fingerprint_success">Empreinte cryptographique réinitialisée avec succès!</string>
 	<string name="renew_fingerprint_failed">Échec de réinitialisation de l\'empreinte cryptographique.</string>
+	<string name="menu_clear_fingerprint">Effacer l\'empreinte</string>
+	<string name="clear_fingerprint_alert_description">Voulez-vous vraiment effacer votre empreinte cryptographique avec cet utilisateur ? Cette action ne peut pas être annulée.</string>
+	<string name="clear_fingerprint_success">Empreinte cryptographique effacée avec succès!</string>
+	<string name="clear_fingerprint_failed">Échec de l\'effacement de l\'empreinte cryptographique.</string>
 	<string name="menu_about">À propos</string>
 	<string name="menu_quit">Quitter</string>
 
@@ -198,6 +202,7 @@
 	<string name="qr_code_self_targeting">Il s\'agit d\'un code QR généré par auto-ciblage. Il n\'est pas utilisable.</string>
 	<string name="qr_code_stealing_use">Ce code QR est adressé à un autre utilisateur, pas à vous.</string>
 	<string name="qr_code_decode_failed">Échec de décodage du code QR.</string>
+	<string name="qr_code_decode_succeed">Code QR décodé avec succès. Vous pouvez procéder à l\'exécution en cliquant sur le bouton flottant en bas.</string>
 	<string name="qr_code_import_from_image_failed">Échec de l\'importation du code QR depuis l\'image.</string>
 	<string name="preview">Aperçu</string>
 	<string name="execute">Executer</string>

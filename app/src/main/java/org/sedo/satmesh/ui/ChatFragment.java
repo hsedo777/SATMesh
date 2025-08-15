@@ -345,19 +345,19 @@ public class ChatFragment extends Fragment {
 					Snackbar.make(binding.getRoot(), result, Snackbar.LENGTH_LONG).show();
 				}
 				return true;
-			} else if (itemId == R.id.action_renew_chat_fingerprint) {
+			} else if (itemId == R.id.action_clear_chat_fingerprint) {
 				new AlertDialog.Builder(requireContext())
-						.setTitle(R.string.menu_renew_fingerprint)
-						.setMessage(R.string.renew_fingerprint_alert_description)
-						.setPositiveButton(R.string.menu_renew_fingerprint, (dialog, which) -> {
+						.setTitle(R.string.menu_clear_fingerprint)
+						.setMessage(R.string.clear_fingerprint_alert_description)
+						.setPositiveButton(R.string.menu_clear_fingerprint, (dialog, which) -> {
 							Log.d(TAG, "Confirmation received. Delete the if exists the current secure session with the remote node.");
 							viewModel.renewChatFingerprint(success -> {
 								if (isAdded()) {
 									requireActivity().runOnUiThread(() -> {
 										if (success) {
-											Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_success, Snackbar.LENGTH_SHORT).show();
+											Snackbar.make(binding.getRoot(), R.string.clear_fingerprint_success, Snackbar.LENGTH_SHORT).show();
 										} else {
-											Snackbar.make(binding.getRoot(), R.string.renew_fingerprint_failed, Snackbar.LENGTH_SHORT).show();
+											Snackbar.make(binding.getRoot(), R.string.clear_fingerprint_failed, Snackbar.LENGTH_SHORT).show();
 										}
 									});
 								}

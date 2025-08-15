@@ -82,7 +82,7 @@
 	<string name="menu_generate_qr">Générer un QR</string>
 	<string name="menu_import_qr">Importer un QR</string>
 	<string name="menu_help_feedback">Aide &amp; Retour</string>
-	<string name="menu_renew_fingerprint">Réinitialiser l\’empreinte</string>
+	<string name="menu_renew_fingerprint">Réinitialiser l\'empreinte</string>
 	<string name="renew_fingerprint_alert_description">Voulez-vous vraiment réinitialiser votre empreinte cryptographique ? Cette action ne peut pas être annulée.</string>
 	<string name="renew_fingerprint_success">Empreinte cryptographique réinitialisée avec succès!</string>
 	<string name="renew_fingerprint_failed">Échec de réinitialisation de l\'empreinte cryptographique.</string>

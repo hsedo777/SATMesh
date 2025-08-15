@@ -249,6 +249,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 						if (!Objects.equals(info.getAddressName(), qrMessage.getSourceUuid())){
 							Log.w(TAG, "Identity usurpation. The message metadata was altered.");
 							handler.post(() -> {
+								errorMessage.postValue(getApplication().getString(R.string.qr_code_invalid_content));
 								callback.accept(false);
 								isTaskOnExecution.postValue(false);
 							});
@@ -268,7 +269,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 									} else {
 										Log.w(TAG, "Operation of setting the node's personal info up to date failed.");
 										handler.post(() -> {
-											ImportQrCodeViewModel.this.errorMessage.postValue(getApplication().getString(R.string.qr_code_process_failed));
+											errorMessage.postValue(getApplication().getString(R.string.qr_code_process_failed));
 											isTaskOnExecution.postValue(false);
 											callback.accept(false);
 										});

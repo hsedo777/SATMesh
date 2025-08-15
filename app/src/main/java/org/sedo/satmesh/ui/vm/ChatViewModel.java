@@ -516,7 +516,7 @@ public class ChatViewModel extends AndroidViewModel {
 	 *
 	 * @param callback Called when the operation is complete.
 	 */
-	public void renewChatFingerprint(Consumer<Boolean> callback) {
+	public void clearChatFingerprint(Consumer<Boolean> callback) {
 		executor.execute(() -> {
 			Node remoteNode = remoteNodeLiveData.getValue();
 			if (remoteNode == null) {

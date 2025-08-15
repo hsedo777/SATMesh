@@ -351,7 +351,7 @@ public class ChatFragment extends Fragment {
 						.setMessage(R.string.clear_fingerprint_alert_description)
 						.setPositiveButton(R.string.menu_clear_fingerprint, (dialog, which) -> {
 							Log.d(TAG, "Confirmation received. Delete the if exists the current secure session with the remote node.");
-							viewModel.renewChatFingerprint(success -> {
+							viewModel.clearChatFingerprint(success -> {
 								if (isAdded()) {
 									requireActivity().runOnUiThread(() -> {
 										if (success) {

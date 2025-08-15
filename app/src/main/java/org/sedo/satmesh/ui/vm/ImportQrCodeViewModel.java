@@ -248,8 +248,11 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 						Log.d(TAG, "Personal information decrypted successfully.");
 						if (!Objects.equals(info.getAddressName(), qrMessage.getSourceUuid())){
 							Log.w(TAG, "Identity usurpation. The message metadata was altered.");
-							handler.post(() -> callback.accept(false));
-							return; // move to finally clause
+							handler.post(() -> {
+								callback.accept(false);
+								isTaskOnExecution.postValue(false);
+							});
+							return;
 						}
 						nodeRepository.findOrCreateNodeAsync(info.getAddressName(), new NodeCallback() {
 							@Override
@@ -263,7 +266,7 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 											callback.accept(true);
 										});
 									} else {
-										Log.w(TAG, "Operation os setting the node's personal info up to date failed.");
+										Log.w(TAG, "Operation of setting the node's personal info up to date failed.");
 										handler.post(() -> {
 											ImportQrCodeViewModel.this.errorMessage.postValue(getApplication().getString(R.string.qr_code_process_failed));
 											isTaskOnExecution.postValue(false);
@@ -287,10 +290,9 @@ public class ImportQrCodeViewModel extends AndroidViewModel {
 						Log.e(TAG, "Failed to decrypt the personal information.", e);
 						handler.post(() -> {
 							errorMessage.postValue(getApplication().getString(R.string.qr_code_invalid_content));
+							isTaskOnExecution.postValue(false);
 							callback.accept(false);
 						});
-					} finally {
-						handler.post(() -> isTaskOnExecution.postValue(false));
 					}
 				});
 			} else {
